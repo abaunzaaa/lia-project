@@ -1,0 +1,48 @@
+# =========================
+# VARIABLES DE ENTORNO
+# =========================
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# =========================
+# NODE
+# =========================
+node_modules/
+**/node_modules/
+
+# =========================
+# EXPO / REACT NATIVE
+# =========================
+.expo/
+.expo-shared/
+dist/
+build/
+web-build/
+
+# =========================
+# ARCHIVOS DE SECRETOS
+# =========================
+secrets.h
+**/secrets.h
+secrets.json
+**/secrets.json
+
+# =========================
+# SISTEMA / EDITORES
+# =========================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# =========================
+# LOGS
+# =========================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

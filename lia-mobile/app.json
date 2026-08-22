@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "LIA",
+    "slug": "lia-mobile",
+    "version": "1.0.0",
+    "sdkVersion": "54.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#6FA8DC",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.lia.medications"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#6FA8DC"
+      },
+      "package": "com.lia.medications",
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "SCHEDULE_EXACT_ALARM"
+      ]
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "color": "#6FA8DC"
+        }
+      ]
+    ],
+    "extra": {
+      "apiUrl": "http://localhost:3000/api"
+    }
+  }
+}
