@@ -10,8 +10,8 @@ import { esp32Middleware } from '../middleware';
 const router = Router();
 
 /**
- * Reporte desde ESP32-CAM (resultado ya reconocido en dispositivo).
- * SIN JWT de usuario; auth de dispositivo vía esp32Middleware si aplica.
+ * Reporte desde ESP32 de audio (copia del texto ya hablado).
+ * SIN JWT de usuario; auth de dispositivo vía X-Device-Token si ESP32_DEVICE_TOKEN está definido.
  */
 router.post('/device-result', esp32Middleware, reportDeviceResult);
 

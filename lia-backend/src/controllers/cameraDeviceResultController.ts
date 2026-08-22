@@ -9,15 +9,23 @@ import { parseCameraDeviceRaw } from '../utils/parseCameraDeviceRaw';
 
 const deviceResultSchema = z
   .object({
+    deviceId: z.string().max(120).optional(),
+    text: z.string().max(8000).optional(),
     rawResult: z.string().max(8000).optional(),
     voiceText: z.string().max(8000).optional(),
     medicationName: z.string().max(200).optional(),
   })
-  .refine((body) => Boolean(body.rawResult?.trim() || body.medicationName?.trim()), {
-    message: 'rawResult es obligatorio.',
-  });
+  .refine(
+    (body) =>
+      Boolean(
+        body.text?.trim() || body.rawResult?.trim() || body.medicationName?.trim()
+      ),
+    {
+      message: 'text es obligatorio.',
+    }
+  );
 
-function extractDeviceId(req: Request): string | undefined {
+function headerDeviceId(req: Request): string | undefined {
   const raw = req.headers['x-device-id'];
   if (Array.isArray(raw)) {
     const first = raw[0]?.trim();
@@ -32,18 +40,20 @@ function extractDeviceId(req: Request): string | undefined {
 
 /**
  * POST /api/camera/device-result
- * La ESP32-CAM reporta el texto bruto de Gemini. El backend interpreta y completa la sesión.
+ * El ESP32 de audio reporta el texto que ya reprodujo (copia del Serial).
+ * Acepta { deviceId, text } o el formato previo { rawResult }.
  */
 export async function reportDeviceResult(req: Request, res: Response) {
   try {
-    const deviceId = extractDeviceId(req);
+    const parsedBody = deviceResultSchema.parse(req.body ?? {});
+    const deviceId = (headerDeviceId(req) || parsedBody.deviceId?.trim() || '').trim();
     if (!deviceId) {
       if (process.env.NODE_ENV !== 'production') {
         console.warn('[camera-device-result] deviceId=(missing)');
       }
       return res.status(400).json({
         success: false,
-        message: 'Header X-Device-Id es obligatorio.',
+        message: 'deviceId es obligatorio.',
       });
     }
 
@@ -51,8 +61,7 @@ export async function reportDeviceResult(req: Request, res: Response) {
       console.log(`[camera-device-result] received deviceId=${deviceId}`);
     }
 
-    const parsedBody = deviceResultSchema.parse(req.body ?? {});
-    const rawResult = parsedBody.rawResult?.trim() || '';
+    const rawResult = (parsedBody.text?.trim() || parsedBody.rawResult?.trim() || '');
     const hasRaw = rawResult.length > 0;
 
     if (process.env.NODE_ENV !== 'production') {

@@ -109,8 +109,51 @@ async function handleHttpError(response: Response): Promise<never> {
   throw new CameraApiError(friendlyMessage(response.status, raw, false), response.status);
 }
 
+function stripSimpleMarkdown(value: string): string {
+  return value.replace(/\*\*/g, '').replace(/\*/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function isUsableProductName(value: string): boolean {
+  const name = stripSimpleMarkdown(value);
+  if (!name) return false;
+  if (/^medicamento identificado$/i.test(name)) return false;
+  if (/^NO_IDENTIFICADO$/i.test(name)) return false;
+  if (name.length < 2 || name.length > 80) return false;
+  const words = name.split(/\s+/).filter(Boolean);
+  if (words.length > 8) return false;
+  if (/https?:\/\//i.test(name)) return false;
+  if (/[{}\[\]<>]/.test(name)) return false;
+  return /^[\p{L}\p{N}][\p{L}\p{N}\s.'’\-\/()+,]*$/u.test(name);
+}
+
+function usableNameOrNull(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const cleaned = stripSimpleMarkdown(value);
+  return isUsableProductName(cleaned) ? cleaned : null;
+}
+
+/** Extrae un nombre corto del texto ya reconocido. No llama a IA. */
+function extractNameFromRecognizedText(raw: string): string | null {
+  const text = stripSimpleMarkdown(raw);
+  if (!text) return null;
+
+  const intro = text.match(
+    /(?:el\s+)?(?:producto|medicamento|fármaco|farmaco)\s+es\s+([^,.]+)/i
+  );
+  const fromIntro = usableNameOrNull(intro?.[1]);
+  if (fromIntro) return fromIntro;
+
+  const bold = raw.match(/\*\*([^*]{2,80})\*\*/);
+  const fromBold = usableNameOrNull(bold?.[1]);
+  if (fromBold) return fromBold;
+
+  const firstSentence = text.split(/[.!?]/)[0]?.trim() || '';
+  return usableNameOrNull(firstSentence);
+}
+
 /**
  * Normaliza resultado de poll recognized → campos de UI.
+ * "Medicamento identificado" es solo label visual; nunca se usa como nombre.
  */
 export function normalizeCameraResult(
   poll: CameraPollRecognized
@@ -124,7 +167,8 @@ export function normalizeCameraResult(
   const info = poll.result?.patientInfo;
   const voiceFallback =
     typeof poll.result?.voiceText === 'string' ? poll.result.voiceText.trim() : '';
-  const name = (info?.name || poll.result?.name || '').trim();
+  const structuredName = usableNameOrNull(info?.name) || usableNameOrNull(poll.result?.name);
+  const name = structuredName || extractNameFromRecognizedText(voiceFallback) || '';
   if (!name && !voiceFallback) return null;
 
   const source =
@@ -133,7 +177,7 @@ export function normalizeCameraResult(
       : null;
 
   return {
-    name: name || 'Medicamento identificado',
+    name,
     activeIngredient: info?.genericName?.trim() || null,
     purpose: info?.purpose?.trim() || voiceFallback || null,
     importantPoints: Array.isArray(info?.importantInformation)

@@ -45,7 +45,10 @@ type RecognizedView = {
   source: string | null;
 };
 
-const POLL_MS = 1800;
+const POLL_MS = 2000;
+const WAIT_TIMEOUT_MS = 90_000;
+const TIMEOUT_MESSAGE =
+  'No recibimos una respuesta todavía. Puedes intentarlo nuevamente.';
 
 export default function CameraGuideScreen({ navigation }: Props) {
   const { scaleSpacing, scaleFont, minTouch, voiceEnabled } = useAccessibility();
@@ -62,6 +65,7 @@ export default function CameraGuideScreen({ navigation }: Props) {
 
   const sessionIdRef = useRef<string | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const waitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const focusedRef = useRef(true);
   const networkFailRef = useRef(0);
   const creationInProgressRef = useRef(false);
@@ -72,6 +76,10 @@ export default function CameraGuideScreen({ navigation }: Props) {
     if (pollTimerRef.current) {
       clearInterval(pollTimerRef.current);
       pollTimerRef.current = null;
+    }
+    if (waitTimeoutRef.current) {
+      clearTimeout(waitTimeoutRef.current);
+      waitTimeoutRef.current = null;
     }
   }, []);
 
@@ -193,10 +201,10 @@ export default function CameraGuideScreen({ navigation }: Props) {
             setPhase(current.status === 'expired' ? 'expired' : 'error');
             setErrorMsg(
               current.status === 'expired'
-                ? 'No recibimos una identificación de la cámara.'
+                ? TIMEOUT_MESSAGE
                 : 'message' in current && current.message
                   ? current.message
-                  : 'No pudimos reconocer el medicamento.'
+                  : TIMEOUT_MESSAGE
             );
           }
         } catch (e) {
@@ -223,6 +231,16 @@ export default function CameraGuideScreen({ navigation }: Props) {
         pollTimerRef.current = setInterval(() => {
           void poll();
         }, POLL_MS);
+        waitTimeoutRef.current = setTimeout(() => {
+          if (resolved || generation !== attemptGenerationRef.current) return;
+          resolved = true;
+          stopPolling();
+          if (__DEV__) {
+            console.log('[camera-mobile] polling-stopped reason=timeout');
+          }
+          setPhase('expired');
+          setErrorMsg(TIMEOUT_MESSAGE);
+        }, WAIT_TIMEOUT_MS);
       }
     } catch (e) {
       if (generation !== attemptGenerationRef.current) return;
@@ -239,19 +257,23 @@ export default function CameraGuideScreen({ navigation }: Props) {
   }, [setPendingResult, stopPolling]);
 
   const handleAdd = () => {
-    if (!result?.name) return;
-    const nameNorm = normalizeMedicationName(result.name);
-    const exists = medications.some((m) => normalizeMedicationName(m.name) === nameNorm);
-    if (exists) {
-      setToast({
-        visible: true,
-        message: 'Este medicamento ya está registrado.',
-        type: 'error',
-      });
-      return;
+    const prefilledName = result?.name?.trim() || '';
+    if (prefilledName) {
+      const nameNorm = normalizeMedicationName(prefilledName);
+      const exists = medications.some((m) => normalizeMedicationName(m.name) === nameNorm);
+      if (exists) {
+        setToast({
+          visible: true,
+          message: 'Este medicamento ya está registrado.',
+          type: 'error',
+        });
+        return;
+      }
     }
     clearPendingResult();
-    navigation.navigate('AddMedication', { prefilled: { name: result.name } });
+    navigation.navigate('AddMedication', {
+      prefilled: prefilledName ? { name: prefilledName } : {},
+    });
   };
 
   const handleDismiss = () => {
@@ -384,15 +406,20 @@ export default function CameraGuideScreen({ navigation }: Props) {
             </AppText>
             <Button
               title="Siguiente"
-              onPress={() => setPhase('step3')}
+              onPress={() => void startSessionAndPoll()}
               style={{ marginTop: scaleSpacing(Space[20]) }}
+              accessibilityLabel="Siguiente"
+              accessibilityHint="Pasa a esperar la identificación con el pulsador físico de LIA"
             />
           </SurfaceCard>
         ) : null}
 
-        {phase === 'step3' ? (
-          <SurfaceCard variant="default" style={{ backgroundColor: cardBg }}>
-            <View style={styles.stepNumRow}>
+        {phase === 'waiting' ? (
+          <View
+            style={styles.waitingWrap}
+            accessibilityLabel="Presiona el pulsador físico de LIA. LIA está identificando tu medicamento"
+          >
+            <View style={[styles.stepNumRow, { marginBottom: scaleSpacing(Space[16]) }]}>
               <View
                 style={[
                   styles.stepNum,
@@ -411,44 +438,26 @@ export default function CameraGuideScreen({ navigation }: Props) {
                 </AppText>
               </View>
               <AppText variant="medicationName" style={{ flex: 1, flexShrink: 1 }}>
-                Presiona el botón rojo
+                Presiona el pulsador físico de LIA
               </AppText>
             </View>
-            <AppText variant="body" tone="secondary" style={{ marginTop: scaleSpacing(Space[12]) }}>
-              Mantén oprimido el botón rojo de la cámara unos segundos. Verás un flash blanco y
-              luego esperaremos la respuesta de LIA.
-            </AppText>
-            <View style={styles.redHint}>
-              <View style={styles.redDot} />
-              <AppText variant="caption" tone="secondary" style={{ flexShrink: 1 }}>
-                Usa el botón físico de la cámara — no hay captura desde la app.
-              </AppText>
-            </View>
-            <Button
-              title="Listo, estoy preparado"
-              onPress={() => void startSessionAndPoll()}
-              style={{ marginTop: scaleSpacing(Space[20]) }}
-              accessibilityLabel="Listo, estoy preparado"
-              accessibilityHint="Inicia la espera del reconocimiento por la cámara LIA"
-            />
-          </SurfaceCard>
-        ) : null}
-
-        {phase === 'waiting' ? (
-          <View style={styles.waitingWrap} accessibilityLabel="Esperando reconocimiento">
             <ActivityIndicator size="large" color={colors.primary} />
             <AppText
               variant="body"
               style={{ marginTop: scaleSpacing(Space[16]), textAlign: 'center', flexShrink: 1 }}
             >
-              Esperando la respuesta de LIA…
+              LIA está identificando tu medicamento…
             </AppText>
             <AppText
               variant="caption"
               tone="secondary"
-              style={{ marginTop: scaleSpacing(Space[8]), textAlign: 'center' }}
+              style={{
+                marginTop: scaleSpacing(Space[8]),
+                textAlign: 'center',
+                flexShrink: 1,
+              }}
             >
-              Presiona el botón rojo de la cámara si aún no lo has hecho.
+              Usa el pulsador físico de la cámara. No hay captura desde la app.
             </AppText>
           </View>
         ) : null}
@@ -457,7 +466,7 @@ export default function CameraGuideScreen({ navigation }: Props) {
           <View>
             <EmptyLike message={errorMsg} />
             <Button
-              title="Intentar nuevamente"
+              title="Intentar de nuevo"
               onPress={() => {
                 setErrorMsg(null);
                 setResult(null);
@@ -498,7 +507,7 @@ export default function CameraGuideScreen({ navigation }: Props) {
               Medicamento identificado
             </AppText>
             <AppText variant="medicationName" style={{ flexShrink: 1 }}>
-              {result.name}
+              {result.name.trim() ? result.name : 'Medicamento identificado'}
             </AppText>
             {result.activeIngredient ? (
               <AppText variant="body" tone="secondary" style={{ marginTop: 4, flexShrink: 1 }}>
@@ -506,9 +515,14 @@ export default function CameraGuideScreen({ navigation }: Props) {
               </AppText>
             ) : null}
             {result.purpose ? (
-              <AppText variant="body" style={{ marginTop: scaleSpacing(Space[12]), flexShrink: 1 }}>
-                {result.purpose}
-              </AppText>
+              <View style={{ marginTop: scaleSpacing(Space[12]) }}>
+                <AppText variant="label" style={{ marginBottom: scaleSpacing(Space[8]) }}>
+                  ¿Para qué se utiliza?
+                </AppText>
+                <AppText variant="body" style={{ flexShrink: 1 }}>
+                  {result.purpose}
+                </AppText>
+              </View>
             ) : null}
             {result.importantPoints.length > 0 ? (
               <View style={{ marginTop: scaleSpacing(Space[12]), gap: scaleSpacing(Space[8]) }}>
