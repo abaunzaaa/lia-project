@@ -53,7 +53,7 @@ export default function RegisterScreen({ navigation }: Props) {
   const subtitleColor = isHighContrast ? '#E8E8E8' : isDark ? BrandColors.skyBlue : BrandColors.teal;
   const iconColor = isHighContrast ? BrandColors.white : isDark ? BrandColors.skyBlue : BrandColors.teal;
   const backColor = isHighContrast ? BrandColors.white : isDark ? BrandColors.beige : BrandColors.navy;
-  const checkOk = isHighContrast ? BrandColors.white : BrandColors.teal;
+  const checkOk = isHighContrast ? BrandColors.white : isDark ? BrandColors.skyBlue : BrandColors.teal;
   const checkPending = isHighContrast ? '#888888' : BrandColors.skyBlue;
 
   const pwd = useMemo(() => passwordRequirements(password), [password]);
@@ -323,7 +323,7 @@ export default function RegisterScreen({ navigation }: Props) {
               <AppText
                 variant="body"
                 style={{
-                  color: isHighContrast ? BrandColors.white : BrandColors.navy,
+                  color: isHighContrast ? BrandColors.white : isDark ? BrandColors.beige : BrandColors.navy,
                   fontFamily: FontFamily.semiBold,
                   fontWeight: FontWeight.semiBold,
                 }}

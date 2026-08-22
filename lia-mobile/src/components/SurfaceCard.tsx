@@ -45,6 +45,6 @@ export default function SurfaceCard({ children, variant = 'default', style }: Su
 
 const styles = StyleSheet.create({
   base: {
-    overflow: 'hidden',
+    overflow: 'visible',
   },
 });

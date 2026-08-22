@@ -24,7 +24,7 @@ type Props = {
 
 export default function TimeOfDayPicker({ label, valueHhmm, onChange, onRemove }: Props) {
   const { colors, isHighContrast, isDark } = useTheme();
-  const { scaleSpacing, minTouch, scaleFont } = useAccessibility();
+  const { scaleSpacing, minTouch, scaleFont, isSeniorMode } = useAccessibility();
   const { isSmallPhone } = useResponsive();
   const [open, setOpen] = useState<'hour' | 'minute' | 'period' | null>(null);
 
@@ -62,8 +62,8 @@ export default function TimeOfDayPicker({ label, valueHhmm, onChange, onRemove }
           borderWidth: isHighContrast ? 2 : 1,
           opacity: pressed ? 0.88 : 1,
           paddingHorizontal: scaleSpacing(Space[12]),
-          flex: isSmallPhone ? undefined : 1,
-          minWidth: isSmallPhone ? '30%' : 0,
+          flex: isSmallPhone || isSeniorMode ? undefined : 1,
+          minWidth: isSmallPhone || isSeniorMode ? '30%' : 0,
         },
       ]}
     >
@@ -73,7 +73,7 @@ export default function TimeOfDayPicker({ label, valueHhmm, onChange, onRemove }
       <Ionicons
         name="chevron-down"
         size={scaleFont(16)}
-        color={isHighContrast ? colors.textPrimary : BrandColors.teal}
+        color={isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.teal}
       />
     </Pressable>
   );
@@ -96,7 +96,7 @@ export default function TimeOfDayPicker({ label, valueHhmm, onChange, onRemove }
           >
             <AppText
               variant="caption"
-              style={{ color: isHighContrast ? colors.textPrimary : BrandColors.teal }}
+              style={{ color: isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.teal }}
             >
               Quitar
             </AppText>
@@ -107,7 +107,7 @@ export default function TimeOfDayPicker({ label, valueHhmm, onChange, onRemove }
       <View
         style={[
           styles.row,
-          isSmallPhone && styles.rowWrap,
+          (isSmallPhone || isSeniorMode) && styles.rowWrap,
           { gap: scaleSpacing(Space[8]) },
         ]}
       >
@@ -131,7 +131,10 @@ export default function TimeOfDayPicker({ label, valueHhmm, onChange, onRemove }
           value: String(i + 1),
           label: String(i + 1),
         }))}
-        onSelect={(v) => update({ hour12: parseInt(v, 10) })}
+        onSelect={(v) => {
+          update({ hour12: parseInt(v, 10) });
+          setOpen(null);
+        }}
         onClose={() => setOpen(null)}
       />
 
@@ -155,7 +158,10 @@ export default function TimeOfDayPicker({ label, valueHhmm, onChange, onRemove }
               label: String(m).padStart(2, '0'),
             })),
         ]}
-        onSelect={(v) => update({ minute: parseInt(v, 10) })}
+        onSelect={(v) => {
+          update({ minute: parseInt(v, 10) });
+          setOpen(null);
+        }}
         onClose={() => setOpen(null)}
       />
 
@@ -167,7 +173,10 @@ export default function TimeOfDayPicker({ label, valueHhmm, onChange, onRemove }
           { value: 'am', label: 'a. m.' },
           { value: 'pm', label: 'p. m.' },
         ]}
-        onSelect={(v) => update({ period: v as 'am' | 'pm' })}
+        onSelect={(v) => {
+          update({ period: v as 'am' | 'pm' });
+          setOpen(null);
+        }}
         onClose={() => setOpen(null)}
       />
     </View>

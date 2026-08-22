@@ -22,7 +22,7 @@ import { useCameraRecognition } from '../context/CameraRecognitionContext';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useTheme } from '../context/ThemeContext';
 import { useResponsive } from '../hooks/useResponsive';
-import { BrandColors } from '../theme/brand';
+import { BrandColors, brandInk, brandAccent } from '../theme/brand';
 import { Radius, Space } from '../theme/tokens';
 import { getGreeting, normalizeMedicationName } from '../utils/helpers';
 import { formatTimeForDisplay } from '../utils/dateTime';
@@ -42,7 +42,7 @@ export default function HomeScreen({ navigation }: Props) {
   const { medications, loading: medsLoading } = useMedications();
   const { nextDoseGroup, todayReminders, homeLoading, refreshHome } = useReminders();
   const { pendingResult, clearPendingResult } = useCameraRecognition();
-  const { scaleSpacing, minTouch, scaleFont } = useAccessibility();
+  const { scaleSpacing, minTouch, scaleFont, isSeniorMode } = useAccessibility();
   const { colors, isHighContrast, isDark } = useTheme();
   const { compact } = useResponsive();
   const [toast, setToast] = React.useState({ visible: false, message: '', type: 'error' as const });
@@ -179,7 +179,7 @@ export default function HomeScreen({ navigation }: Props) {
             <AppText
               variant="overline"
               style={{
-                color: isHighContrast ? colors.textSecondary : BrandColors.teal,
+                color: isHighContrast ? colors.textSecondary : brandAccent(isDark, isHighContrast, colors.primary, colors.textPrimary),
                 marginBottom: scaleSpacing(Space[8]),
               }}
             >
@@ -219,6 +219,30 @@ export default function HomeScreen({ navigation }: Props) {
           </SurfaceCard>
         ) : null}
 
+        <View style={{ gap: scaleSpacing(Space[12]), marginBottom: scaleSpacing(Space[20]) }}>
+          <Button
+            title="Identificar medicamento manualmente"
+            variant="outline"
+            onPress={() => navigation.navigate('DrugSearch')}
+            icon={
+              <Ionicons
+                name="search"
+                size={scaleFont(20)}
+                color={isHighContrast ? colors.textPrimary : colors.primary}
+              />
+            }
+            accessibilityLabel="Identificar medicamento manualmente"
+            accessibilityHint="Busca un medicamento por su nombre"
+          />
+          <Button
+            title="Identificar con cámara LIA"
+            onPress={() => navigation.navigate('CameraGuide')}
+            icon={<Ionicons name="camera" size={scaleFont(20)} color={colors.onPrimary} />}
+            accessibilityLabel="Identificar con cámara LIA"
+            accessibilityHint="Abre la guía de la cámara física LIA"
+          />
+        </View>
+
         {showBootstrapLoading ? (
           <View style={styles.loadingWrap}>
             <ActivityIndicator size="large" color={colors.primary} />
@@ -227,9 +251,7 @@ export default function HomeScreen({ navigation }: Props) {
           <EmptyState
             icon="medkit-outline"
             title="Aún no hay medicamentos"
-            description="Agrega tu primer medicamento para que LIA pueda acompañarte en cada toma."
-            actionLabel="Agregar medicamento"
-            onAction={() => navigation.navigate('AddMedication', {})}
+            description="Identifica un medicamento con la cámara LIA o de forma manual para empezar. También puedes agregarlo después desde Medicamentos."
           />
         ) : (
           <>
@@ -245,6 +267,7 @@ export default function HomeScreen({ navigation }: Props) {
                 accessibilityHint="Abre la pestaña Recordatorios"
                 style={({ pressed }) => [
                   styles.missedBanner,
+                  isSeniorMode && styles.missedBannerStack,
                   {
                     backgroundColor: isHighContrast
                       ? colors.surface
@@ -271,7 +294,7 @@ export default function HomeScreen({ navigation }: Props) {
                 <AppText
                   variant="label"
                   style={{
-                    color: isHighContrast ? colors.textPrimary : BrandColors.teal,
+                    color: isHighContrast ? colors.textPrimary : brandAccent(isDark, isHighContrast, colors.primary, colors.textPrimary),
                     flexShrink: 0,
                   }}
                 >
@@ -300,14 +323,13 @@ export default function HomeScreen({ navigation }: Props) {
                       ? colors.surfaceElevated
                       : BrandColors.skyBlue,
                   borderTopWidth: 0,
-                  overflow: 'hidden',
                   maxWidth: '100%',
                 }}
               >
                 <AppText
                   variant="overline"
                   style={{
-                    color: isHighContrast ? colors.textSecondary : BrandColors.navy,
+                    color: isHighContrast ? colors.textSecondary : brandInk(isDark, isHighContrast, colors.textPrimary),
                     marginBottom: scaleSpacing(Space[4]),
                   }}
                 >
@@ -317,7 +339,7 @@ export default function HomeScreen({ navigation }: Props) {
                 <EditorialText
                   variant="display"
                   style={{
-                    color: isHighContrast ? colors.textPrimary : BrandColors.navy,
+                    color: isHighContrast ? colors.textPrimary : brandInk(isDark, isHighContrast, colors.textPrimary),
                     fontSize: scaleFont(compact ? 28 : 32),
                     lineHeight: scaleFont(compact ? 34 : 38),
                     marginBottom: scaleSpacing(Space[8]),
@@ -392,30 +414,6 @@ export default function HomeScreen({ navigation }: Props) {
               </View>
             )}
 
-            <View style={{ gap: scaleSpacing(Space[12]), marginBottom: scaleSpacing(Space[20]) }}>
-              <Button
-                title="IDENTIFICAR CON CÁMARA"
-                onPress={() => navigation.navigate('CameraGuide')}
-                icon={<Ionicons name="camera" size={scaleFont(20)} color={colors.onPrimary} />}
-                accessibilityLabel="Identificar con cámara"
-                accessibilityHint="Abre la guía de la cámara LIA"
-              />
-              <Button
-                title="IDENTIFICAR MANUALMENTE"
-                variant="outline"
-                onPress={() => navigation.navigate('DrugSearch')}
-                icon={
-                  <Ionicons
-                    name="search"
-                    size={scaleFont(20)}
-                    color={isHighContrast ? colors.textPrimary : colors.primary}
-                  />
-                }
-                accessibilityLabel="Identificar manualmente"
-                accessibilityHint="Busca un medicamento por su nombre"
-              />
-            </View>
-
           </>
         )}
       </Screen>
@@ -454,6 +452,10 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     width: '100%',
     maxWidth: '100%',
+  },
+  missedBannerStack: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
   },
   missedTextCol: {
     flex: 1,

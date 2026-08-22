@@ -34,8 +34,8 @@ export default function RemindersScreen() {
     markSkipped,
     actingReminderId,
   } = useReminders();
-  const { scaleFont, scaleSpacing, minTouch, voiceEnabled } = useAccessibility();
-  const { colors, isHighContrast } = useTheme();
+  const { scaleFont, scaleSpacing, minTouch, voiceEnabled, isSeniorMode } = useAccessibility();
+  const { colors, isHighContrast, isDark } = useTheme();
   const { horizontalPadding, contentMaxWidth, isSmallPhone } = useResponsive();
 
   const [selectedDate, setSelectedDate] = useState(getLocalDateString());
@@ -168,13 +168,17 @@ export default function RemindersScreen() {
                   backgroundColor: isSelected
                     ? isHighContrast
                       ? colors.textPrimary
-                      : BrandColors.navy
+                      : isDark
+                        ? colors.primary
+                        : BrandColors.navy
                     : colors.surface,
                   borderWidth: isToday && !isSelected ? 2 : isHighContrast ? 1 : 0,
                   borderColor: isHighContrast
                     ? colors.border
                     : isToday
-                      ? BrandColors.teal
+                      ? isDark
+                        ? colors.primary
+                        : BrandColors.teal
                       : 'transparent',
                 },
               ]}
@@ -186,7 +190,9 @@ export default function RemindersScreen() {
                   color: isSelected
                     ? isHighContrast
                       ? colors.onPrimary
-                      : BrandColors.white
+                      : isDark
+                        ? colors.onPrimary
+                        : BrandColors.white
                     : colors.textSecondary,
                 }}
               >
@@ -200,7 +206,9 @@ export default function RemindersScreen() {
                   color: isSelected
                     ? isHighContrast
                       ? colors.onPrimary
-                      : BrandColors.white
+                      : isDark
+                        ? colors.onPrimary
+                        : BrandColors.white
                     : colors.textPrimary,
                 }}
               >
@@ -218,6 +226,7 @@ export default function RemindersScreen() {
             paddingHorizontal: horizontalPadding,
             gap: scaleSpacing(Space[12]),
             marginBottom: scaleSpacing(Space[12]),
+            flexDirection: isSeniorMode ? 'column' : 'row',
           },
         ]}
       >
@@ -231,7 +240,7 @@ export default function RemindersScreen() {
             },
           ]}
         >
-          <AppText variant="h2" style={{ color: isHighContrast ? colors.textPrimary : BrandColors.teal }}>
+          <AppText variant="h2" style={{ color: isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.teal }}>
             {pendingCount}
           </AppText>
           <AppText variant="caption" tone="secondary">
@@ -250,7 +259,7 @@ export default function RemindersScreen() {
         >
           <AppText
             variant="h2"
-            style={{ color: isHighContrast ? colors.textPrimary : BrandColors.navy }}
+            style={{ color: isHighContrast ? colors.textPrimary : isDark ? colors.textPrimary : BrandColors.navy }}
           >
             {missedCount}
           </AppText>

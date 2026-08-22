@@ -248,13 +248,13 @@ export default function DrugChatScreen({ navigation, route }: Props) {
                 {
                   minHeight: minTouch,
                   opacity: pressed ? 0.85 : 1,
-                  borderColor: isHighContrast ? colors.border : BrandColors.teal,
+                  borderColor: isHighContrast ? colors.border : isDark ? colors.primary : BrandColors.teal,
                 },
               ]}
             >
               <AppText
                 variant="label"
-                style={{ color: isHighContrast ? colors.textPrimary : BrandColors.teal }}
+                style={{ color: isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.teal }}
               >
                 Intentar de nuevo
               </AppText>
@@ -495,7 +495,9 @@ export default function DrugChatScreen({ navigation, route }: Props) {
                   backgroundColor: canSend
                     ? isHighContrast
                       ? colors.textPrimary
-                      : BrandColors.navy
+                      : isDark
+                        ? colors.primary
+                        : BrandColors.navy
                     : colors.border,
                   opacity: pressed && canSend ? 0.88 : 1,
                 },
@@ -508,7 +510,9 @@ export default function DrugChatScreen({ navigation, route }: Props) {
                   canSend
                     ? isHighContrast
                       ? colors.background
-                      : BrandColors.white
+                      : isDark
+                        ? colors.onPrimary
+                        : BrandColors.white
                     : colors.textMuted
                 }
               />

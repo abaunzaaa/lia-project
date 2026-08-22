@@ -77,7 +77,7 @@ export default function DoseActions({
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
     alignItems: 'stretch',
     width: '100%',
     maxWidth: '100%',
@@ -88,9 +88,7 @@ const styles = StyleSheet.create({
   },
   flexBtn: {
     flex: 1,
-    minWidth: 0,
     maxWidth: '100%',
     alignSelf: 'stretch',
-    flexShrink: 1,
   },
 });

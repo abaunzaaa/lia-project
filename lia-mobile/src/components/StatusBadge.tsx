@@ -59,7 +59,7 @@ export default function StatusBadge({ status }: StatusBadgeProps) {
       accessibilityLabel={config.label}
     >
       <Ionicons name={config.icon} size={scaleFont(14)} color={color} />
-      <AppText variant="caption" style={{ color, fontWeight: '600' }}>
+      <AppText variant="caption" style={{ color, fontWeight: '600', flexShrink: 1 }}>
         {isHighContrast ? `${config.prefix} ${config.label}` : config.label}
       </AppText>
     </View>
@@ -69,8 +69,10 @@ export default function StatusBadge({ status }: StatusBadgeProps) {
 const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     borderRadius: Radius.full,
     alignSelf: 'flex-start',
+    maxWidth: '100%',
   },
 });

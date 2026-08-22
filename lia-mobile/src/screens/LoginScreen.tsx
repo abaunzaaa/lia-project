@@ -65,13 +65,13 @@ export default function LoginScreen({ navigation }: Props) {
   const bg = isHighContrast ? '#000000' : isDark ? '#10161C' : BrandColors.beige;
   const subtitleColor = isHighContrast ? '#E8E8E8' : isDark ? BrandColors.skyBlue : BrandColors.teal;
   const backColor = isHighContrast ? BrandColors.white : isDark ? BrandColors.beige : BrandColors.navy;
-  const linkColor = isHighContrast ? BrandColors.white : BrandColors.navy;
+  const linkColor = isHighContrast ? BrandColors.white : isDark ? BrandColors.beige : BrandColors.navy;
   const googleSurface = isHighContrast ? '#000000' : isDark ? '#182028' : BrandColors.white;
   const googleBorder = isHighContrast ? BrandColors.white : isDark ? BrandColors.teal : BrandColors.skyBlue;
-  const googleText = isHighContrast ? BrandColors.white : BrandColors.navy;
+  const googleText = isHighContrast ? BrandColors.white : isDark ? BrandColors.beige : BrandColors.navy;
 
   /** Logo más protagonista — responsive sin desbordar */
-  const logoSize = isTablet ? 136 : compact ? 112 : 128;
+  const logoSize = isTablet ? 220 : compact ? 176 : 200;
 
   const validate = () => {
     let ok = true;

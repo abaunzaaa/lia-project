@@ -70,7 +70,7 @@ export default function MedicationCard({
             ]}
           />
           <View style={styles.info}>
-            <AppText variant="medicationName" style={{ flexShrink: 1 }} numberOfLines={2}>
+            <AppText variant="medicationName" style={{ flexShrink: 1 }}>
               {medication.name}
             </AppText>
             <AppText variant="body" tone="secondary" style={{ marginTop: 4, flexShrink: 1 }}>
@@ -81,7 +81,7 @@ export default function MedicationCard({
                 variant="caption"
                 style={{
                   marginTop: scaleSpacing(Space[8]),
-                  color: isHighContrast ? colors.textPrimary : BrandColors.teal,
+                  color: isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.teal,
                   fontWeight: '600',
                   flexShrink: 1,
                 }}
@@ -152,7 +152,8 @@ const styles = StyleSheet.create({
   },
   mark: {
     width: 4,
-    height: 52,
+    minHeight: 52,
+    alignSelf: 'stretch',
     borderRadius: Radius.full,
     marginTop: 2,
   },

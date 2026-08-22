@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Pressable, StyleSheet, ScrollView, Switch, Alert } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { CompositeNavigationProp } from '@react-navigation/native';
+import { CompositeNavigationProp, useFocusEffect } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList, MainTabParamList } from '../types';
@@ -29,8 +29,10 @@ type Props = { navigation: NavProp };
 export default function ProfileScreen({ navigation }: Props) {
   const { user, logout, isDemo } = useAuth();
   const { medications } = useMedications();
-  const { mode, toggleSeniorMode, scaleFont, scaleSpacing, minTouch } = useAccessibility();
-  const { colors, isHighContrast } = useTheme();
+  const { mode, isSeniorMode, toggleSeniorMode, scaleFont, scaleSpacing, minTouch } =
+    useAccessibility();
+  const scrollRef = useRef<ScrollView>(null);
+  const { colors, isHighContrast, isDark } = useTheme();
   const { horizontalPadding, contentMaxWidth } = useResponsive();
   const [showLogout, setShowLogout] = useState(false);
   const [phoneRemindersOn, setPhoneRemindersOn] = useState(false);
@@ -51,6 +53,16 @@ export default function ProfileScreen({ navigation }: Props) {
   useEffect(() => {
     void refreshReminderState();
   }, [refreshReminderState, user?.uid, isDemo]);
+
+  useFocusEffect(
+    useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+    }, [])
+  );
+
+  const rowLayout = isSeniorMode
+    ? { flexDirection: 'column' as const, alignItems: 'stretch' as const }
+    : { flexDirection: 'row' as const, alignItems: 'center' as const };
 
   const handlePhoneRemindersToggle = (value: boolean) => {
     if (togglingReminders) return;
@@ -132,16 +144,16 @@ export default function ProfileScreen({ navigation }: Props) {
       <Header title="Tu perfil" subtitle={isDemo ? 'Modo demo' : undefined} />
 
       <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingHorizontal: horizontalPadding,
-            maxWidth: contentMaxWidth,
-            alignSelf: 'center',
-            width: '100%',
-            paddingBottom: scaleSpacing(Space[40]),
-          },
-        ]}
+        ref={scrollRef}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        contentContainerStyle={{
+          paddingHorizontal: horizontalPadding,
+          maxWidth: contentMaxWidth,
+          alignSelf: 'center',
+          width: '100%',
+          paddingBottom: scaleSpacing(Space[40]),
+        }}
         showsVerticalScrollIndicator={false}
       >
         <SurfaceCard variant="emphasis" style={{ alignItems: 'center', marginBottom: scaleSpacing(Space[24]) }}>
@@ -178,14 +190,14 @@ export default function ProfileScreen({ navigation }: Props) {
               style={[
                 styles.ageBadge,
                 {
-                  backgroundColor: isHighContrast ? colors.surface : BrandColors.skyBlue,
+                  backgroundColor: isHighContrast ? colors.surface : isDark ? colors.accentSoft : BrandColors.skyBlue,
                   borderWidth: isHighContrast ? 1 : 0,
                   borderColor: colors.border,
                   marginTop: scaleSpacing(Space[12]),
                 },
               ]}
             >
-              <AppText variant="caption" style={{ fontWeight: '600', color: BrandColors.navy }}>
+              <AppText variant="caption" style={{ fontWeight: '600', color: isDark ? colors.textPrimary : BrandColors.navy }}>
                 {user.age} años
               </AppText>
             </View>
@@ -195,9 +207,15 @@ export default function ProfileScreen({ navigation }: Props) {
         <AppText variant="overline" style={{ marginBottom: scaleSpacing(Space[8]) }}>
           Notificaciones
         </AppText>
-        <View
+        <Pressable
+          onPress={() => handlePhoneRemindersToggle(!phoneRemindersOn)}
+          disabled={togglingReminders || isDemo}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: phoneRemindersOn, disabled: togglingReminders || isDemo }}
+          accessibilityLabel="Notificaciones de medicamentos"
           style={[
             styles.menuItem,
+            rowLayout,
             {
               backgroundColor: colors.surface,
               borderColor: colors.border,
@@ -205,22 +223,20 @@ export default function ProfileScreen({ navigation }: Props) {
               minHeight: Math.max(minTouch + 8, 56),
               padding: scaleSpacing(Space[16]),
               marginBottom: scaleSpacing(Space[8]),
+              gap: scaleSpacing(Space[12]),
             },
           ]}
-          accessibilityRole="switch"
-          accessibilityState={{ checked: phoneRemindersOn, disabled: togglingReminders || isDemo }}
-          accessibilityLabel="Notificaciones de medicamentos"
         >
           <Ionicons
             name="notifications-outline"
             size={scaleFont(22)}
-            color={isHighContrast ? colors.textPrimary : BrandColors.navy}
+            color={isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.navy}
           />
-          <View style={{ flex: 1, marginLeft: 12, minWidth: 0, marginRight: 8 }}>
-            <AppText variant="body" style={{ fontWeight: '600', flexShrink: 1 }}>
+          <View style={{ flex: isSeniorMode ? undefined : 1, minWidth: 0, width: isSeniorMode ? '100%' : undefined }}>
+            <AppText variant="body" style={{ fontWeight: '600' }}>
               Notificaciones de medicamentos
             </AppText>
-            <AppText variant="caption" tone="secondary" style={{ marginTop: 2, flexShrink: 1 }}>
+            <AppText variant="caption" tone="secondary" style={{ marginTop: 2 }}>
               Avisos del teléfono a la hora de cada toma
             </AppText>
           </View>
@@ -230,9 +246,11 @@ export default function ProfileScreen({ navigation }: Props) {
             disabled={togglingReminders || isDemo}
             trackColor={{ false: colors.border, true: BrandColors.teal }}
             thumbColor={phoneRemindersOn ? BrandColors.navy : colors.surface}
-            accessibilityLabel="Activar o desactivar notificaciones de medicamentos"
+            pointerEvents="none"
+            focusable={false}
+            accessible={false}
           />
-        </View>
+        </Pressable>
         {permissionDeniedHint ? (
           <AppText
             variant="caption"
@@ -258,6 +276,7 @@ export default function ProfileScreen({ navigation }: Props) {
               accessibilityLabel={item.label}
               style={({ pressed }) => [
                 styles.menuItem,
+                rowLayout,
                 {
                   backgroundColor: colors.surface,
                   borderColor: colors.border,
@@ -265,15 +284,23 @@ export default function ProfileScreen({ navigation }: Props) {
                   minHeight: Math.max(minTouch + 8, 56),
                   opacity: pressed ? 0.88 : 1,
                   padding: scaleSpacing(Space[16]),
+                  gap: scaleSpacing(Space[12]),
                 },
               ]}
             >
               <Ionicons
                 name={item.icon}
                 size={scaleFont(22)}
-                color={isHighContrast ? colors.textPrimary : BrandColors.navy}
+                color={isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.navy}
               />
-              <AppText variant="body" style={{ flex: 1, fontWeight: '600', marginLeft: 12, flexShrink: 1 }}>
+              <AppText
+                variant="body"
+                style={{
+                  flex: isSeniorMode ? undefined : 1,
+                  fontWeight: '600',
+                  minWidth: 0,
+                }}
+              >
                 {item.label}
               </AppText>
               <Ionicons name="chevron-forward" size={scaleFont(18)} color={colors.textMuted} />
@@ -291,6 +318,7 @@ export default function ProfileScreen({ navigation }: Props) {
           accessibilityLabel="Modo adulto mayor"
           style={[
             styles.menuItem,
+            rowLayout,
             {
               backgroundColor: colors.surface,
               borderColor: colors.border,
@@ -298,15 +326,16 @@ export default function ProfileScreen({ navigation }: Props) {
               minHeight: Math.max(minTouch + 8, 56),
               padding: scaleSpacing(Space[16]),
               marginBottom: scaleSpacing(Space[24]),
+              gap: scaleSpacing(Space[12]),
             },
           ]}
         >
           <Ionicons
             name="accessibility-outline"
             size={scaleFont(22)}
-            color={isHighContrast ? colors.textPrimary : BrandColors.teal}
+            color={isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.teal}
           />
-          <View style={{ flex: 1, marginLeft: 12, minWidth: 0 }}>
+          <View style={{ flex: isSeniorMode ? undefined : 1, minWidth: 0, width: isSeniorMode ? '100%' : undefined }}>
             <AppText variant="body" style={{ fontWeight: '600' }}>
               Modo adulto mayor
             </AppText>
@@ -320,6 +349,7 @@ export default function ProfileScreen({ navigation }: Props) {
               {
                 backgroundColor: mode === 'senior' ? BrandColors.navy : colors.border,
                 justifyContent: mode === 'senior' ? 'flex-end' : 'flex-start',
+                alignSelf: isSeniorMode ? 'flex-start' : 'center',
               },
             ]}
           >
@@ -335,6 +365,7 @@ export default function ProfileScreen({ navigation }: Props) {
             <View
               style={[
                 styles.menuItem,
+                rowLayout,
                 {
                   backgroundColor: colors.surface,
                   borderColor: colors.border,
@@ -342,6 +373,7 @@ export default function ProfileScreen({ navigation }: Props) {
                   minHeight: Math.max(minTouch + 8, 56),
                   padding: scaleSpacing(Space[16]),
                   marginBottom: scaleSpacing(Space[24]),
+                  gap: scaleSpacing(Space[12]),
                 },
               ]}
               accessibilityLabel={`Contacto de emergencia: ${user.emergencyContact}`}
@@ -349,13 +381,13 @@ export default function ProfileScreen({ navigation }: Props) {
               <Ionicons
                 name="call-outline"
                 size={scaleFont(22)}
-                color={isHighContrast ? colors.textPrimary : BrandColors.teal}
+                color={isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.teal}
               />
-              <View style={{ flex: 1, marginLeft: 12, minWidth: 0 }}>
+              <View style={{ flex: isSeniorMode ? undefined : 1, minWidth: 0, width: isSeniorMode ? '100%' : undefined }}>
                 <AppText variant="body" style={{ fontWeight: '600' }}>
                   Contacto de emergencia
                 </AppText>
-                <AppText variant="caption" tone="secondary" style={{ marginTop: 2, flexShrink: 1 }}>
+                <AppText variant="caption" tone="secondary" style={{ marginTop: 2 }}>
                   {user.emergencyContact}
                 </AppText>
               </View>
@@ -374,11 +406,13 @@ export default function ProfileScreen({ navigation }: Props) {
               borderColor: colors.error,
               opacity: pressed ? 0.75 : 1,
               marginTop: scaleSpacing(Space[8]),
+              flexWrap: 'wrap',
+              paddingHorizontal: scaleSpacing(Space[16]),
             },
           ]}
         >
           <Ionicons name="log-out-outline" size={scaleFont(20)} color={colors.error} />
-          <AppText variant="body" style={{ color: colors.error, fontWeight: '600', marginLeft: 8 }}>
+          <AppText variant="body" style={{ color: colors.error, fontWeight: '600' }}>
             Cerrar sesión
           </AppText>
         </Pressable>
@@ -406,7 +440,6 @@ export default function ProfileScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { flexGrow: 1 },
   avatar: {
     width: 80,
     height: 80,
@@ -441,6 +474,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
     borderWidth: 1.5,
     borderRadius: Radius.lg,
     paddingVertical: 14,

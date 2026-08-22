@@ -52,94 +52,39 @@ export default function OnboardingScreen({ navigation }: Props) {
   const secondaryColor = isHighContrast
     ? BrandColors.white
     : isDark
-      ? BrandColors.skyBlue
+      ? BrandColors.beige
       : BrandColors.navy;
 
-  const topBreath = useMemo(() => {
-    if (isShortScreen || compact) return 8;
-    if (isTablet) return 16;
-    if (insets.top >= 50) return 14;
-    return 12;
-  }, [compact, isShortScreen, isTablet, insets.top]);
-
-  const topBand = insets.top + topBreath;
-
-  /** Hero en el medio: TEXT arriba → IMAGE → LOGO → botones */
   const heroHeight = useMemo(() => {
-    const endRatio = isShortScreen || compact ? 0.34 : isTablet ? 0.36 : 0.38;
-    const raw = Math.round(height * endRatio);
-    const floor = isShortScreen ? 180 : compact ? 200 : 220;
-    const cap = isTablet ? 340 : isShortScreen ? 240 : 300;
+    const ratio = isShortScreen || compact ? 0.42 : isTablet ? 0.46 : 0.48;
+    const raw = Math.round(height * ratio);
+    const floor = isShortScreen ? 210 : compact ? 230 : 250;
+    const cap = isTablet ? 420 : isShortScreen ? 280 : 360;
     return Math.round(Math.min(Math.max(raw, floor), cap));
   }, [height, compact, isTablet, isShortScreen]);
 
-  /** Logo ~+25% vs 124 → ~155 estándar, perfectamente redondo */
-  const logoSize = isTablet ? 175 : isSeniorMode ? (compact ? 140 : 160) : compact ? 136 : 155;
+  const logoWidth = isTablet ? 280 : isSeniorMode ? (compact ? 228 : 252) : compact ? 236 : 268;
 
-  const titleSize = scaleFont(compact || isShortScreen ? 20 : isTablet ? 24 : 22);
-  const titleLine = scaleFont(compact || isShortScreen ? 26 : isTablet ? 30 : 28);
-  const bodySize = scaleFont(compact ? 13 : 14);
-  const bodyLine = scaleFont(compact ? 18 : 20);
+  const titleSize = scaleFont(compact || isShortScreen ? 24 : isTablet ? 30 : 28);
+  const titleLine = scaleFont(compact || isShortScreen ? 30 : isTablet ? 38 : 36);
+  const bodySize = scaleFont(compact ? 15 : 16);
+  const bodyLine = scaleFont(compact ? 22 : 24);
 
-  const primaryH = Math.max(minTouch, Math.round((compact ? 46 : 48) * buttonScale));
-  const secondaryH = Math.max(minTouch, Math.round((compact ? 42 : 44) * buttonScale));
+  const primaryH = Math.max(minTouch, Math.round((compact ? 50 : 54) * buttonScale));
+  const secondaryH = Math.max(minTouch, Math.round((compact ? 44 : 48) * buttonScale));
 
-  const needsScroll = (isSeniorMode && isShortScreen) || height < 640;
+  const needsScroll = isSeniorMode || isShortScreen || height < 680;
 
   const content = (
     <View
       style={[
         styles.column,
         {
-          paddingBottom: Math.max(insets.bottom, scaleSpacing(compact ? Space[8] : Space[12])),
+          paddingBottom: Math.max(insets.bottom, scaleSpacing(compact ? Space[16] : Space[20])),
           minHeight: needsScroll ? undefined : height,
         },
       ]}
     >
-      <View style={{ height: topBand, backgroundColor: bg }} />
-
-      <View
-        style={[
-          styles.copyBlock,
-          {
-            paddingHorizontal: horizontalPadding,
-            marginBottom: scaleSpacing(compact ? Space[12] : Space[16]),
-          },
-        ]}
-      >
-        <Text
-          accessibilityRole="header"
-          maxFontSizeMultiplier={1.35}
-          style={[
-            styles.title,
-            {
-              color: titleColor,
-              fontSize: titleSize,
-              lineHeight: titleLine,
-              marginBottom: scaleSpacing(Space[8]),
-            },
-          ]}
-        >
-          Tu compañía para cuidar tus medicamentos cada día
-        </Text>
-
-        <Text
-          maxFontSizeMultiplier={1.35}
-          style={[
-            styles.body,
-            {
-              color: bodyColor,
-              fontSize: bodySize,
-              lineHeight: bodyLine,
-              opacity: isHighContrast ? 1 : 0.9,
-            },
-          ]}
-        >
-          LIA te ayuda a recordar tus horarios, identificar tus medicamentos y llevar un registro
-          sencillo de tus tomas, paso a paso.
-        </Text>
-      </View>
-
       <WelcomeHero height={heroHeight} />
 
       <View
@@ -147,33 +92,49 @@ export default function OnboardingScreen({ navigation }: Props) {
           styles.bodyPad,
           {
             paddingHorizontal: horizontalPadding,
-            marginTop: scaleSpacing(compact ? Space[12] : Space[16]),
+            marginTop: scaleSpacing(compact ? Space[4] : Space[8]),
           },
         ]}
       >
-        <View
-          style={[
-            styles.logoBlock,
-            {
-              minHeight: logoSize,
-              marginBottom: scaleSpacing(compact ? Space[16] : Space[20]),
-            },
-          ]}
-        >
-          <WelcomeBrandLogo pageBackground={bg} size={logoSize} />
+        <View style={[styles.logoBlock, { marginBottom: scaleSpacing(compact ? Space[12] : Space[16]) }]}>
+          <WelcomeBrandLogo pageBackground={bg} size={logoWidth} />
         </View>
 
-        {!needsScroll && <View style={[styles.flexSpacer, compact && styles.flexSpacerTight]} />}
+        <View style={[styles.copyBlock, { marginBottom: scaleSpacing(compact ? Space[20] : Space[24]) }]}>
+          <Text
+            accessibilityRole="header"
+            maxFontSizeMultiplier={1.35}
+            style={[
+              styles.title,
+              {
+                color: titleColor,
+                fontSize: titleSize,
+                lineHeight: titleLine,
+                marginBottom: scaleSpacing(Space[12]),
+              },
+            ]}
+          >
+            Tu compañía para cuidar tus medicamentos cada día
+          </Text>
 
-        <View
-          style={[
-            styles.actions,
-            {
-              gap: scaleSpacing(Space[4]),
-              marginTop: needsScroll ? scaleSpacing(Space[8]) : scaleSpacing(Space[4]),
-            },
-          ]}
-        >
+          <Text
+            maxFontSizeMultiplier={1.35}
+            style={[
+              styles.body,
+              {
+                color: bodyColor,
+                fontSize: bodySize,
+                lineHeight: bodyLine,
+              },
+            ]}
+          >
+            Recordatorios, identificación y seguimiento sencillo para ti y tu familia.
+          </Text>
+        </View>
+
+        {!needsScroll ? <View style={styles.flexSpacer} /> : null}
+
+        <View style={[styles.actions, { gap: scaleSpacing(Space[8]) }]}>
           <Pressable
             onPress={() => navigation.navigate('Register')}
             accessibilityRole="button"
@@ -183,7 +144,7 @@ export default function OnboardingScreen({ navigation }: Props) {
               styles.primaryBtn,
               {
                 minHeight: primaryH,
-                paddingVertical: (compact ? 11 : 12) * buttonScale,
+                paddingVertical: (compact ? 14 : 16) * buttonScale,
                 backgroundColor: isHighContrast ? BrandColors.white : BrandColors.navy,
                 borderWidth: isHighContrast ? 2 : 0,
                 borderColor: BrandColors.white,
@@ -193,11 +154,12 @@ export default function OnboardingScreen({ navigation }: Props) {
           >
             <Text
               maxFontSizeMultiplier={1.3}
+              numberOfLines={2}
               style={[
                 styles.primaryLabel,
                 {
                   color: isHighContrast ? '#000000' : BrandColors.white,
-                  fontSize: scaleFont(16),
+                  fontSize: scaleFont(17),
                 },
               ]}
             >
@@ -214,18 +176,18 @@ export default function OnboardingScreen({ navigation }: Props) {
               styles.secondaryBtn,
               {
                 minHeight: secondaryH,
-                opacity: pressed ? 0.6 : 1,
+                opacity: pressed ? 0.65 : 1,
               },
             ]}
           >
             <Text
               maxFontSizeMultiplier={1.3}
+              numberOfLines={1}
               style={[
                 styles.secondaryLabel,
                 {
                   color: secondaryColor,
-                  fontSize: scaleFont(15),
-                  opacity: isHighContrast ? 1 : 0.88,
+                  fontSize: scaleFont(16),
                 },
               ]}
             >
@@ -233,9 +195,9 @@ export default function OnboardingScreen({ navigation }: Props) {
             </Text>
             <Ionicons
               name="arrow-forward"
-              size={scaleFont(14)}
+              size={scaleFont(15)}
               color={secondaryColor}
-              style={{ marginLeft: 5, opacity: 0.75 }}
+              style={{ marginLeft: 6 }}
             />
           </Pressable>
         </View>
@@ -276,43 +238,33 @@ const styles = StyleSheet.create({
   bodyPad: {
     flex: 1,
     width: '100%',
-    overflow: 'visible',
   },
   logoBlock: {
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'visible',
-    zIndex: 2,
   },
   copyBlock: {
     width: '100%',
     alignItems: 'center',
-    paddingHorizontal: Space[4],
-    zIndex: 1,
   },
   title: {
     fontFamily: SERIF,
     fontWeight: FontWeight.regular,
-    letterSpacing: -0.3,
+    letterSpacing: -0.45,
     textAlign: 'center',
+    maxWidth: 360,
   },
   body: {
     fontFamily: SANS,
     fontWeight: FontWeight.regular,
     textAlign: 'center',
     maxWidth: 340,
-    letterSpacing: 0.1,
+    letterSpacing: 0.15,
   },
   flexSpacer: {
-    flexGrow: 0.3,
-    flexShrink: 1,
-    minHeight: Space[4],
-    maxHeight: Space[24],
-  },
-  flexSpacerTight: {
-    flexGrow: 0.1,
-    maxHeight: Space[12],
+    flexGrow: 1,
+    minHeight: Space[8],
   },
   actions: {
     width: '100%',
@@ -321,14 +273,15 @@ const styles = StyleSheet.create({
   primaryBtn: {
     width: '100%',
     maxWidth: 380,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryLabel: {
     fontFamily: SANS_MEDIUM,
     fontWeight: FontWeight.semiBold,
-    letterSpacing: 0.15,
+    letterSpacing: 0.2,
+    textAlign: 'center',
   },
   secondaryBtn: {
     width: '100%',
@@ -336,7 +289,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
+    paddingVertical: 8,
   },
   secondaryLabel: {
     fontFamily: SANS_MEDIUM,

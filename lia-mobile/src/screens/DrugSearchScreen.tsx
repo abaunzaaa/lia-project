@@ -250,7 +250,7 @@ export default function DrugSearchScreen({ navigation, route }: Props) {
                     <Ionicons
                       name="chevron-forward"
                       size={scaleFont(20)}
-                      color={isHighContrast ? colors.textPrimary : BrandColors.teal}
+                      color={isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.teal}
                     />
                   </Pressable>
                 );

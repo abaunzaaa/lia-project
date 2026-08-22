@@ -2,7 +2,10 @@
 
 | Archivo | Descripción |
 |---------|-------------|
-| `lia-logo.jpeg` | Wordmark LÍA — fondo transparente |
-| `lia-welcome.jpg` | Fotografía de bienvenida |
+| `lia-logo-wordmark.png` | Wordmark LIA sobre beige de marca |
+| `lia-logo-wordmark-dark.png` | Wordmark LIA para modo noche |
+| `lia-welcome-hero.png` | Ilustración de bienvenida |
+| `lia-logo.jpeg` | Wordmark original (archivo legado) |
+| `lia-welcome.jpg` | Fotografía original (archivo legado) |
 
-Estos archivos son cargados desde `src/config/brandAssets.ts`.
+Estos archivos se cargan desde `src/config/brandAssets.ts`.

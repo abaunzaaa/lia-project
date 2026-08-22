@@ -21,11 +21,15 @@ export default function AccessibilityToggle({
   accessibilityHint,
 }: AccessibilityToggleProps) {
   const { colors } = useTheme();
-  const { minTouch, scaleSpacing } = useAccessibility();
+  const { minTouch, scaleSpacing, isSeniorMode } = useAccessibility();
 
   return (
     <View
-      style={[styles.row, { minHeight: minTouch, gap: scaleSpacing(Space[12]) }]}
+      style={[
+        styles.row,
+        isSeniorMode && styles.stack,
+        { minHeight: minTouch, gap: scaleSpacing(Space[12]) },
+      ]}
       accessible
       accessibilityRole="switch"
       accessibilityLabel={label}
@@ -48,6 +52,8 @@ export default function AccessibilityToggle({
         trackColor={{ false: colors.border, true: colors.primary }}
         thumbColor={colors.surfaceElevated}
         ios_backgroundColor={colors.border}
+        pointerEvents="box-only"
+        focusable={false}
       />
     </View>
   );
@@ -59,7 +65,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minHeight: Layout.minTouchTarget,
   },
+  stack: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
   copy: {
     flex: 1,
+    minWidth: 0,
+    width: '100%',
   },
 });

@@ -75,11 +75,11 @@ export default function Header({
               <EditorialText
                 variant="subhead"
                 accessibilityRole="header"
-                numberOfLines={2}
                 style={{
                   fontSize: scaleFont(26),
                   lineHeight: scaleFont(32),
                   textAlign: isLeft ? 'left' : 'center',
+                  flexShrink: 1,
                 }}
               >
                 {title}
@@ -87,8 +87,7 @@ export default function Header({
             ) : (
               <AppText
                 variant="h2"
-                numberOfLines={2}
-                style={{ textAlign: isLeft ? 'left' : 'center' }}
+                style={{ textAlign: isLeft ? 'left' : 'center', flexShrink: 1 }}
               >
                 {title}
               </AppText>
@@ -98,10 +97,10 @@ export default function Header({
             <AppText
               variant="body"
               tone="secondary"
-              numberOfLines={2}
               style={{
                 textAlign: isLeft ? 'left' : 'center',
                 marginTop: scaleSpacing(Space[4]),
+                flexShrink: 1,
               }}
             >
               {subtitle}

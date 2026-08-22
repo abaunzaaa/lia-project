@@ -120,13 +120,13 @@ export default function MedicationDetailScreen({ navigation, route }: Props) {
             style={{
               marginBottom: scaleSpacing(Space[20]),
               borderTopWidth: isHighContrast ? 2 : 3,
-              borderTopColor: isHighContrast ? colors.border : BrandColors.teal,
+              borderTopColor: isHighContrast ? colors.border : isDark ? colors.primary : BrandColors.teal,
             }}
           >
             <AppText
               variant="overline"
               style={{
-                color: isHighContrast ? colors.textSecondary : BrandColors.teal,
+                color: isHighContrast ? colors.textSecondary : isDark ? colors.primary : BrandColors.teal,
                 marginBottom: scaleSpacing(Space[8]),
               }}
             >
@@ -134,7 +134,7 @@ export default function MedicationDetailScreen({ navigation, route }: Props) {
             </AppText>
             <AppText
               variant="h2"
-              style={{ color: isHighContrast ? colors.textPrimary : BrandColors.navy }}
+              style={{ color: isHighContrast ? colors.textPrimary : isDark ? colors.textPrimary : BrandColors.navy }}
             >
               {scheduleLabel}
             </AppText>
@@ -162,7 +162,7 @@ export default function MedicationDetailScreen({ navigation, route }: Props) {
             <Ionicons
               name="file-tray-full-outline"
               size={scaleFont(28)}
-              color={isHighContrast ? colors.textPrimary : BrandColors.teal}
+              color={isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.teal}
             />
             <AppText variant="body" style={{ flex: 1, flexShrink: 1, fontWeight: '600' }}>
               {stockLabel}

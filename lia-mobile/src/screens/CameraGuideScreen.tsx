@@ -500,7 +500,7 @@ export default function CameraGuideScreen({ navigation }: Props) {
             <AppText
               variant="overline"
               style={{
-                color: isHighContrast ? colors.textSecondary : BrandColors.teal,
+                color: isHighContrast ? colors.textSecondary : isDark ? colors.primary : BrandColors.teal,
                 marginBottom: scaleSpacing(Space[8]),
               }}
             >
@@ -570,13 +570,13 @@ export default function CameraGuideScreen({ navigation }: Props) {
 
 function EmptyLike({ message }: { message: string }) {
   const { scaleSpacing, scaleFont } = useAccessibility();
-  const { colors, isHighContrast } = useTheme();
+  const { colors, isHighContrast, isDark } = useTheme();
   return (
     <View style={{ alignItems: 'center', paddingVertical: scaleSpacing(Space[24]) }}>
       <Ionicons
         name="alert-circle-outline"
         size={scaleFont(40)}
-        color={isHighContrast ? colors.textPrimary : BrandColors.navy}
+        color={isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.navy}
       />
       <AppText
         variant="body"

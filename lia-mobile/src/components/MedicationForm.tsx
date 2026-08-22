@@ -64,10 +64,11 @@ export default function MedicationForm({
   onSubmit,
   onCancel,
 }: Props) {
-  const { scaleSpacing, scaleFont, minTouch } = useAccessibility();
+  const { scaleSpacing, scaleFont, minTouch, isSeniorMode } = useAccessibility();
   const { colors, isHighContrast, isDark } = useTheme();
   const { horizontalPadding, contentMaxWidth, isSmallPhone } = useResponsive();
   const { medications } = useMedications();
+  const stackDose = isSmallPhone || isSeniorMode;
 
   const parsedDose = parseDoseString(initial?.dose || '');
   const freqInit = modeFromFrequency(initial?.frequency || '24h');
@@ -330,7 +331,7 @@ export default function MedicationForm({
               styles.progressFill,
               {
                 width: `${(step / 3) * 100}%`,
-                backgroundColor: isHighContrast ? colors.textPrimary : BrandColors.teal,
+                backgroundColor: isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.teal,
               },
             ]}
           />
@@ -373,7 +374,7 @@ export default function MedicationForm({
             <View
               style={[
                 styles.doseRow,
-                isSmallPhone && styles.doseStack,
+                stackDose && styles.doseStack,
                 { gap: scaleSpacing(Space[8]) },
               ]}
             >
@@ -390,8 +391,8 @@ export default function MedicationForm({
                       borderColor: colors.border,
                       borderWidth: isHighContrast ? 2 : 1,
                       opacity: pressed ? 0.9 : 1,
-                      flex: isSmallPhone ? undefined : 1,
-                      width: isSmallPhone ? '100%' : undefined,
+                      flex: stackDose ? undefined : 1,
+                      width: stackDose ? '100%' : undefined,
                     },
                   ]}
                 >
@@ -401,11 +402,11 @@ export default function MedicationForm({
                   <Ionicons
                     name="chevron-down"
                     size={scaleFont(18)}
-                    color={isHighContrast ? colors.textPrimary : BrandColors.teal}
+                    color={isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.teal}
                   />
                 </Pressable>
               ) : (
-                <View style={[styles.doseAmount, isSmallPhone && { width: '100%' }]}>
+                <View style={[styles.doseAmount, stackDose && { width: '100%' }]}>
                   <TextInput
                     value={doseAmount}
                     onChangeText={(t) => {
@@ -442,8 +443,8 @@ export default function MedicationForm({
                     borderColor: colors.border,
                     borderWidth: isHighContrast ? 2 : 1,
                     opacity: pressed ? 0.9 : 1,
-                    flex: isSmallPhone ? undefined : 1,
-                    width: isSmallPhone ? '100%' : undefined,
+                    flex: stackDose ? undefined : 1,
+                    width: stackDose ? '100%' : undefined,
                   },
                 ]}
               >
@@ -453,7 +454,7 @@ export default function MedicationForm({
                 <Ionicons
                   name="chevron-down"
                   size={scaleFont(18)}
-                  color={isHighContrast ? colors.textPrimary : BrandColors.teal}
+                  color={isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.teal}
                 />
               </Pressable>
             </View>
@@ -523,7 +524,7 @@ export default function MedicationForm({
                   <Ionicons
                     name="file-tray-full-outline"
                     size={scaleFont(22)}
-                    color={isHighContrast ? colors.textPrimary : BrandColors.teal}
+                    color={isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.teal}
                   />
                   <AppText variant="body" style={{ flexShrink: 1, fontWeight: '600' }}>
                     {`Quedan ${quantity} ${unitSingularLabel(doseUnit)}`}
@@ -564,12 +565,16 @@ export default function MedicationForm({
                         backgroundColor: selected
                           ? isHighContrast
                             ? colors.surface
-                            : BrandColors.skyBlue
+                            : isDark
+                              ? colors.accentSoft
+                              : BrandColors.skyBlue
                           : surface,
                         borderColor: selected
                           ? isHighContrast
                             ? colors.textPrimary
-                            : BrandColors.navy
+                            : isDark
+                              ? colors.primary
+                              : BrandColors.navy
                           : colors.border,
                         borderWidth: selected || isHighContrast ? 2 : 1,
                         opacity: pressed ? 0.9 : 1,
@@ -611,7 +616,7 @@ export default function MedicationForm({
                   <Ionicons
                     name="chevron-down"
                     size={scaleFont(18)}
-                    color={isHighContrast ? colors.textPrimary : BrandColors.teal}
+                    color={isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.teal}
                   />
                 </Pressable>
                 <AppText
@@ -690,11 +695,13 @@ export default function MedicationForm({
                 style={[
                   styles.checkbox,
                   {
-                    borderColor: isHighContrast ? colors.textPrimary : BrandColors.teal,
+                    borderColor: isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.teal,
                     backgroundColor: hasEndDate
                       ? isHighContrast
                         ? colors.textPrimary
-                        : BrandColors.teal
+                        : isDark
+                          ? colors.primary
+                          : BrandColors.teal
                       : 'transparent',
                   },
                 ]}
@@ -703,7 +710,7 @@ export default function MedicationForm({
                   <Ionicons
                     name="checkmark"
                     size={16}
-                    color={isHighContrast ? colors.background : BrandColors.white}
+                    color={isHighContrast ? colors.background : isDark ? colors.onPrimary : BrandColors.white}
                   />
                 ) : null}
               </View>
@@ -738,7 +745,7 @@ export default function MedicationForm({
               >
                 <AppText
                   variant="label"
-                  style={{ color: isHighContrast ? colors.textPrimary : BrandColors.teal }}
+                  style={{ color: isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.teal }}
                 >
                   + Agregar indicaciones
                 </AppText>
@@ -833,6 +840,7 @@ export default function MedicationForm({
             const n = Math.min(5, Math.max(1, parseInt(doseAmount, 10) || 1));
             setDoseAmount(String(n));
           }
+          setUnitPickerOpen(false);
         }}
         onClose={() => setUnitPickerOpen(false)}
       />
@@ -842,7 +850,10 @@ export default function MedicationForm({
         title={intakePromptForUnit(doseUnit)}
         selectedValue={doseAmount || '1'}
         options={INTAKE_OPTIONS.map((n) => ({ value: n, label: n }))}
-        onSelect={(v) => setDoseAmount(v)}
+        onSelect={(v) => {
+          setDoseAmount(v);
+          setIntakePickerOpen(false);
+        }}
         onClose={() => setIntakePickerOpen(false)}
       />
 
@@ -858,6 +869,7 @@ export default function MedicationForm({
           const h = parseInt(v, 10);
           setIntervalHours(h);
           setTimes(generateSameDayTimes(times[0] || '08:00', h));
+          setIntervalPickerOpen(false);
         }}
         onClose={() => setIntervalPickerOpen(false)}
       />
@@ -913,6 +925,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     justifyContent: 'center',
     width: '100%',
+    paddingVertical: 12,
   },
   toggleRow: {
     flexDirection: 'row',

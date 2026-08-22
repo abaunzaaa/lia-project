@@ -1,75 +1,39 @@
 import React from 'react';
-import { View, Image, StyleSheet, Platform } from 'react-native';
+import { View, Image, StyleSheet } from 'react-native';
 import { brandImages } from '../config/brandAssets';
-import { BrandColors } from '../theme/brand';
+import { useTheme } from '../context/ThemeContext';
 
 interface WelcomeBrandLogoProps {
-  pageBackground: string;
+  /** Conservado por compatibilidad; el wordmark ya trae el fondo de marca. */
+  pageBackground?: string;
+  /** Ancho visual del wordmark. */
   size: number;
-  /** Halo + sombra muy suave para protagonismo de marca (Login) */
   elevated?: boolean;
 }
 
 /**
- * Logo redondo de LIA — protagonista de marca.
- * Círculo completo, sin marco; wordmark centrado con margen interno.
+ * Wordmark LIA — sin círculo, sin halo, sin recuadro.
+ * El PNG usa el beige/oscuro de la pantalla para que se integre.
  */
-export default function WelcomeBrandLogo({
-  pageBackground,
-  size,
-  elevated = false,
-}: WelcomeBrandLogoProps) {
-  const markW = size * 0.76;
-  const markH = size * 0.5;
-  const halo = size + (elevated ? 20 : 0);
+export default function WelcomeBrandLogo({ size }: WelcomeBrandLogoProps) {
+  const { isDark, isHighContrast } = useTheme();
+  const source =
+    isDark || isHighContrast ? brandImages.logoWordmarkDark : brandImages.logoWordmark;
+  const height = Math.round(size * 0.36);
 
   return (
     <View
-      style={[
-        styles.wrap,
-        elevated && {
-          width: halo,
-          height: halo,
-          borderRadius: halo / 2,
-        },
-      ]}
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel="Logotipo de LIA"
+      style={[styles.wrap, { width: size, height }]}
     >
-      {elevated ? (
-        <View
-          pointerEvents="none"
-          style={[
-            StyleSheet.absoluteFillObject,
-            {
-              borderRadius: halo / 2,
-              backgroundColor: BrandColors.skyBlue,
-              opacity: 0.32,
-            },
-          ]}
-        />
-      ) : null}
-
-      <View
-        accessible
-        accessibilityRole="image"
-        accessibilityLabel="Logotipo de LIA"
-        style={[
-          styles.clip,
-          {
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            backgroundColor: pageBackground,
-          },
-          elevated && styles.softShadow,
-        ]}
-      >
-        <Image
-          source={brandImages.logoRound}
-          style={{ width: markW, height: markH }}
-          resizeMode="contain"
-          accessibilityIgnoresInvertColors
-        />
-      </View>
+      <Image
+        source={source}
+        style={styles.mark}
+        resizeMode="cover"
+        accessibilityIgnoresInvertColors
+      />
     </View>
   );
 }
@@ -78,22 +42,11 @@ const styles = StyleSheet.create({
   wrap: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  clip: {
     overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: 'transparent',
   },
-  softShadow: Platform.select({
-    ios: {
-      shadowColor: BrandColors.navy,
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.1,
-      shadowRadius: 14,
-    },
-    android: {
-      elevation: 3,
-    },
-    default: {},
-  }),
+  mark: {
+    width: '100%',
+    height: '100%',
+  },
 });

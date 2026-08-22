@@ -36,8 +36,6 @@ import {
   DoseStatus,
   HistoryEntry,
   HistoryInsightsData,
-  HistoryInsightsDaily,
-  HistoryTimeOfDayPeriod,
 } from '../types';
 import { getHistory } from '../services/historyApi';
 import {
@@ -47,8 +45,6 @@ import {
 import { ApiClientError } from '../services/apiClient';
 
 type PeriodDays = 7 | 30;
-
-const WEEKDAY_SHORT = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
 
 function statusLabel(status: DoseStatus): string {
   switch (status) {
@@ -71,52 +67,6 @@ function dateSectionTitle(ymd: string): string {
   if (ymd === today) return 'Hoy';
   if (ymd === yesterday) return 'Ayer';
   return formatDate(ymd);
-}
-
-function weekdayLetter(ymd: string): string {
-  const [y, m, d] = ymd.split('-').map((n) => parseInt(n, 10));
-  const date = new Date(y, m - 1, d);
-  return WEEKDAY_SHORT[date.getDay()] || '';
-}
-
-function periodLabel(period: HistoryTimeOfDayPeriod): string {
-  switch (period) {
-    case 'morning':
-      return 'Mañana';
-    case 'afternoon':
-      return 'Tarde';
-    case 'evening':
-      return 'Noche';
-    default:
-      return period;
-  }
-}
-
-function periodIcon(period: HistoryTimeOfDayPeriod): keyof typeof Ionicons.glyphMap {
-  switch (period) {
-    case 'morning':
-      return 'sunny-outline';
-    case 'afternoon':
-      return 'partly-sunny-outline';
-    case 'evening':
-      return 'moon-outline';
-    default:
-      return 'time-outline';
-  }
-}
-
-function dayAccessibilityLabel(day: HistoryInsightsDaily): string {
-  const [y, m, d] = day.date.split('-').map((n) => parseInt(n, 10));
-  const date = new Date(y, m - 1, d);
-  const nice = date.toLocaleDateString('es-CO', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  });
-  if (day.totalDue === 0) {
-    return `${nice}. Sin tomas programadas.`;
-  }
-  return `${nice}. ${day.taken} de ${day.totalDue} tomas registradas.`;
 }
 
 function buildDemoInsights(entries: HistoryEntry[], from: string, to: string): HistoryInsightsData {
@@ -291,9 +241,6 @@ export default function HistoryScreen() {
   const summary = insights?.summary;
   const percentage = summary?.adherencePercentage ?? null;
   const hasDue = (summary?.totalDue ?? 0) > 0;
-  const timeOfDayUseful = (insights?.byTimeOfDay ?? []).some((t) => t.totalDue > 0);
-
-  const chartMaxHeight = scaleSpacing(72);
   const showInitialLoading =
     (insightsLoading || historyLoading) && !refreshing && !insights && entries.length === 0;
 
@@ -362,7 +309,9 @@ export default function HistoryScreen() {
                       backgroundColor: selected
                         ? isHighContrast
                           ? colors.textPrimary
-                          : BrandColors.navy
+                          : isDark
+                            ? colors.primary
+                            : BrandColors.navy
                         : surface,
                       borderColor: colors.border,
                       borderWidth: isHighContrast ? 2 : selected ? 0 : 1,
@@ -376,7 +325,9 @@ export default function HistoryScreen() {
                       color: selected
                         ? isHighContrast
                           ? colors.background
-                          : BrandColors.white
+                          : isDark
+                            ? colors.onPrimary
+                            : BrandColors.white
                         : colors.textPrimary,
                       textAlign: 'center',
                     }}
@@ -424,7 +375,7 @@ export default function HistoryScreen() {
                     borderColor: isHighContrast ? colors.border : 'transparent',
                     borderWidth: isHighContrast ? 2 : 0,
                     padding: scaleSpacing(Space[20]),
-                    overflow: 'hidden',
+                    overflow: 'visible',
                   },
                 ]}
               >
@@ -444,7 +395,7 @@ export default function HistoryScreen() {
                 <AppText
                   variant="overline"
                   style={{
-                    color: isHighContrast ? colors.textSecondary : BrandColors.navy,
+                    color: isHighContrast ? colors.textSecondary : isDark ? colors.textPrimary : BrandColors.navy,
                     marginBottom: scaleSpacing(Space[8]),
                   }}
                 >
@@ -454,7 +405,7 @@ export default function HistoryScreen() {
                   variant="caption"
                   tone="secondary"
                   style={{
-                    color: isHighContrast ? colors.textSecondary : BrandColors.navy,
+                    color: isHighContrast ? colors.textSecondary : isDark ? colors.textSecondary : BrandColors.navy,
                     marginBottom: scaleSpacing(Space[12]),
                   }}
                 >
@@ -531,19 +482,19 @@ export default function HistoryScreen() {
                       label: 'Tomadas',
                       value: summary.taken,
                       icon: 'checkmark-circle-outline' as const,
-                      accent: BrandColors.teal,
+                      accent: isDark ? colors.primary : BrandColors.teal,
                     },
                     {
                       label: 'Omitidas',
                       value: summary.skipped,
                       icon: 'remove-circle-outline' as const,
-                      accent: BrandColors.navy,
+                      accent: isDark ? colors.textPrimary : BrandColors.navy,
                     },
                     {
                       label: 'Sin registrar',
                       value: summary.missed,
                       icon: 'ellipse-outline' as const,
-                      accent: BrandColors.navy,
+                      accent: isDark ? colors.textPrimary : BrandColors.navy,
                     },
                   ].map((m) => (
                     <View
@@ -582,89 +533,6 @@ export default function HistoryScreen() {
                 </View>
               ) : null}
 
-              {/* Daily trend */}
-              {insights.daily.length > 0 ? (
-                <View
-                  style={[
-                    styles.sectionSurface,
-                    {
-                      marginBottom: scaleSpacing(Space[24]),
-                      backgroundColor: surface,
-                      borderColor: colors.border,
-                      borderWidth: isHighContrast ? 2 : StyleSheet.hairlineWidth,
-                      padding: scaleSpacing(Space[16]),
-                    },
-                  ]}
-                >
-                  <AppText variant="label" style={{ marginBottom: scaleSpacing(Space[12]) }}>
-                    Tendencia
-                  </AppText>
-                  <View
-                    style={[
-                      styles.chartRow,
-                      {
-                        height: chartMaxHeight + scaleSpacing(Space[24]),
-                        gap: period === 30 ? 2 : scaleSpacing(Space[4]),
-                      },
-                    ]}
-                  >
-                    {insights.daily.map((day) => {
-                      const has = day.totalDue > 0;
-                      const pct = has ? day.adherencePercentage ?? 0 : 0;
-                      const barH = has
-                        ? Math.max(6, Math.round((pct / 100) * chartMaxHeight))
-                        : 4;
-                      return (
-                        <View
-                          key={day.date}
-                          style={styles.chartCol}
-                          accessible
-                          accessibilityLabel={dayAccessibilityLabel(day)}
-                        >
-                          <View style={[styles.chartBarTrack, { height: chartMaxHeight }]}>
-                            <View
-                              style={[
-                                styles.chartBar,
-                                {
-                                  height: barH,
-                                  backgroundColor: !has
-                                    ? isHighContrast
-                                      ? colors.border
-                                      : BrandColors.skyBlue
-                                    : isHighContrast
-                                      ? colors.textPrimary
-                                      : BrandColors.teal,
-                                  opacity: has ? 1 : 0.45,
-                                  borderRadius: Radius.sm,
-                                },
-                              ]}
-                            />
-                          </View>
-                          {period === 7 ? (
-                            <AppText
-                              variant="caption"
-                              tone="secondary"
-                              style={{ marginTop: 4, fontSize: scaleFont(11) }}
-                            >
-                              {weekdayLetter(day.date)}
-                            </AppText>
-                          ) : null}
-                        </View>
-                      );
-                    })}
-                  </View>
-                  {period === 30 ? (
-                    <AppText
-                      variant="caption"
-                      tone="muted"
-                      style={{ marginTop: scaleSpacing(Space[8]), flexShrink: 1 }}
-                    >
-                      Cada barra representa un día del período.
-                    </AppText>
-                  ) : null}
-                </View>
-              ) : null}
-
               {/* Insights */}
               {insights.insights.length > 0 ? (
                 <View
@@ -688,7 +556,7 @@ export default function HistoryScreen() {
                         <Ionicons
                           name="sparkles-outline"
                           size={scaleFont(18)}
-                          color={isHighContrast ? colors.textPrimary : BrandColors.teal}
+                          color={isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.teal}
                           style={{ marginTop: 2 }}
                         />
                         <AppText variant="body" style={{ flex: 1, flexShrink: 1, minWidth: 0 }}>
@@ -750,7 +618,9 @@ export default function HistoryScreen() {
                                 {
                                   backgroundColor: isHighContrast
                                     ? colors.border
-                                    : BrandColors.skyBlue,
+                                    : isDark
+                                      ? colors.accentSoft
+                                      : BrandColors.skyBlue,
                                   marginTop: scaleSpacing(Space[8]),
                                 },
                               ]}
@@ -762,7 +632,9 @@ export default function HistoryScreen() {
                                     width: `${Math.min(100, Math.max(0, barPct))}%`,
                                     backgroundColor: isHighContrast
                                       ? colors.textPrimary
-                                      : BrandColors.teal,
+                                      : isDark
+                                        ? colors.primary
+                                        : BrandColors.teal,
                                   },
                                 ]}
                               />
@@ -771,47 +643,6 @@ export default function HistoryScreen() {
                         </View>
                       );
                     })}
-                  </View>
-                </View>
-              ) : null}
-
-              {/* Time of day */}
-              {timeOfDayUseful ? (
-                <View
-                  style={[
-                    styles.sectionSurface,
-                    {
-                      marginBottom: scaleSpacing(Space[24]),
-                      backgroundColor: surface,
-                      borderColor: colors.border,
-                      borderWidth: isHighContrast ? 2 : StyleSheet.hairlineWidth,
-                      padding: scaleSpacing(Space[16]),
-                    },
-                  ]}
-                >
-                  <AppText variant="label" style={{ marginBottom: scaleSpacing(Space[12]) }}>
-                    Momento del día
-                  </AppText>
-                  <View style={{ gap: scaleSpacing(Space[12]) }}>
-                    {insights.byTimeOfDay
-                      .filter((t) => t.totalDue > 0)
-                      .map((t) => (
-                        <View key={t.period} style={styles.todRow}>
-                          <Ionicons
-                            name={periodIcon(t.period)}
-                            size={scaleFont(20)}
-                            color={isHighContrast ? colors.textPrimary : BrandColors.navy}
-                          />
-                          <AppText variant="body" style={{ flex: 1, flexShrink: 1 }}>
-                            {periodLabel(t.period)}
-                          </AppText>
-                          <AppText variant="body" style={{ fontWeight: '600' }}>
-                            {t.adherencePercentage === null
-                              ? '—'
-                              : `${t.adherencePercentage}%`}
-                          </AppText>
-                        </View>
-                      ))}
                   </View>
                 </View>
               ) : null}
@@ -856,7 +687,7 @@ export default function HistoryScreen() {
                   variant="overline"
                   style={{
                     marginBottom: scaleSpacing(Space[12]),
-                    color: isHighContrast ? colors.textSecondary : BrandColors.teal,
+                    color: isHighContrast ? colors.textSecondary : isDark ? colors.primary : BrandColors.teal,
                   }}
                 >
                   {dateSectionTitle(date)}
@@ -874,7 +705,7 @@ export default function HistoryScreen() {
                         <AppText
                           variant="h3"
                           style={{
-                            color: isHighContrast ? colors.textPrimary : BrandColors.navy,
+                            color: isHighContrast ? colors.textPrimary : isDark ? colors.textPrimary : BrandColors.navy,
                             marginBottom: 2,
                           }}
                         >
@@ -940,6 +771,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   halo: {
     position: 'absolute',
@@ -970,27 +802,6 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 16,
   },
-  chartRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    width: '100%',
-  },
-  chartCol: {
-    flex: 1,
-    minWidth: 0,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  chartBarTrack: {
-    width: '100%',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-  },
-  chartBar: {
-    width: '70%',
-    maxWidth: 28,
-    minWidth: 4,
-  },
   insightRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -1011,12 +822,6 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     borderRadius: 3,
-  },
-  todRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    width: '100%',
   },
   historyItem: {
     flexDirection: 'row',

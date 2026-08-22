@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ActivityIndicator,
+  View,
   ViewStyle,
   StyleProp,
 } from 'react-native';
@@ -75,6 +76,15 @@ export default function Button({
           ? colors.primary
           : 'transparent';
 
+  const labelStyle = [
+    styles.label,
+    {
+      fontSize,
+      lineHeight: Math.round(fontSize * 1.3),
+      color: foregrounds[variant],
+    },
+  ];
+
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -101,30 +111,14 @@ export default function Button({
       {loading ? (
         <>
           <ActivityIndicator color={foregrounds[variant]} />
-          <Text
-            style={[
-              styles.label,
-              {
-                fontSize,
-                color: foregrounds[variant],
-              },
-            ]}
-          >
+          <Text numberOfLines={2} textBreakStrategy="simple" style={labelStyle}>
             {title}
           </Text>
         </>
       ) : (
         <>
-          {icon}
-          <Text
-            style={[
-              styles.label,
-              {
-                fontSize,
-                color: foregrounds[variant],
-              },
-            ]}
-          >
+          {icon ? <View style={styles.icon}>{icon}</View> : null}
+          <Text numberOfLines={2} textBreakStrategy="simple" style={labelStyle}>
             {title}
           </Text>
         </>
@@ -136,22 +130,25 @@ export default function Button({
 const styles = StyleSheet.create({
   base: {
     flexDirection: 'row',
+    flexWrap: 'nowrap',
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: Radius.md,
     gap: 8,
     minHeight: Layout.minTouchTarget,
-    /** Sin width:100% fijo — evita overflow en filas flex */
     maxWidth: '100%',
     minWidth: 0,
-    flexShrink: 1,
     alignSelf: 'stretch',
+  },
+  icon: {
+    flexShrink: 0,
   },
   label: {
     fontFamily: FontFamily.semiBold,
     fontWeight: FontWeight.semiBold,
     textAlign: 'center',
     flexShrink: 1,
+    flexGrow: 1,
     minWidth: 0,
   },
 });

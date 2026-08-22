@@ -59,7 +59,7 @@ export default function ThemeSelector({ mode = 'appearance' }: ThemeSelectorProp
               ]}
             >
               <Ionicons name={opt.icon} size={scaleFont(20)} color={colors.primary} />
-              <AppText variant="caption" style={{ marginTop: 6, textAlign: 'center' }}>
+              <AppText variant="caption" style={{ marginTop: 6, textAlign: 'center', flexShrink: 1 }}>
                 {opt.label}
               </AppText>
             </TouchableOpacity>
@@ -92,9 +92,9 @@ export default function ThemeSelector({ mode = 'appearance' }: ThemeSelectorProp
             ]}
           >
             <Ionicons name={opt.icon} size={scaleFont(20)} color={colors.primary} />
-            <AppText variant="caption" style={{ marginTop: 6, textAlign: 'center' }}>
-              {opt.label}
-            </AppText>
+              <AppText variant="caption" style={{ marginTop: 6, textAlign: 'center', flexShrink: 1 }}>
+                {opt.label}
+              </AppText>
           </TouchableOpacity>
         );
       })}

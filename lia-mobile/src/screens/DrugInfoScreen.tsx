@@ -42,8 +42,8 @@ function SectionDivider({ color }: { color: string }) {
 
 function BulletList({ items }: { items: string[] }) {
   const { scaleSpacing, scaleFont } = useAccessibility();
-  const { colors, isHighContrast } = useTheme();
-  const bulletColor = isHighContrast ? colors.textPrimary : BrandColors.teal;
+  const { colors, isHighContrast, isDark } = useTheme();
+  const bulletColor = isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.teal;
 
   return (
     <View style={{ gap: scaleSpacing(Space[12]), marginTop: scaleSpacing(Space[12]) }}>
@@ -296,7 +296,7 @@ export default function DrugInfoScreen({ navigation, route }: Props) {
                     <AppText
                       variant="label"
                       style={{
-                        color: isHighContrast ? colors.textPrimary : BrandColors.teal,
+                        color: isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.teal,
                       }}
                     >
                       {brandsExpanded ? 'Ver menos' : 'Ver más'}
@@ -348,7 +348,7 @@ export default function DrugInfoScreen({ navigation, route }: Props) {
                     <Ionicons
                       name="information-circle-outline"
                       size={scaleFont(22)}
-                      color={isHighContrast ? colors.textPrimary : BrandColors.teal}
+                      color={isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.teal}
                     />
                     <AppText variant="label" style={{ flexShrink: 1, flex: 1 }}>
                       Información importante

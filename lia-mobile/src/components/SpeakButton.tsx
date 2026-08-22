@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useTheme } from '../context/ThemeContext';
-import { BrandColors } from '../theme/brand';
+import { BrandColors, brandInk } from '../theme/brand';
 import { Radius, Space } from '../theme/tokens';
 import { useSpeech } from '../hooks/useSpeech';
 import AppText from './AppText';
@@ -88,7 +88,7 @@ export default function SpeakButton({
                 ? 'rgba(200, 217, 230, 0.16)'
                 : BrandColors.skyBlue,
             borderWidth: isHighContrast ? 2 : 1,
-            borderColor: isHighContrast ? colors.border : 'rgba(47, 65, 86, 0.12)',
+            borderColor: isHighContrast ? colors.border : colors.border,
             opacity: pressed ? 0.85 : 1,
           },
           style,
@@ -97,17 +97,18 @@ export default function SpeakButton({
         <Ionicons
           name={isThis ? 'stop-circle-outline' : 'volume-high-outline'}
           size={scaleFont(20)}
-          color={isHighContrast ? colors.textPrimary : BrandColors.navy}
+          color={brandInk(isDark, isHighContrast, colors.textPrimary)}
         />
-        <AppText
-          variant="body"
-          style={{
-            fontWeight: '600',
-            color: isHighContrast ? colors.textPrimary : BrandColors.navy,
-            flexShrink: 1,
-          }}
-          numberOfLines={2}
-        >
+          <AppText
+            variant="body"
+            style={{
+              fontWeight: '600',
+              color: brandInk(isDark, isHighContrast, colors.textPrimary),
+              flexShrink: 1,
+              minWidth: 0,
+            }}
+            numberOfLines={2}
+          >
           {title}
         </AppText>
       </Pressable>
@@ -124,6 +125,7 @@ export default function SpeakButton({
 const styles = StyleSheet.create({
   btn: {
     flexDirection: 'row',
+    flexWrap: 'nowrap',
     alignItems: 'center',
     alignSelf: 'flex-start',
     borderRadius: Radius.lg,

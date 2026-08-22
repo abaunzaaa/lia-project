@@ -40,14 +40,16 @@ export default function EditorialText({
   accent = false,
   ...rest
 }: EditorialTextProps) {
-  const { isDark, isHighContrast } = useTheme();
+  const { isDark, isHighContrast, colors } = useTheme();
   const { scaleFont } = useAccessibility();
   const role = VARIANTS[variant];
 
   const color = isHighContrast
     ? '#FFFFFF'
     : accent
-      ? BrandColors.teal
+      ? isDark
+        ? colors.primary
+        : BrandColors.teal
       : isDark
         ? BrandColors.beige
         : BrandColors.navy;

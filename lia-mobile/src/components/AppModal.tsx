@@ -29,7 +29,7 @@ export default function AppModal({
   destructive = false,
 }: ModalProps) {
   const { colors, shadows } = useTheme();
-  const { scaleSpacing } = useAccessibility();
+  const { scaleSpacing, isSeniorMode } = useAccessibility();
   const { width, contentMaxWidth } = useResponsive();
   const modalWidth = Math.min(width - scaleSpacing(48), contentMaxWidth, 360);
 
@@ -57,14 +57,31 @@ export default function AppModal({
                   {message}
                 </AppText>
               ) : null}
-              <View style={[styles.actions, { gap: scaleSpacing(Space[8]) }]}>
-                <Button title={cancelText} variant="ghost" size="md" onPress={onCancel} style={styles.btn} />
+              <View
+                style={[
+                  styles.actions,
+                  {
+                    gap: scaleSpacing(Space[8]),
+                    flexDirection: isSeniorMode ? 'column' : 'row',
+                  },
+                ]}
+              >
+                <Button
+                  title={cancelText}
+                  variant="ghost"
+                  size="md"
+                  onPress={onCancel}
+                  style={isSeniorMode ? styles.btnStack : styles.btn}
+                />
                 {onConfirm ? (
                   <Button
                     title={confirmText}
                     size="md"
                     onPress={onConfirm}
-                    style={[styles.btn, destructive && { backgroundColor: colors.error }]}
+                    style={[
+                      isSeniorMode ? styles.btnStack : styles.btn,
+                      destructive && { backgroundColor: colors.error },
+                    ]}
                   />
                 ) : null}
               </View>
@@ -91,5 +108,8 @@ const styles = StyleSheet.create({
   },
   btn: {
     flex: 1,
+  },
+  btnStack: {
+    alignSelf: 'stretch',
   },
 });

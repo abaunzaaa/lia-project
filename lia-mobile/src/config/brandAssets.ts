@@ -3,8 +3,9 @@
  * Archivos reales: src/assets/images/
  */
 export const brandImages = {
-  logo: require('../assets/images/lia-logo.jpeg'),
-  /** Isotipo redondo — mismo asset hasta tener archivo dedicado */
-  logoRound: require('../assets/images/lia-logo.jpeg'),
-  welcome: require('../assets/images/lia-welcome.jpg'),
+  logo: require('../assets/images/lia-logo-wordmark.png'),
+  logoRound: require('../assets/images/lia-logo-wordmark.png'),
+  logoWordmark: require('../assets/images/lia-logo-wordmark.png'),
+  logoWordmarkDark: require('../assets/images/lia-logo-wordmark-dark.png'),
+  welcome: require('../assets/images/lia-welcome-hero.png'),
 } as const;

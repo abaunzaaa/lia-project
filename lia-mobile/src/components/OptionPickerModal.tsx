@@ -87,7 +87,6 @@ export default function OptionPickerModal({
                     <Pressable
                       onPress={() => {
                         onSelect(item.value);
-                        onClose();
                       }}
                       accessibilityRole="button"
                       accessibilityState={{ selected }}
@@ -100,7 +99,9 @@ export default function OptionPickerModal({
                           backgroundColor: selected
                             ? isHighContrast
                               ? colors.surface
-                              : BrandColors.skyBlue
+                              : isDark
+                                ? colors.accentSoft
+                                : BrandColors.skyBlue
                             : 'transparent',
                           opacity: pressed ? 0.88 : 1,
                           borderBottomColor: colors.border,
@@ -122,7 +123,7 @@ export default function OptionPickerModal({
                         <Ionicons
                           name="checkmark"
                           size={scaleFont(22)}
-                          color={isHighContrast ? colors.textPrimary : BrandColors.navy}
+                          color={isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.navy}
                         />
                       ) : null}
                     </Pressable>

@@ -29,6 +29,7 @@ type Props = {
 export default function SettingsScreen({ navigation }: Props) {
   const {
     mode,
+    isSeniorMode,
     toggleSeniorMode,
     scaleFont,
     scaleSpacing,
@@ -38,7 +39,7 @@ export default function SettingsScreen({ navigation }: Props) {
   } = useAccessibility();
   const { isDemo } = useAuth();
   const { medications } = useMedications();
-  const { colors, isHighContrast, appearance, setAppearance } = useTheme();
+  const { colors, isHighContrast, isDark, appearance, setAppearance } = useTheme();
   const { horizontalPadding, contentMaxWidth } = useResponsive();
 
   const [notifications, setNotifications] = useState(false);
@@ -128,6 +129,9 @@ export default function SettingsScreen({ navigation }: Props) {
   };
 
   const surface = colors.surface;
+  const settingRow = isSeniorMode
+    ? { flexDirection: 'column' as const, alignItems: 'stretch' as const, gap: scaleSpacing(Space[12]) }
+    : { flexDirection: 'row' as const, alignItems: 'center' as const };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -153,9 +157,14 @@ export default function SettingsScreen({ navigation }: Props) {
         </AppText>
         <ThemeSelector mode="appearance" />
 
-        <View
+        <Pressable
+          onPress={() => handleHighContrast(appearance !== 'highContrast')}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: appearance === 'highContrast' }}
+          accessibilityLabel="Alto contraste"
           style={[
             styles.settingItem,
+            settingRow,
             {
               backgroundColor: surface,
               borderColor: colors.border,
@@ -180,9 +189,11 @@ export default function SettingsScreen({ navigation }: Props) {
             onValueChange={handleHighContrast}
             trackColor={{ false: colors.border, true: BrandColors.teal }}
             thumbColor={appearance === 'highContrast' ? BrandColors.navy : colors.surface}
-            accessibilityLabel="Alto contraste"
+            pointerEvents="none"
+            focusable={false}
+            accessible={false}
           />
-        </View>
+        </Pressable>
 
         <AppText
           variant="overline"
@@ -198,6 +209,7 @@ export default function SettingsScreen({ navigation }: Props) {
           accessibilityLabel="Modo adulto mayor"
           style={[
             styles.settingItem,
+            settingRow,
             {
               backgroundColor: surface,
               borderColor: colors.border,
@@ -221,6 +233,9 @@ export default function SettingsScreen({ navigation }: Props) {
             onValueChange={toggleSeniorMode}
             trackColor={{ false: colors.border, true: BrandColors.teal }}
             thumbColor={mode === 'senior' ? BrandColors.navy : colors.surface}
+            pointerEvents="none"
+            focusable={false}
+            accessible={false}
           />
         </Pressable>
 
@@ -244,9 +259,14 @@ export default function SettingsScreen({ navigation }: Props) {
           <TextSizeSelector />
         </View>
 
-        <View
+        <Pressable
+          onPress={() => void handleVoiceToggle(!voiceEnabled)}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: voiceEnabled }}
+          accessibilityLabel="Lectura por voz"
           style={[
             styles.settingItem,
+            settingRow,
             {
               backgroundColor: surface,
               borderColor: colors.border,
@@ -270,9 +290,11 @@ export default function SettingsScreen({ navigation }: Props) {
             onValueChange={handleVoiceToggle}
             trackColor={{ false: colors.border, true: BrandColors.teal }}
             thumbColor={voiceEnabled ? BrandColors.navy : colors.surface}
-            accessibilityLabel="Lectura por voz"
+            pointerEvents="none"
+            focusable={false}
+            accessible={false}
           />
-        </View>
+        </Pressable>
 
         <AppText
           variant="overline"
@@ -281,9 +303,15 @@ export default function SettingsScreen({ navigation }: Props) {
           Notificaciones
         </AppText>
 
-        <View
+        <Pressable
+          onPress={() => handleNotifications(!notifications)}
+          disabled={busy || isDemo}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: notifications, disabled: busy || isDemo }}
+          accessibilityLabel="Notificaciones de medicamentos"
           style={[
             styles.settingItem,
+            settingRow,
             {
               backgroundColor: surface,
               borderColor: colors.border,
@@ -314,11 +342,14 @@ export default function SettingsScreen({ navigation }: Props) {
             disabled={busy || isDemo}
             trackColor={{ false: colors.border, true: BrandColors.teal }}
             thumbColor={notifications ? BrandColors.navy : colors.surface}
+            pointerEvents="none"
+            focusable={false}
+            accessible={false}
           />
-        </View>
+        </Pressable>
 
         <View style={{ alignItems: 'center', marginTop: scaleSpacing(Space[32]) }}>
-          <AppText variant="h3" style={{ color: isHighContrast ? colors.textPrimary : BrandColors.navy }}>
+          <AppText variant="h3" style={{ color: isHighContrast ? colors.textPrimary : isDark ? colors.textPrimary : BrandColors.navy }}>
             LIA v1.0.0
           </AppText>
           <AppText variant="caption" tone="secondary" style={{ marginTop: 4 }}>

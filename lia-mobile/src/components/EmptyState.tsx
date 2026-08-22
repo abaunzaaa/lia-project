@@ -50,7 +50,7 @@ export default function EmptyState({
         style={[
           styles.icon,
           {
-            backgroundColor: isHighContrast ? colors.surface : BrandColors.skyBlue,
+            backgroundColor: isHighContrast ? colors.surface : isDark ? colors.accentSoft : BrandColors.skyBlue,
             borderWidth: isHighContrast ? 2 : 0,
             borderColor: colors.border,
             marginBottom: scaleSpacing(Space[20]),
@@ -60,7 +60,7 @@ export default function EmptyState({
         <Ionicons
           name={icon}
           size={scaleFont(28)}
-          color={isHighContrast ? colors.textPrimary : BrandColors.navy}
+          color={isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.navy}
         />
       </View>
       <EditorialText
@@ -70,6 +70,7 @@ export default function EmptyState({
           fontSize: scaleFont(24),
           lineHeight: scaleFont(30),
           marginBottom: scaleSpacing(Space[8]),
+          flexShrink: 1,
         }}
       >
         {title}
@@ -77,7 +78,7 @@ export default function EmptyState({
       <AppText
         variant="body"
         tone="secondary"
-        style={{ textAlign: 'center', maxWidth: 320 }}
+        style={{ textAlign: 'center', maxWidth: '100%', flexShrink: 1 }}
       >
         {description}
       </AppText>
@@ -102,8 +103,9 @@ const styles = StyleSheet.create({
     top: '28%',
   },
   icon: {
-    width: 72,
-    height: 72,
+    minWidth: 72,
+    minHeight: 72,
+    paddingHorizontal: 12,
     borderRadius: Radius.xl,
     alignItems: 'center',
     justifyContent: 'center',

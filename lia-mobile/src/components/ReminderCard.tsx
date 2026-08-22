@@ -45,7 +45,7 @@ export default function ReminderCard({
 }: ReminderCardProps) {
   const { scaleSpacing, scaleFont, isSeniorMode, fontScale } = useAccessibility();
   const { isSmallPhone } = useResponsive();
-  const { isHighContrast } = useTheme();
+  const { isHighContrast, isDark, colors } = useTheme();
 
   const [localNow, setLocalNow] = useState(() => Date.now());
   const nowMs = nowMsProp ?? localNow;
@@ -83,12 +83,12 @@ export default function ReminderCard({
         paddingVertical: scaleSpacing(padV),
       }}
     >
-      <View style={[styles.header, isSmallPhone && styles.headerStack]}>
+      <View style={[styles.header, (isSmallPhone || isSeniorMode) && styles.headerStack]}>
         <View style={styles.timeCol}>
           <AppText
             variant="timeDisplay"
             style={{
-              color: isHighContrast ? undefined : BrandColors.navy,
+              color: isHighContrast ? undefined : isDark ? colors.textPrimary : BrandColors.navy,
               fontSize: scaleFont(timeSize),
               lineHeight: scaleFont(timeSize + 6),
               flexShrink: 1,
@@ -101,8 +101,8 @@ export default function ReminderCard({
           </View>
         </View>
 
-        <View style={[styles.info, isSmallPhone && styles.infoFull]}>
-          <AppText variant="medicationName" style={{ flexShrink: 1 }} numberOfLines={2}>
+        <View style={[styles.info, (isSmallPhone || isSeniorMode) && styles.infoFull]}>
+          <AppText variant="medicationName" style={{ flexShrink: 1 }}>
             {reminder.medicationName}
           </AppText>
           <AppText variant="body" tone="secondary" style={{ marginTop: 4, flexShrink: 1 }}>
@@ -158,7 +158,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    flexWrap: 'wrap',
     gap: 16,
     width: '100%',
   },

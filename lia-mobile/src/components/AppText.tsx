@@ -36,6 +36,7 @@ export default function AppText({
     <Text
       {...rest}
       maxFontSizeMultiplier={1.35}
+      textBreakStrategy="simple"
       style={[
         styles.base,
         {

@@ -29,9 +29,9 @@ const TAB_META: Record<
 };
 
 /**
- * Labels custom: React Navigation trunca por defecto (numberOfLines=1 + ellipsis)
- * cuando el ancho por tab es estrecho. Aquí cada label usa el ancho completo del tab,
- * sin ellipsis; en extremos ajusta ligeramente el tamaño (no corta palabras).
+ * Labels estructurales: una sola línea, palabras completas.
+ * El modo mayor NO escala estos labels (sí el contenido de las pantallas).
+ * Si el ancho es justo, se reduce un poco el tamaño — nunca se parte la palabra.
  */
 function TabLabel({
   label,
@@ -52,19 +52,18 @@ function TabLabel({
     <Text
       numberOfLines={1}
       adjustsFontSizeToFit
-      minimumFontScale={0.82}
-      maxFontSizeMultiplier={1.25}
-      allowFontScaling
+      minimumFontScale={0.78}
+      allowFontScaling={false}
+      maxFontSizeMultiplier={1}
       style={{
         color,
         fontFamily: FontFamily.medium,
         fontSize,
         fontWeight: focused ? FontWeight.semiBold : FontWeight.medium,
         textAlign: 'center',
-        width: Math.max(tabWidth - 2, 48),
+        width: Math.max(tabWidth - 8, 52),
         marginTop: 3,
-        paddingHorizontal: 0,
-        letterSpacing: tight ? -0.35 : -0.12,
+        letterSpacing: tight ? -0.2 : 0,
         includeFontPadding: false,
       }}
     >
@@ -75,7 +74,7 @@ function TabLabel({
 
 export default function MainTabNavigator() {
   const insets = useSafeAreaInsets();
-  const { scaleFont, isSeniorMode, textSize, fontScale } = useAccessibility();
+  const { isSeniorMode, textSize, fontScale } = useAccessibility();
   const { colors, isHighContrast, isDark } = useTheme();
   const { width } = useResponsive();
 
@@ -83,11 +82,11 @@ export default function MainTabNavigator() {
   const veryTight = width < 340;
   const largeType = isSeniorMode || textSize === 'lg' || fontScale >= 1.2;
 
-  const labelSize = scaleFont(veryTight ? 10 : tight ? 10.5 : 11);
-  const iconSize = scaleFont(largeType ? 22 : tight ? 18 : 20);
+  const labelSize = veryTight ? 10 : tight ? 10.5 : 11;
+  const iconSize = largeType ? 22 : tight ? 18 : 20;
 
   const bottomPad = Math.max(insets.bottom, Platform.OS === 'ios' ? 8 : 6);
-  const topPad = largeType ? 10 : 6;
+  const topPad = largeType ? 8 : 6;
   const contentBlock = largeType ? 52 : tight ? 44 : 46;
   const tabHeight = contentBlock + topPad + bottomPad;
   const tabWidth = Math.floor(width / 5);
@@ -98,13 +97,17 @@ export default function MainTabNavigator() {
         const meta = TAB_META[route.name];
         return {
           headerShown: false,
-          tabBarActiveTintColor: isHighContrast ? colors.textPrimary : BrandColors.navy,
+          tabBarActiveTintColor: isHighContrast
+            ? colors.textPrimary
+            : isDark
+              ? colors.primary
+              : BrandColors.navy,
           tabBarInactiveTintColor: isHighContrast
             ? colors.textMuted
             : isDark
               ? BrandColors.skyBlue
               : BrandColors.teal,
-          tabBarAllowFontScaling: true,
+          tabBarAllowFontScaling: false,
           tabBarShowLabel: true,
           tabBarHideOnKeyboard: true,
           tabBarStyle: {
@@ -124,7 +127,7 @@ export default function MainTabNavigator() {
           },
           tabBarItemStyle: {
             flex: 1,
-            paddingHorizontal: 0,
+            paddingHorizontal: 2,
             marginHorizontal: 0,
             minWidth: 0,
             maxWidth: tabWidth,

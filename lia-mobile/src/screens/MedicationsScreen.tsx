@@ -161,7 +161,7 @@ export default function MedicationsScreen({ navigation }: Props) {
               <Ionicons
                 name="add-circle-outline"
                 size={scaleFont(22)}
-                color={isHighContrast ? colors.textPrimary : BrandColors.navy}
+                color={isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.navy}
               />
               <AppText variant="body" style={{ fontWeight: '600', marginLeft: 8, flexShrink: 1 }}>
                 Agregar medicamento
