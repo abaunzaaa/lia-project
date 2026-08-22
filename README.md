@@ -123,7 +123,7 @@ Artificial intelligence is used as a support tool and not as a replacement for p
 
 ---
 
-# 📂 Project Structure
+# Project Structure
 
 ```text
 LIA/
@@ -457,7 +457,7 @@ Supports artificial intelligence functionality such as image analysis and simpli
 
 ---
 
-# 🚧 Current Status
+# Current Status
 
 LIA is currently in the **development and testing phase**.
 
@@ -473,7 +473,7 @@ Production backend deployment and publication of the mobile application to appli
 
 ---
 
-# 👥 Team
+# Team
 
 LIA has been developed collaboratively by:
 
@@ -502,7 +502,7 @@ Users should always follow the instructions provided by qualified healthcare pro
 
 ---
 
-# 📄 License
+# License
 
 The project currently does not have a defined public license.
 
