@@ -3,296 +3,721 @@ import {
   View,
   Pressable,
   StyleSheet,
-  Platform,
   ScrollView,
   Text,
+  Platform,
 } from 'react-native';
+
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+
 import { RootStackParamList } from '../types';
-import { WelcomeHero, WelcomeBrandLogo } from '../components';
+import { WelcomeHero } from '../components';
+
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useTheme } from '../context/ThemeContext';
 import { useResponsive } from '../hooks/useResponsive';
+
 import { BrandColors } from '../theme/brand';
-import { Radius, Space, FontWeight } from '../theme/tokens';
+import { Radius, Space } from '../theme/tokens';
+
 
 type Props = {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'Onboarding'>;
+  navigation: NativeStackNavigationProp<
+    RootStackParamList,
+    'Onboarding'
+  >;
 };
 
-const SERIF = Platform.select({
-  ios: 'Times New Roman',
-  android: 'serif',
-  default: 'serif',
+
+const INTER = Platform.select({
+  ios: 'Inter',
+  android: 'Inter',
+  default: 'Inter',
 });
 
-const SANS = Platform.select({
-  ios: 'System',
-  android: 'sans-serif',
-  default: undefined,
+
+const INTER_SEMIBOLD = Platform.select({
+  ios: 'Inter-SemiBold',
+  android: 'Inter-SemiBold',
+  default: 'Inter-SemiBold',
 });
 
-const SANS_MEDIUM = Platform.select({
-  ios: 'System',
-  android: 'sans-serif-medium',
-  default: undefined,
+
+const INTER_MEDIUM = Platform.select({
+  ios: 'Inter-Medium',
+  android: 'Inter-Medium',
+  default: 'Inter-Medium',
 });
 
-export default function OnboardingScreen({ navigation }: Props) {
+
+
+export default function OnboardingScreen({
+  navigation,
+}: Props) {
+
+
   const insets = useSafeAreaInsets();
-  const { isDark, isHighContrast } = useTheme();
-  const { scaleSpacing, minTouch, scaleFont, buttonScale, isSeniorMode } = useAccessibility();
-  const { height, horizontalPadding, compact, isTablet, isShortScreen } = useResponsive();
 
-  const bg = isHighContrast ? '#000000' : isDark ? '#10161C' : BrandColors.beige;
-  const titleColor = isHighContrast ? BrandColors.white : isDark ? BrandColors.beige : BrandColors.navy;
-  const bodyColor = isHighContrast ? '#D0D0D0' : isDark ? BrandColors.skyBlue : BrandColors.teal;
-  const secondaryColor = isHighContrast
-    ? BrandColors.white
-    : isDark
+
+  const {
+    isDark,
+    isHighContrast,
+  } = useTheme();
+
+
+
+  const {
+    scaleSpacing,
+    minTouch,
+    scaleFont,
+    buttonScale,
+    isSeniorMode,
+  } = useAccessibility();
+
+
+
+  const {
+    height,
+    horizontalPadding,
+    compact,
+    isTablet,
+    isShortScreen,
+  } = useResponsive();
+
+
+
+
+  const bg =
+    isHighContrast
+      ? '#000000'
+      : isDark
+        ? '#10161C'
+        : '#FFFFFF';
+
+
+
+
+  const titleColor =
+    isDark
       ? BrandColors.beige
       : BrandColors.navy;
 
+
+
+  const bodyColor =
+    isDark
+      ? BrandColors.skyBlue
+      : BrandColors.teal;
+
+
+
+
+
   const heroHeight = useMemo(() => {
-    const ratio = isShortScreen || compact ? 0.42 : isTablet ? 0.46 : 0.48;
-    const raw = Math.round(height * ratio);
-    const floor = isShortScreen ? 210 : compact ? 230 : 250;
-    const cap = isTablet ? 420 : isShortScreen ? 280 : 360;
-    return Math.round(Math.min(Math.max(raw, floor), cap));
-  }, [height, compact, isTablet, isShortScreen]);
 
-  const logoWidth = isTablet ? 280 : isSeniorMode ? (compact ? 228 : 252) : compact ? 236 : 268;
+    const ratio =
+      isShortScreen || compact
+        ? 0.56
+        : isTablet
+          ? 0.60
+          : 0.62;
 
-  const titleSize = scaleFont(compact || isShortScreen ? 24 : isTablet ? 30 : 28);
-  const titleLine = scaleFont(compact || isShortScreen ? 30 : isTablet ? 38 : 36);
-  const bodySize = scaleFont(compact ? 15 : 16);
-  const bodyLine = scaleFont(compact ? 22 : 24);
 
-  const primaryH = Math.max(minTouch, Math.round((compact ? 50 : 54) * buttonScale));
-  const secondaryH = Math.max(minTouch, Math.round((compact ? 44 : 48) * buttonScale));
+    const raw =
+      Math.round(height * ratio);
 
-  const needsScroll = isSeniorMode || isShortScreen || height < 680;
+
+
+    return Math.min(
+      Math.max(raw, 360),
+      500
+    );
+
+
+  }, [
+    height,
+    compact,
+    isTablet,
+    isShortScreen
+  ]);
+
+
+
+
+
+  const primaryHeight =
+    Math.max(
+      minTouch,
+      Math.round(56 * buttonScale)
+    );
+
+
+
+  const secondaryHeight =
+    Math.max(
+      minTouch,
+      Math.round(46 * buttonScale)
+    );
+
+
+
+
+
+  const needsScroll =
+    isSeniorMode ||
+    isShortScreen ||
+    height < 680;
+
+
+
+
 
   const content = (
+
     <View
+
       style={[
         styles.column,
         {
-          paddingBottom: Math.max(insets.bottom, scaleSpacing(compact ? Space[16] : Space[20])),
-          minHeight: needsScroll ? undefined : height,
+          paddingBottom:
+            Math.max(
+              insets.bottom,
+              scaleSpacing(Space[20])
+            ),
         },
       ]}
+
     >
-      <WelcomeHero height={heroHeight} />
+
+
+      <WelcomeHero
+        height={heroHeight}
+      />
+
+
+
 
       <View
+
         style={[
-          styles.bodyPad,
+          styles.content,
           {
             paddingHorizontal: horizontalPadding,
-            marginTop: scaleSpacing(compact ? Space[4] : Space[8]),
           },
         ]}
+
       >
-        <View style={[styles.logoBlock, { marginBottom: scaleSpacing(compact ? Space[12] : Space[16]) }]}>
-          <WelcomeBrandLogo pageBackground={bg} size={logoWidth} />
+
+
+
+
+        <Text
+
+          style={[
+            styles.title,
+            {
+              color: titleColor,
+              fontSize: scaleFont(22),
+            },
+          ]}
+
+        >
+
+          Tu compañía para cuidar tus
+          {'\n'}
+          medicamentos cada día
+
+        </Text>
+
+
+
+
+
+        <View style={styles.features}>
+
+
+          <Feature
+            icon="notifications-outline"
+            label="Recordatorios"
+          />
+
+
+          <Feature
+            icon="camera-outline"
+            label="Identificación"
+          />
+
+
+
+          <Feature
+            icon="shield-checkmark-outline"
+            label="Seguimiento"
+          />
+
+
         </View>
 
-        <View style={[styles.copyBlock, { marginBottom: scaleSpacing(compact ? Space[20] : Space[24]) }]}>
-          <Text
-            accessibilityRole="header"
-            maxFontSizeMultiplier={1.35}
-            style={[
-              styles.title,
-              {
-                color: titleColor,
-                fontSize: titleSize,
-                lineHeight: titleLine,
-                marginBottom: scaleSpacing(Space[12]),
-              },
-            ]}
-          >
-            Tu compañía para cuidar tus medicamentos cada día
-          </Text>
 
-          <Text
-            maxFontSizeMultiplier={1.35}
-            style={[
-              styles.body,
-              {
-                color: bodyColor,
-                fontSize: bodySize,
-                lineHeight: bodyLine,
-              },
-            ]}
-          >
-            Recordatorios, identificación y seguimiento sencillo para ti y tu familia.
-          </Text>
-        </View>
 
-        {!needsScroll ? <View style={styles.flexSpacer} /> : null}
 
-        <View style={[styles.actions, { gap: scaleSpacing(Space[8]) }]}>
+
+        <View style={styles.spacer} />
+
+
+
+
+
+        <View style={styles.actions}>
+
+
+
           <Pressable
-            onPress={() => navigation.navigate('Register')}
-            accessibilityRole="button"
-            accessibilityLabel="Comenzar"
-            accessibilityHint="Crea tu cuenta en LIA"
+
+            onPress={() =>
+              navigation.navigate('Register')
+            }
+
             style={({ pressed }) => [
-              styles.primaryBtn,
+
+              styles.primaryButton,
+
               {
-                minHeight: primaryH,
-                paddingVertical: (compact ? 14 : 16) * buttonScale,
-                backgroundColor: isHighContrast ? BrandColors.white : BrandColors.navy,
-                borderWidth: isHighContrast ? 2 : 0,
-                borderColor: BrandColors.white,
-                opacity: pressed ? 0.9 : 1,
+                height: primaryHeight,
+
+                backgroundColor:
+                  isHighContrast
+                    ? BrandColors.white
+                    : BrandColors.navy,
+
+                opacity:
+                  pressed
+                    ? 0.8
+                    : 1,
               },
+
             ]}
+
           >
+
+
             <Text
-              maxFontSizeMultiplier={1.3}
-              numberOfLines={2}
+
               style={[
-                styles.primaryLabel,
+                styles.primaryText,
                 {
-                  color: isHighContrast ? '#000000' : BrandColors.white,
-                  fontSize: scaleFont(17),
+                  color:
+                    isHighContrast
+                      ? '#000000'
+                      : BrandColors.white,
                 },
               ]}
+
             >
+
               Comenzar
+
             </Text>
+
+
           </Pressable>
 
+
+
+
+
           <Pressable
-            onPress={() => navigation.navigate('Login')}
-            accessibilityRole="button"
-            accessibilityLabel="Ya tengo cuenta"
-            accessibilityHint="Inicia sesión en LIA"
-            style={({ pressed }) => [
-              styles.secondaryBtn,
+
+            onPress={() =>
+              navigation.navigate('Login')
+            }
+
+
+            style={[
+              styles.secondaryButton,
               {
-                minHeight: secondaryH,
-                opacity: pressed ? 0.65 : 1,
+                height: secondaryHeight,
               },
             ]}
+
           >
+
+
+
             <Text
-              maxFontSizeMultiplier={1.3}
-              numberOfLines={1}
+
               style={[
-                styles.secondaryLabel,
+                styles.secondaryText,
                 {
-                  color: secondaryColor,
-                  fontSize: scaleFont(16),
+                  color: titleColor,
                 },
               ]}
+
             >
+
               Ya tengo cuenta
+
             </Text>
+
+
+
             <Ionicons
+
               name="arrow-forward"
-              size={scaleFont(15)}
-              color={secondaryColor}
-              style={{ marginLeft: 6 }}
+
+              size={17}
+
+              color={titleColor}
+
             />
+
+
           </Pressable>
+
+
         </View>
+
+
+
       </View>
+
+
+
     </View>
+
   );
+
+
+
+
+
+
 
   return (
-    <View style={[styles.root, { backgroundColor: bg }]}>
-      {needsScroll ? (
+
+    <View
+
+      style={[
+        styles.root,
+        {
+          backgroundColor: bg,
+        },
+      ]}
+
+    >
+
+
+      {
+
+        needsScroll
+
+        ?
+
         <ScrollView
-          style={styles.root}
-          contentContainerStyle={styles.scrollContent}
+
           showsVerticalScrollIndicator={false}
-          bounces={false}
-          keyboardShouldPersistTaps="handled"
+
+          contentContainerStyle={styles.scroll}
+
         >
+
           {content}
+
         </ScrollView>
-      ) : (
+
+
+        :
+
         content
-      )}
+
+      }
+
+
     </View>
+
   );
+
 }
 
+
+
+
+
+function Feature({
+
+  icon,
+
+  label,
+
+}: {
+
+  icon: keyof typeof Ionicons.glyphMap;
+
+  label: string;
+
+}) {
+
+
+  return (
+
+    <View style={styles.feature}>
+
+
+      <View style={styles.iconCircle}>
+
+
+        <Ionicons
+
+          name={icon}
+
+          size={25}
+
+          color={BrandColors.navy}
+
+        />
+
+
+      </View>
+
+
+
+      <Text
+
+        style={styles.featureText}
+
+      >
+
+        {label}
+
+
+      </Text>
+
+
+
+    </View>
+
+
+  );
+
+}
+
+
+
+
+
+
+
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
+
+
+  root:{
+    flex:1,
   },
-  scrollContent: {
-    flexGrow: 1,
+
+
+
+  scroll:{
+    flexGrow:1,
   },
-  column: {
-    flex: 1,
-    width: '100%',
+
+
+
+  column:{
+    flex:1,
+    width:'100%',
   },
-  bodyPad: {
-    flex: 1,
-    width: '100%',
+
+
+
+  content:{
+    flex:1,
+    alignItems:'center',
   },
-  logoBlock: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
+
+
+
+  title:{
+
+
+    fontFamily:INTER_SEMIBOLD,
+
+    fontWeight:'600',
+
+    textAlign:'center',
+
+    lineHeight:30,
+
+    marginTop:90,
+
+    maxWidth:340,
+
+
   },
-  copyBlock: {
-    width: '100%',
-    alignItems: 'center',
+
+
+
+
+  features:{
+
+
+    flexDirection:'row',
+
+    justifyContent:'space-evenly',
+
+    alignItems:'center',
+
+    width:'100%',
+
+    marginTop:32,
+
+
   },
-  title: {
-    fontFamily: SERIF,
-    fontWeight: FontWeight.regular,
-    letterSpacing: -0.45,
-    textAlign: 'center',
-    maxWidth: 360,
+
+
+
+
+  feature:{
+
+
+    alignItems:'center',
+
+    justifyContent:'center',
+
+    width:95,
+
+
   },
-  body: {
-    fontFamily: SANS,
-    fontWeight: FontWeight.regular,
-    textAlign: 'center',
-    maxWidth: 340,
-    letterSpacing: 0.15,
+
+
+
+
+  iconCircle:{
+
+
+    width:54,
+
+    height:54,
+
+    borderRadius:27,
+
+    backgroundColor:'#F5F9FC',
+
+    alignItems:'center',
+
+    justifyContent:'center',
+
+    marginBottom:8,
+
+
   },
-  flexSpacer: {
-    flexGrow: 1,
-    minHeight: Space[8],
+
+
+
+
+  featureText:{
+
+
+    fontFamily:INTER,
+
+    fontSize:13,
+
+    fontWeight:'400',
+
+    color:BrandColors.navy,
+
+    textAlign:'center',
+
+
   },
-  actions: {
-    width: '100%',
-    alignItems: 'center',
+
+
+
+
+  spacer:{
+
+
+    flex:1,
+
+    minHeight:35,
+
+
   },
-  primaryBtn: {
-    width: '100%',
-    maxWidth: 380,
-    borderRadius: Radius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
+
+
+
+
+  actions:{
+
+
+    width:'100%',
+
+    alignItems:'center',
+
+    gap:12,
+
+
   },
-  primaryLabel: {
-    fontFamily: SANS_MEDIUM,
-    fontWeight: FontWeight.semiBold,
-    letterSpacing: 0.2,
-    textAlign: 'center',
+
+
+
+
+  primaryButton:{
+
+
+    width:'100%',
+
+    maxWidth:380,
+
+    borderRadius:Radius.lg,
+
+    alignItems:'center',
+
+    justifyContent:'center',
+
+
   },
-  secondaryBtn: {
-    width: '100%',
-    maxWidth: 380,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
+
+
+
+
+  primaryText:{
+
+
+    fontFamily:INTER_MEDIUM,
+
+    fontSize:17,
+
+    fontWeight:'500',
+
+
   },
-  secondaryLabel: {
-    fontFamily: SANS_MEDIUM,
-    fontWeight: FontWeight.medium,
+
+
+
+
+  secondaryButton:{
+
+
+    flexDirection:'row',
+
+    alignItems:'center',
+
+    justifyContent:'center',
+
+    gap:7,
+
+
   },
+
+
+
+
+  secondaryText:{
+    fontFamily:INTER_MEDIUM,
+    fontSize:16,
+    fontWeight:'500',
+
+  },
+
 });
