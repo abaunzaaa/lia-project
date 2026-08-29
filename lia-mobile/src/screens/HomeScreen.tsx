@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
-import { View, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Pressable, StyleSheet, ActivityIndicator, Image } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { CompositeNavigationProp, useFocusEffect } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -37,6 +38,9 @@ type Props = { navigation: HomeNavProp };
 
 const VISIBLE_MEDS = 3;
 
+const profilePhotoStorageKey = (uid: string) =>
+  `lia_profile_photo_${uid}`;
+
 export default function HomeScreen({ navigation }: Props) {
   const { user, isDemo } = useAuth();
   const { medications, loading: medsLoading } = useMedications();
@@ -46,6 +50,7 @@ export default function HomeScreen({ navigation }: Props) {
   const { colors, isHighContrast, isDark } = useTheme();
   const { compact } = useResponsive();
   const [toast, setToast] = React.useState({ visible: false, message: '', type: 'error' as const });
+  const [profileImage, setProfileImage] = React.useState<string | null>(null);
 
   const firstName = user?.fullName?.split(' ')[0] || 'Amigo';
   const hasMeds = medications.length > 0;
@@ -53,7 +58,22 @@ export default function HomeScreen({ navigation }: Props) {
   useFocusEffect(
     useCallback(() => {
       void refreshHome();
-    }, [refreshHome])
+
+      if (!user?.uid) {
+        setProfileImage(null);
+        return;
+      }
+
+      const uid = user.uid;
+      void (async () => {
+        try {
+          const stored = await AsyncStorage.getItem(profilePhotoStorageKey(uid));
+          setProfileImage(stored);
+        } catch {
+          setProfileImage(null);
+        }
+      })();
+    }, [refreshHome, user?.uid])
   );
 
   const goToReminders = useCallback(() => {
@@ -152,13 +172,22 @@ export default function HomeScreen({ navigation }: Props) {
                 width: Math.max(48, minTouch),
                 height: Math.max(48, minTouch),
                 borderRadius: Math.max(48, minTouch) / 2,
+                overflow: 'hidden',
                 opacity: pressed ? 0.88 : 1,
               },
             ]}
           >
-            <AppText variant="h3" style={{ color: isHighContrast ? colors.textPrimary : BrandColors.white }}>
-              {firstName.charAt(0).toUpperCase()}
-            </AppText>
+            {profileImage ? (
+              <Image
+                source={{ uri: profileImage }}
+                style={styles.avatarImage}
+                onError={() => setProfileImage(null)}
+              />
+            ) : (
+              <AppText variant="h3" style={{ color: isHighContrast ? colors.textPrimary : BrandColors.white }}>
+                {firstName.charAt(0).toUpperCase()}
+              </AppText>
+            )}
           </Pressable>
         </View>
 
@@ -443,6 +472,10 @@ const styles = StyleSheet.create({
   avatar: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   missedBanner: {
     flexDirection: 'row',

@@ -26,6 +26,12 @@
     "plugins": [
       "expo-font",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "LÍA usa tu galería para cambiar tu foto de perfil."
+        }
+      ],
+      [
         "expo-notifications",
         {
           "color": "#6FA8DC"

@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { BrandColors } from '../theme/brand';
 import { Radius, Space, Layout } from '../theme/tokens';
 import { useTheme } from '../context/ThemeContext';
 import { useAccessibility, TextSize } from '../context/AccessibilityContext';
@@ -12,8 +13,9 @@ const OPTIONS: { size: TextSize; label: string }[] = [
 ];
 
 export default function TextSizeSelector() {
-  const { colors, isHighContrast } = useTheme();
+  const { colors, isHighContrast, isDark } = useTheme();
   const { textSize, setTextSize, minTouch, scaleSpacing } = useAccessibility();
+  const lightChrome = !isDark && !isHighContrast;
 
   return (
     <View
@@ -37,16 +39,32 @@ export default function TextSizeSelector() {
               {
                 minHeight: minTouch,
                 minWidth: minTouch,
-                backgroundColor: selected ? colors.primary : colors.surface,
-                borderWidth: isHighContrast || !selected ? 2 : 0,
-                borderColor: selected ? colors.primary : colors.border,
+                backgroundColor: lightChrome
+                  ? '#FFFFFF'
+                  : selected
+                    ? colors.primary
+                    : colors.surface,
+                borderWidth: selected || isHighContrast || lightChrome ? 1 : 0,
+                borderColor: selected
+                  ? lightChrome
+                    ? BrandColors.navy
+                    : colors.primary
+                  : lightChrome
+                    ? '#F0F1F2'
+                    : colors.border,
               },
             ]}
           >
             <AppText
               variant="button"
               style={{
-                color: selected ? colors.onPrimary : colors.textPrimary,
+                color: selected
+                  ? lightChrome
+                    ? BrandColors.navy
+                    : colors.onPrimary
+                  : lightChrome
+                    ? '#202124'
+                    : colors.textPrimary,
                 fontSize: 14 + index * 4,
               }}
             >

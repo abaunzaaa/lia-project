@@ -35,7 +35,7 @@ export const light: ColorPalette = {
   primaryLight: '#E8EEF2',
   primaryDark: '#243342',
   secondary: '#567C8D',
-  background: '#F5EFEB',
+  background: '#FFFFFF',
   surface: '#FFFCFA',
   surfaceElevated: '#FFFFFF',
   textPrimary: '#2F4156',
