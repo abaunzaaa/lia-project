@@ -132,7 +132,7 @@ export default function SettingsScreen({ navigation }: Props) {
   const lightChrome = !isDark && !isHighContrast;
   const cardBg = lightChrome ? '#FFFFFF' : colors.surface;
   const cardBorder = lightChrome ? '#F0F1F2' : colors.border;
-  const iconColor = lightChrome ? '#202124' : colors.textPrimary;
+  const iconColor = lightChrome ? BrandColors.navy : colors.textPrimary;
   const settingRow = isSeniorMode
     ? { flexDirection: 'column' as const, alignItems: 'stretch' as const, gap: scaleSpacing(Space[12]) }
     : { flexDirection: 'row' as const, alignItems: 'center' as const };

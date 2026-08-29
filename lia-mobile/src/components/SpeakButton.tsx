@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, ViewStyle, StyleProp } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useTheme } from '../context/ThemeContext';
 import { BrandColors, brandInk } from '../theme/brand';
-import { Radius, Space } from '../theme/tokens';
+import { FontFamily, FontWeight, Radius, Space } from '../theme/tokens';
 import { useSpeech } from '../hooks/useSpeech';
 import AppText from './AppText';
 import Toast from './Toast';
@@ -15,9 +15,11 @@ interface SpeakButtonProps {
   id: string;
   label?: string;
   stopLabel?: string;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   /** Si false, no se renderiza (además de voiceEnabled). */
   visible?: boolean;
+  /** Variante tipográfica del texto. Por defecto body. */
+  textVariant?: 'body' | 'label' | 'button';
 }
 
 /**
@@ -31,6 +33,7 @@ export default function SpeakButton({
   stopLabel = 'Detener',
   style,
   visible = true,
+  textVariant = 'body',
 }: SpeakButtonProps) {
   const { voiceEnabled, minTouch, scaleSpacing, scaleFont } = useAccessibility();
   const { colors, isHighContrast, isDark } = useTheme();
@@ -96,18 +99,20 @@ export default function SpeakButton({
       >
         <Ionicons
           name={isThis ? 'stop-circle-outline' : 'volume-high-outline'}
-          size={scaleFont(20)}
+          size={scaleFont(textVariant === 'body' ? 20 : 16)}
           color={brandInk(isDark, isHighContrast, colors.textPrimary)}
         />
           <AppText
-            variant="body"
+            variant={textVariant}
             style={{
-              fontWeight: '600',
+              fontFamily: FontFamily.semiBold,
+              fontWeight: FontWeight.semiBold,
+              textAlign: 'center',
               color: brandInk(isDark, isHighContrast, colors.textPrimary),
               flexShrink: 1,
               minWidth: 0,
             }}
-            numberOfLines={2}
+            numberOfLines={1}
           >
           {title}
         </AppText>

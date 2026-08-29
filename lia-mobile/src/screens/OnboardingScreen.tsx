@@ -101,7 +101,7 @@ export default function OnboardingScreen({
 
   const titleColor =
     isDark
-      ? BrandColors.beige
+      ? BrandColors.white
       : BrandColors.navy;
 
 
@@ -601,7 +601,7 @@ const styles = StyleSheet.create({
 
     borderRadius:27,
 
-    backgroundColor:'#F5F9FC',
+    backgroundColor: BrandColors.skyBlue,
 
     alignItems:'center',
 

@@ -2,6 +2,9 @@ import React from 'react';
 import { View, Image, StyleSheet } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 
+/** Círculo de bienvenida — mismo valor que Onboarding. */
+export const ONBOARDING_CIRCLE_BG = '#D9EAF6';
+
 interface WelcomeHeroProps {
   height: number;
 }
@@ -56,9 +59,10 @@ export default function WelcomeHero({ height }: WelcomeHeroProps) {
       {/* CÍRCULO */}
 
       <View
-
-        style={styles.circle}
-
+        style={[
+          styles.circle,
+          { backgroundColor: ONBOARDING_CIRCLE_BG },
+        ]}
       />
 
 
@@ -122,7 +126,6 @@ circle:{
   height:310,
   borderRadius:155,
   top:240,
-  backgroundColor:'#D9EAF6',
 
 },
 

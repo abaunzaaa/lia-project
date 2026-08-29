@@ -492,7 +492,7 @@ export default function CameraGuideScreen({ navigation }: Props) {
                 ? colors.surface
                 : isDark
                   ? colors.surfaceElevated
-                  : BrandColors.beige,
+                  : BrandColors.white,
               borderColor: isHighContrast ? colors.border : BrandColors.skyBlue,
               borderWidth: isHighContrast ? 2 : 1,
             }}

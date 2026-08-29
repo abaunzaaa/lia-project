@@ -48,7 +48,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
           Te enviaremos un enlace a tu correo para restablecer tu contraseña
         </Text>
 
-        <Input label="Correo electrónico" placeholder="tu@correo.com" value={email} onChangeText={setEmail}
+        <Input chrome="white" label="Correo electrónico" placeholder="tu@correo.com" value={email} onChangeText={setEmail}
           keyboardType="email-address" autoCapitalize="none"
           icon={<Ionicons name="mail-outline" size={20} color={Colors.textLight} />} />
 
@@ -62,7 +62,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.beige, padding: Spacing.lg, paddingTop: Spacing.xxl },
+  container: { flex: 1, backgroundColor: '#FFFFFF', padding: Spacing.lg, paddingTop: Spacing.xxl },
   back: { marginBottom: Spacing.lg },
   content: { flex: 1 },
   emoji: { fontSize: 48, marginBottom: Spacing.lg },

@@ -63,7 +63,7 @@ export default function TextSizeSelector() {
                     ? BrandColors.navy
                     : colors.onPrimary
                   : lightChrome
-                    ? '#202124'
+                    ? BrandColors.navy
                     : colors.textPrimary,
                 fontSize: 14 + index * 4,
               }}

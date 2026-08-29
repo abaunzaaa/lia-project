@@ -17,22 +17,36 @@ interface InputProps extends TextInputProps {
   icon?: React.ReactNode;
   /** Control visible “Mostrar / Ocultar” para contraseñas. */
   secureToggle?: boolean;
+  /** Campos blancos con borde gris claro (identidad Perfil / Home). */
+  chrome?: 'default' | 'white';
 }
 
 const Input = React.forwardRef<TextInput, InputProps>(function Input(
-  { label, error, icon, style, secureToggle, secureTextEntry, accessibilityHint, ...props },
+  { label, error, icon, style, secureToggle, secureTextEntry, accessibilityHint, chrome = 'default', ...props },
   ref
 ) {
-  const { colors, isHighContrast } = useTheme();
+  const { colors, isHighContrast, isDark } = useTheme();
   const { scaleFont, minTouch, scaleSpacing } = useAccessibility();
   const [focused, setFocused] = useState(false);
   const [hidden, setHidden] = useState(true);
   const isSecure = secureToggle ? hidden : !!secureTextEntry;
+  const whiteChrome = !isHighContrast && (chrome === 'white' || !isDark);
 
   return (
     <View style={[styles.container, { marginBottom: scaleSpacing(Space[16]) }]}>
       {label ? (
-        <AppText variant="label" style={{ marginBottom: scaleSpacing(Space[8]) }}>
+        <AppText
+          variant={whiteChrome ? 'body' : 'label'}
+          style={{
+            marginBottom: scaleSpacing(Space[8]),
+            ...(whiteChrome
+              ? {
+                  color: '#6F747A',
+                  fontWeight: '400',
+                }
+              : null),
+          }}
+        >
           {label}
         </AppText>
       ) : null}
@@ -41,9 +55,16 @@ const Input = React.forwardRef<TextInput, InputProps>(function Input(
           styles.inputWrapper,
           {
             minHeight: Math.max(minTouch + 8, 56),
-            backgroundColor: colors.surface,
-            borderWidth: isHighContrast ? 2 : focused ? 2 : 1.5,
-            borderColor: error ? colors.error : focused ? colors.focusRing : colors.border,
+            backgroundColor: whiteChrome ? '#FFFFFF' : colors.surface,
+            borderRadius: whiteChrome ? Radius.lg : Radius.md,
+            borderWidth: isHighContrast ? 2 : focused ? 2 : 1,
+            borderColor: error
+              ? colors.error
+              : focused
+                ? colors.focusRing
+                : whiteChrome
+                  ? '#F0F1F2'
+                  : colors.border,
             paddingHorizontal: scaleSpacing(Space[16]),
           },
         ]}

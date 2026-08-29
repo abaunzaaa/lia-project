@@ -176,7 +176,7 @@ export default function ScanMedicationScreen({ navigation }: Props) {
               style={[
                 styles.pathIcon,
                 {
-                  backgroundColor: isHighContrast ? colors.surface : BrandColors.beige,
+                  backgroundColor: isHighContrast ? colors.surface : BrandColors.skyBlue,
                   borderWidth: isHighContrast ? 1 : 0,
                   borderColor: colors.border,
                 },

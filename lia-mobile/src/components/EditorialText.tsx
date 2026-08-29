@@ -75,7 +75,7 @@ export default function EditorialText({
           ? colors.primary
           : BrandColors.teal
         : isDark
-          ? BrandColors.beige
+          ? BrandColors.white
           : BrandColors.navy;
 
 

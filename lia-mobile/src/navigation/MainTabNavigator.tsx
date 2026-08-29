@@ -136,7 +136,7 @@ export default function MainTabNavigator() {
 
 
             borderTopColor:
-              '#E5EDF2',
+              BrandColors.cardBorder,
 
 
             height:

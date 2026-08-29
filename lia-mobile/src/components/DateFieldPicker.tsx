@@ -269,9 +269,17 @@ export default function DateFieldPicker({ label, valueYmd, onChange, minimumYmd 
                                     : BrandColors.navy
                                 : isDark
                                   ? colors.surface
-                                  : BrandColors.beige,
-                              borderColor: colors.border,
-                              borderWidth: isHighContrast ? 2 : 0,
+                                  : BrandColors.white,
+                              borderColor: active
+                                ? isHighContrast
+                                  ? colors.border
+                                  : isDark
+                                    ? colors.primary
+                                    : BrandColors.navy
+                                : isHighContrast
+                                  ? colors.border
+                                  : BrandColors.cardBorder,
+                              borderWidth: 1,
                             },
                           ]}
                         >

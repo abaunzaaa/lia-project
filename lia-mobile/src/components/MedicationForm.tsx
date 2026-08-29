@@ -512,7 +512,7 @@ export default function MedicationForm({
                         ? colors.surface
                         : isDark
                           ? colors.surfaceElevated
-                          : BrandColors.beige,
+                          : BrandColors.white,
                       borderColor: isHighContrast ? colors.border : BrandColors.skyBlue,
                       borderWidth: isHighContrast ? 2 : 1,
                       marginTop: scaleSpacing(Space[8]),
@@ -768,7 +768,7 @@ export default function MedicationForm({
                     ? colors.surface
                     : isDark
                       ? colors.surfaceElevated
-                      : BrandColors.beige,
+                      : BrandColors.white,
                   borderColor: isHighContrast ? colors.border : BrandColors.skyBlue,
                   borderWidth: isHighContrast ? 2 : 1,
                   padding: scaleSpacing(Space[16]),

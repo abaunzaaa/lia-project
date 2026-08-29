@@ -6,8 +6,10 @@ export const BrandColors = {
   navy: '#2F4156',
   teal: '#567C8D',
   skyBlue: '#C8D9E6',
-  beige: '#F5EFEB',
+  /** Alias de blanco puro. No usar como relleno beige/crema. */
+  beige: '#FFFFFF',
   white: '#FFFFFF',
+  cardBorder: '#F0F1F2',
 } as const;
 
 /** Navy en claro; en oscuro/contraste usa el texto del tema. */

@@ -171,15 +171,17 @@ export default function RemindersScreen() {
                       : isDark
                         ? colors.primary
                         : BrandColors.navy
-                    : colors.surface,
-                  borderWidth: isToday && !isSelected ? 2 : isHighContrast ? 1 : 0,
+                    : isDark
+                      ? colors.surface
+                      : BrandColors.white,
+                  borderWidth: isHighContrast ? 1 : isSelected ? 0 : isToday ? 2 : 1,
                   borderColor: isHighContrast
                     ? colors.border
-                    : isToday
+                    : isToday && !isSelected
                       ? isDark
                         ? colors.primary
                         : BrandColors.teal
-                      : 'transparent',
+                      : BrandColors.cardBorder,
                 },
               ]}
             >

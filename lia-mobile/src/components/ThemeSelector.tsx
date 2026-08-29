@@ -55,7 +55,7 @@ export default function ThemeSelector({ mode = 'appearance' }: ThemeSelectorProp
     padding: scaleSpacing(Space[12]),
   });
 
-  const iconColor = lightChrome ? '#202124' : colors.primary;
+  const iconColor = lightChrome ? BrandColors.navy : colors.primary;
 
   if (mode === 'full') {
     return (

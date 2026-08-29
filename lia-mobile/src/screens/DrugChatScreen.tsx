@@ -207,7 +207,7 @@ export default function DrugChatScreen({ navigation, route }: Props) {
                 ? colors.surface
                 : isDark
                   ? colors.surfaceElevated
-                  : BrandColors.beige,
+                  : BrandColors.white,
               borderColor: isHighContrast ? colors.border : BrandColors.skyBlue,
               borderWidth: isHighContrast ? 2 : 1,
             },
@@ -417,7 +417,7 @@ export default function DrugChatScreen({ navigation, route }: Props) {
                         ? colors.surface
                         : isDark
                           ? colors.surfaceElevated
-                          : BrandColors.beige,
+                          : BrandColors.white,
                       borderColor: isHighContrast ? colors.border : BrandColors.skyBlue,
                       borderWidth: isHighContrast ? 2 : 1,
                       opacity: sending ? 0.5 : pressed ? 0.88 : 1,

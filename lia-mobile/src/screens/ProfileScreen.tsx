@@ -629,7 +629,7 @@ export default function ProfileScreen({
               <Ionicons
                 name="notifications-outline"
                 size={22}
-                color="#202124"
+                color={BrandColors.navy}
 
               />
 
@@ -1006,7 +1006,7 @@ function ProfileOption({
         <Ionicons
           name={icon}
           size={21}
-          color="#202124"
+          color={BrandColors.navy}
 
         />
 

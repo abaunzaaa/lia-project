@@ -32,8 +32,8 @@ export default function SurfaceCard({ children, variant = 'default', style }: Su
           backgroundColor: backgrounds[variant],
           padding: scaleSpacing(Space[20]),
           borderRadius: Radius.lg,
-          borderWidth: isHighContrast ? 2 : variant === 'outline' ? 1 : 0,
-          borderColor: variant === 'emphasis' && !isHighContrast ? 'transparent' : colors.border,
+          borderWidth: isHighContrast ? 2 : variant === 'quiet' ? 0 : 1,
+          borderColor: colors.border,
         },
         style,
       ]}

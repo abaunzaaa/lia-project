@@ -100,7 +100,7 @@ export default function RecognitionResultScreen({ navigation, route }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.beige },
+  container: { flex: 1, backgroundColor: Colors.white },
   content: { padding: Spacing.lg, paddingBottom: Spacing.xxl },
   resultCard: {
     backgroundColor: Colors.white,

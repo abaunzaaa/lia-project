@@ -1,9 +1,18 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { View, Pressable, TextInput, StyleSheet, Platform, Text } from 'react-native';
+import { View, Pressable, TextInput, StyleSheet, Image } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../types';
-import { AppText, Button, EditorialText, Input, Screen, Toast } from '../components';
+import {
+  AppText,
+  Button,
+  GoogleAuthButton,
+  Header,
+  Input,
+  Screen,
+  Toast,
+  ONBOARDING_CIRCLE_BG,
+} from '../components';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useAccessibility } from '../context/AccessibilityContext';
@@ -21,19 +30,15 @@ type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Register'>;
 };
 
+const CREATE_ACCOUNT_IMAGE = require('../assets/images/crearcuenta.png');
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const SANS = Platform.select({
-  ios: 'System',
-  android: 'sans-serif',
-  default: undefined,
-});
 
 export default function RegisterScreen({ navigation }: Props) {
   const { register } = useAuth();
-  const { isDark, isHighContrast } = useTheme();
-  const { scaleSpacing, minTouch, scaleFont } = useAccessibility();
-  const { compact, horizontalPadding } = useResponsive();
+  const { colors, isDark, isHighContrast } = useTheme();
+  const { scaleSpacing, minTouch } = useAccessibility();
+  const { compact, horizontalPadding, width } = useResponsive();
+  const lightChrome = !isDark && !isHighContrast;
 
   const ageRef = useRef<TextInput>(null);
   const emailRef = useRef<TextInput>(null);
@@ -47,14 +52,15 @@ export default function RegisterScreen({ navigation }: Props) {
   const [emergencyContact, setEmergencyContact] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState({ visible: false, message: '', type: 'error' as const });
+  const [toast, setToast] = useState({
+    visible: false,
+    message: '',
+    type: 'error' as 'error' | 'info' | 'success',
+  });
 
-  const bg = isHighContrast ? '#000000' : isDark ? '#10161C' : BrandColors.beige;
-  const subtitleColor = isHighContrast ? '#E8E8E8' : isDark ? BrandColors.skyBlue : BrandColors.teal;
-  const iconColor = isHighContrast ? BrandColors.white : isDark ? BrandColors.skyBlue : BrandColors.teal;
-  const backColor = isHighContrast ? BrandColors.white : isDark ? BrandColors.beige : BrandColors.navy;
-  const checkOk = isHighContrast ? BrandColors.white : isDark ? BrandColors.skyBlue : BrandColors.teal;
-  const checkPending = isHighContrast ? '#888888' : BrandColors.skyBlue;
+  const iconColor = lightChrome ? BrandColors.navy : colors.textPrimary;
+  const checkOk = lightChrome ? BrandColors.teal : colors.textSecondary;
+  const checkPending = lightChrome ? '#8A9AA6' : colors.textMuted;
 
   const pwd = useMemo(() => passwordRequirements(password), [password]);
 
@@ -127,52 +133,73 @@ export default function RegisterScreen({ navigation }: Props) {
     { key: 'sp', ok: pwd.special, label: 'un carácter especial' },
   ] as const;
 
+  const circleSize = Math.min(compact ? 176 : 208, Math.round(width * 0.52));
+  const imageSize = circleSize * 1.42;
+  const overflowTop = Math.round(imageSize - circleSize);
+
   return (
-    <View style={[styles.root, { backgroundColor: bg }]}>
-      <Screen scroll keyboard safeTop transparent padded={false} contentStyle={styles.scrollBody}>
-        <View style={{ paddingHorizontal: horizontalPadding }}>
-          <Pressable
-            onPress={() => navigation.goBack()}
-            accessibilityRole="button"
-            accessibilityLabel="Volver"
-            accessibilityHint="Regresa a la pantalla anterior"
-            style={[
-              styles.back,
-              {
-                minHeight: minTouch,
-                minWidth: minTouch,
-                marginBottom: scaleSpacing(compact ? Space[16] : Space[24]),
-              },
-            ]}
-          >
-            <Ionicons name="chevron-back" size={26} color={backColor} />
-          </Pressable>
+    <View style={[styles.root, { backgroundColor: lightChrome ? '#FFFFFF' : colors.background }]}>
+      <Header
+        title="Crear cuenta"
+        showBack
+        onBack={() => navigation.goBack()}
+        editorial={false}
+      />
 
-          <EditorialText
-            variant="subhead"
+      <Screen scroll keyboard transparent padded={false} contentStyle={styles.scrollBody}>
+        <View style={{ paddingHorizontal: horizontalPadding, alignItems: 'center' }}>
+          <View
+            style={{
+              width: circleSize,
+              height: circleSize + overflowTop,
+              marginTop: -scaleSpacing(Space[32]),
+              marginBottom: scaleSpacing(Space[20]),
+              overflow: 'visible',
+            }}
+          >
+            <View
+              style={[
+                styles.heroCircle,
+                {
+                  width: circleSize,
+                  height: circleSize,
+                  borderRadius: circleSize / 2,
+                  top: overflowTop,
+                  backgroundColor: isHighContrast ? colors.surface : ONBOARDING_CIRCLE_BG,
+                },
+              ]}
+            />
+            <Image
+              source={CREATE_ACCOUNT_IMAGE}
+              style={{
+                position: 'absolute',
+                width: imageSize,
+                height: imageSize,
+                left: (circleSize - imageSize) / 2,
+                top: 10,
+                zIndex: 2,
+              }}
+              resizeMode="contain"
+              accessibilityIgnoresInvertColors
+            />
+          </View>
+
+          <AppText
+            variant="h2"
             accessibilityRole="header"
-            style={{ marginBottom: scaleSpacing(Space[8]) }}
+            style={{
+              color: lightChrome ? BrandColors.navy : colors.textPrimary,
+              fontWeight: '600',
+              textAlign: 'center',
+              marginBottom: scaleSpacing(compact ? Space[24] : Space[32]),
+            }}
           >
-            Crear cuenta
-          </EditorialText>
+            ¡Qué bueno tenerte aquí!
+          </AppText>
 
-          <Text
-            maxFontSizeMultiplier={1.35}
-            style={[
-              styles.subtitle,
-              {
-                color: subtitleColor,
-                fontSize: scaleFont(compact ? 15 : 16),
-                lineHeight: scaleFont(compact ? 22 : 24),
-                marginBottom: scaleSpacing(compact ? Space[24] : Space[32]),
-                maxWidth: 340,
-              },
-            ]}
-          >
-            Déjame conocerte un poquito para acompañarte mejor.
-          </Text>
-
+          <View style={styles.form}>
           <Input
+            chrome="white"
             label="Nombre completo"
             placeholder="Ej. María García"
             value={fullName}
@@ -193,6 +220,7 @@ export default function RegisterScreen({ navigation }: Props) {
 
           <Input
             ref={ageRef}
+            chrome="white"
             label="Edad"
             placeholder="Ej. 68"
             value={age}
@@ -211,6 +239,7 @@ export default function RegisterScreen({ navigation }: Props) {
 
           <Input
             ref={emailRef}
+            chrome="white"
             label="Correo electrónico"
             placeholder="Ej. maria@correo.com"
             value={email}
@@ -233,6 +262,7 @@ export default function RegisterScreen({ navigation }: Props) {
 
           <Input
             ref={passwordRef}
+            chrome="white"
             label="Contraseña"
             placeholder="Mínimo 8 caracteres"
             value={password}
@@ -267,7 +297,7 @@ export default function RegisterScreen({ navigation }: Props) {
                   variant="caption"
                   style={{
                     color: item.ok ? checkOk : checkPending,
-                    fontWeight: item.ok ? '700' : '400',
+                    fontWeight: item.ok ? '600' : '400',
                   }}
                 >
                   {item.ok ? '✓' : '○'} {item.label}
@@ -278,6 +308,7 @@ export default function RegisterScreen({ navigation }: Props) {
 
           <Input
             ref={emergencyRef}
+            chrome="white"
             label="Contacto de emergencia"
             placeholder="Ej. 3001234567"
             value={emergencyContact}
@@ -302,7 +333,26 @@ export default function RegisterScreen({ navigation }: Props) {
             disabled={loading}
             accessibilityLabel="Crear mi cuenta"
             accessibilityHint="Registra tu cuenta en LIA e inicia sesión automáticamente"
-            style={{ marginTop: scaleSpacing(Space[8]) }}
+            style={{
+              marginTop: scaleSpacing(Space[16]),
+              borderRadius: Radius.lg,
+              minHeight: Math.max(minTouch, 56),
+              backgroundColor: lightChrome ? BrandColors.navy : colors.primary,
+            }}
+          />
+
+          <GoogleAuthButton
+            title="Registrarse con Google"
+            onPress={() =>
+              setToast({
+                visible: true,
+                message: 'Próximamente disponible',
+                type: 'info',
+              })
+            }
+            accessibilityLabel="Registrarse con Google"
+            accessibilityHint="Próximamente disponible. Aún no está activo."
+            style={{ marginTop: scaleSpacing(Space[12]) }}
           />
 
           <Pressable
@@ -314,7 +364,8 @@ export default function RegisterScreen({ navigation }: Props) {
               styles.loginLink,
               {
                 minHeight: minTouch,
-                marginTop: scaleSpacing(Space[20]),
+                marginTop: scaleSpacing(Space[4]),
+                paddingTop: scaleSpacing(Space[4]),
               },
             ]}
           >
@@ -323,7 +374,7 @@ export default function RegisterScreen({ navigation }: Props) {
               <AppText
                 variant="body"
                 style={{
-                  color: isHighContrast ? BrandColors.white : isDark ? BrandColors.beige : BrandColors.navy,
+                  color: lightChrome ? BrandColors.navy : colors.textPrimary,
                   fontFamily: FontFamily.semiBold,
                   fontWeight: FontWeight.semiBold,
                 }}
@@ -332,6 +383,7 @@ export default function RegisterScreen({ navigation }: Props) {
               </AppText>
             </AppText>
           </Pressable>
+          </View>
         </View>
       </Screen>
 
@@ -351,15 +403,15 @@ const styles = StyleSheet.create({
   },
   scrollBody: {
     paddingHorizontal: 0,
+    paddingBottom: 40,
   },
-  back: {
-    alignSelf: 'flex-start',
-    justifyContent: 'center',
-    marginLeft: -8,
+  heroCircle: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
   },
-  subtitle: {
-    fontFamily: SANS,
-    fontWeight: FontWeight.regular,
+  form: {
+    width: '100%',
   },
   checkRow: {
     flexDirection: 'row',
@@ -367,7 +419,7 @@ const styles = StyleSheet.create({
   },
   loginLink: {
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     borderRadius: Radius.md,
   },
 });
