@@ -107,7 +107,27 @@ export default function ProfileScreen({
 
   const {
     colors,
+    isDark,
+    isHighContrast,
   } = useTheme();
+
+  const lightChrome = !isDark && !isHighContrast;
+  const cardBg = lightChrome ? '#FFFFFF' : colors.surface;
+  const cardBorder = lightChrome ? '#F0F1F2' : colors.border;
+  const iconColor = lightChrome ? BrandColors.navy : colors.textPrimary;
+  const cardStyle = {
+    backgroundColor: cardBg,
+    borderColor: cardBorder,
+    borderWidth: isHighContrast ? 2 : 1,
+  };
+  const sectionTitleStyle = [
+    styles.sectionTitle,
+    !lightChrome && { color: colors.textSecondary },
+  ];
+  const iconWrapStyle = [
+    styles.iconCircle,
+    !lightChrome && { backgroundColor: 'transparent' },
+  ];
 
 
 
@@ -293,7 +313,7 @@ export default function ProfileScreen({
     Alert.alert(
 
       'Recordatorios del teléfono',
-      'LÍA puede avisarte la hora de tus medicamentos aunque no estés usando la app.',
+      'LIA puede avisarte la hora de tus medicamentos aunque no estés usando la app.',
 
       [
 
@@ -385,7 +405,7 @@ export default function ProfileScreen({
 
           Alert.alert(
             'Galería',
-            'LÍA necesita acceso a tus fotos para cambiar tu foto de perfil.'
+            'LIA necesita acceso a tus fotos para cambiar tu foto de perfil.'
           );
 
           return;
@@ -433,7 +453,8 @@ export default function ProfileScreen({
 
     <View
       style={[
-        styles.container
+        styles.container,
+        { backgroundColor: lightChrome ? '#FFFFFF' : colors.background },
       ]}
     >
 
@@ -464,7 +485,12 @@ export default function ProfileScreen({
         <View
 
           style={[
-            styles.profileCard
+            styles.profileCard,
+            {
+              backgroundColor: lightChrome ? '#FFFFFF' : colors.surfaceElevated,
+              borderColor: lightChrome ? '#F0F1F2' : colors.border,
+              borderWidth: isHighContrast ? 2 : lightChrome ? 0 : 1,
+            },
           ]}
 
         >
@@ -541,12 +567,18 @@ export default function ProfileScreen({
 
             <View
               pointerEvents="none"
-              style={styles.cameraBadge}
+              style={[
+                styles.cameraBadge,
+                !lightChrome && {
+                  backgroundColor: colors.surfaceElevated,
+                  borderColor: colors.border,
+                },
+              ]}
             >
               <Ionicons
                 name="camera-outline"
                 size={12}
-                color={BrandColors.navy}
+                color={iconColor}
               />
             </View>
 
@@ -563,6 +595,9 @@ export default function ProfileScreen({
 
             <AppText
               variant="h2"
+              style={{
+                color: lightChrome ? BrandColors.navy : colors.textPrimary,
+              }}
             >
 
               {
@@ -602,7 +637,7 @@ export default function ProfileScreen({
         <AppText
 
           variant="body"
-          style={styles.sectionTitle}
+          style={sectionTitleStyle}
 
         >
 
@@ -613,7 +648,8 @@ export default function ProfileScreen({
         <View
 
           style={[
-            styles.cardList
+            styles.cardList,
+            cardStyle,
           ]}
 
         >
@@ -623,13 +659,13 @@ export default function ProfileScreen({
 
           >
             <View
-              style={styles.iconCircle}
+              style={iconWrapStyle}
 
             >
               <Ionicons
                 name="notifications-outline"
                 size={22}
-                color={BrandColors.navy}
+                color={iconColor}
 
               />
 
@@ -649,6 +685,7 @@ export default function ProfileScreen({
 
                 style={{
                   fontWeight:'600',
+                  color: lightChrome ? BrandColors.navy : colors.textPrimary,
                 }}
 
               >
@@ -722,7 +759,7 @@ export default function ProfileScreen({
 
           variant="body"
 
-          style={styles.sectionTitle}
+          style={sectionTitleStyle}
 
         >
 
@@ -736,8 +773,8 @@ export default function ProfileScreen({
         <View
 
           style={[
-            styles.cardList
-
+            styles.cardList,
+            cardStyle,
           ]}
 
         >
@@ -768,7 +805,7 @@ export default function ProfileScreen({
 
           variant="body"
 
-          style={styles.sectionTitle}
+          style={sectionTitleStyle}
 
         >
 
@@ -779,7 +816,8 @@ export default function ProfileScreen({
         <View
 
           style={[
-            styles.cardList
+            styles.cardList,
+            cardStyle,
           ]}
 
         >
@@ -840,7 +878,7 @@ export default function ProfileScreen({
 
                 variant="body"
 
-                style={styles.sectionTitle}
+                style={sectionTitleStyle}
 
               >
 
@@ -853,7 +891,8 @@ export default function ProfileScreen({
               <View
 
                 style={[
-                  styles.cardList
+                  styles.cardList,
+                  cardStyle,
                 ]}
 
               >
@@ -887,7 +926,13 @@ export default function ProfileScreen({
             setShowLogout(true)
           }
 
-          style={styles.logout}
+          style={[
+            styles.logout,
+            !lightChrome && {
+              borderColor: colors.error,
+              backgroundColor: colors.errorSoft,
+            },
+          ]}
 
         >
 
@@ -991,6 +1036,10 @@ function ProfileOption({
 
 }){
 
+  const { colors, isDark, isHighContrast } = useTheme();
+  const lightChrome = !isDark && !isHighContrast;
+  const iconColor = lightChrome ? BrandColors.navy : colors.textPrimary;
+
   return (
 
     <Pressable
@@ -1000,13 +1049,16 @@ function ProfileOption({
     >
 
       <View
-        style={styles.iconCircle}
+        style={[
+          styles.iconCircle,
+          !lightChrome && { backgroundColor: 'transparent' },
+        ]}
 
       >
         <Ionicons
           name={icon}
           size={21}
-          color={BrandColors.navy}
+          color={iconColor}
 
         />
 
@@ -1025,6 +1077,7 @@ function ProfileOption({
           variant="body"
           style={{
             fontWeight:'600',
+            color: lightChrome ? BrandColors.navy : colors.textPrimary,
           }}
 
         >
@@ -1056,7 +1109,7 @@ function ProfileOption({
         <Ionicons
           name="chevron-forward"
           size={20}
-          color="#9AA0A6"
+          color={lightChrome ? '#9AA0A6' : colors.textMuted}
         />
       }
     </Pressable>

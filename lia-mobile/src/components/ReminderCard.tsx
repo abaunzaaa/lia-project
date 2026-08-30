@@ -1,26 +1,28 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { Space } from '../theme/tokens';
+import { View, StyleSheet, Image } from 'react-native';
+import { FontFamily, FontWeight, Space } from '../theme/tokens';
 import { useAccessibility } from '../context/AccessibilityContext';
-import { useResponsive } from '../hooks/useResponsive';
-import { BrandColors } from '../theme/brand';
+import { BrandColors, liaCardBorder } from '../theme/brand';
 import { useTheme } from '../context/ThemeContext';
 import { formatTimeForDisplay } from '../utils/dateTime';
 import { Reminder } from '../types';
 import AppText from './AppText';
-import SurfaceCard from './SurfaceCard';
 import StatusBadge from './StatusBadge';
 import DoseActions from './DoseActions';
 import SpeakButton from './SpeakButton';
 import { buildReminderSpeech } from '../utils/speechPhrases';
+
+const SUN_ICON = require('../assets/images/lia-dose-sun.png');
+const MOON_ICON = require('../assets/images/lia-dose-moon.png');
 
 interface ReminderCardProps {
   reminder: Reminder;
   onMarkTaken?: () => void;
   onMarkSkipped?: () => void;
   actionLoading?: boolean;
-  /** Tick local para re-evaluar disponibilidad sin polling al backend. */
   nowMs?: number;
+  isFirst?: boolean;
+  isLast?: boolean;
 }
 
 function scheduledTimeReached(reminder: Reminder, nowMs: number): boolean {
@@ -28,12 +30,16 @@ function scheduledTimeReached(reminder: Reminder, nowMs: number): boolean {
   if (!Number.isNaN(scheduled)) {
     return nowMs >= scheduled;
   }
-  // Fallback: comparar HH:mm del mismo día local
   const [h, m] = (reminder.scheduledTime || '00:00').split(':').map((n) => parseInt(n, 10));
   const d = new Date(nowMs);
   const minsNow = d.getHours() * 60 + d.getMinutes();
   const minsSched = (h || 0) * 60 + (m || 0);
   return minsNow >= minsSched;
+}
+
+function isMorningDose(scheduledTime: string): boolean {
+  const hour = parseInt((scheduledTime || '00:00').split(':')[0], 10);
+  return Number.isFinite(hour) && hour < 12;
 }
 
 export default function ReminderCard({
@@ -42,10 +48,11 @@ export default function ReminderCard({
   onMarkSkipped,
   actionLoading = false,
   nowMs: nowMsProp,
+  isLast = false,
 }: ReminderCardProps) {
-  const { scaleSpacing, scaleFont, isSeniorMode, fontScale } = useAccessibility();
-  const { isSmallPhone } = useResponsive();
+  const { scaleSpacing } = useAccessibility();
   const { isHighContrast, isDark, colors } = useTheme();
+  const lightChrome = !isDark && !isHighContrast;
 
   const [localNow, setLocalNow] = useState(() => Date.now());
   const nowMs = nowMsProp ?? localNow;
@@ -67,79 +74,92 @@ export default function ReminderCard({
     !!onMarkSkipped &&
     (timeReached || reminder.status === 'missed');
 
-  const showAvailableHint =
-    reminder.status === 'pending' && !timeReached && !!onMarkTaken;
-
-  const compact = !isSeniorMode && fontScale < 1.2 && !isSmallPhone;
-  const timeSize = compact ? (isSmallPhone ? 24 : 28) : isSmallPhone ? 28 : 34;
-  const padV = compact ? Space[12] : Space[16];
+  const morning = isMorningDose(reminder.scheduledTime);
+  const ink = lightChrome ? BrandColors.navy : colors.textPrimary;
 
   return (
-    <SurfaceCard
-      variant="default"
-      style={{
-        marginBottom: scaleSpacing(Space[12]),
-        width: '100%',
-        paddingVertical: scaleSpacing(padV),
-      }}
-    >
-      <View style={[styles.header, (isSmallPhone || isSeniorMode) && styles.headerStack]}>
-        <View style={styles.timeCol}>
-          <AppText
-            variant="timeDisplay"
-            style={{
-              color: isHighContrast ? undefined : isDark ? colors.textPrimary : BrandColors.navy,
-              fontSize: scaleFont(timeSize),
-              lineHeight: scaleFont(timeSize + 6),
-              flexShrink: 1,
-            }}
+    <View style={{ marginBottom: isLast ? 0 : scaleSpacing(Space[12]), width: '100%' }}>
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: lightChrome ? BrandColors.white : colors.surface,
+            borderColor: liaCardBorder(lightChrome, colors.border),
+            borderWidth: isHighContrast ? 2 : 1,
+            padding: scaleSpacing(Space[12]),
+          },
+        ]}
+      >
+        <View style={styles.topRow}>
+          <View
+            style={styles.periodIcon}
+            accessibilityLabel={morning ? 'Toma de mañana' : 'Toma de noche'}
           >
-            {formatTimeForDisplay(reminder.scheduledTime)}
-          </AppText>
-          <View style={{ marginTop: scaleSpacing(Space[8]), flexShrink: 1 }}>
-            <StatusBadge status={reminder.status} />
+            <Image
+              source={morning ? SUN_ICON : MOON_ICON}
+              style={styles.periodArt}
+              resizeMode="contain"
+              accessibilityIgnoresInvertColors
+            />
+          </View>
+          <View style={styles.topCopy}>
+            <View style={styles.nameRow}>
+              <AppText
+                variant="medicationName"
+                style={{
+                  color: ink,
+                  fontFamily: FontFamily.semiBold,
+                  fontWeight: FontWeight.semiBold,
+                  flex: 1,
+                  minWidth: 0,
+                }}
+                numberOfLines={2}
+              >
+                {reminder.medicationName}
+              </AppText>
+              <View style={styles.badgeWrap}>
+                <StatusBadge status={reminder.status} />
+              </View>
+            </View>
+            <AppText
+              variant="h3"
+              style={{
+                marginTop: 2,
+                color: ink,
+                fontFamily: FontFamily.semiBold,
+                fontWeight: FontWeight.semiBold,
+              }}
+            >
+              {formatTimeForDisplay(reminder.scheduledTime)}
+            </AppText>
+            <AppText
+              variant="body"
+              style={{
+                marginTop: scaleSpacing(Space[4]),
+                color: lightChrome ? BrandColors.teal : colors.textSecondary,
+                flexShrink: 1,
+              }}
+            >
+              {reminder.dose}
+            </AppText>
           </View>
         </View>
 
-        <View style={[styles.info, (isSmallPhone || isSeniorMode) && styles.infoFull]}>
-          <AppText variant="medicationName" style={{ flexShrink: 1 }}>
-            {reminder.medicationName}
-          </AppText>
-          <AppText variant="body" tone="secondary" style={{ marginTop: 4, flexShrink: 1 }}>
-            {reminder.dose}
-          </AppText>
-        </View>
-      </View>
+        <SpeakButton
+          id={`reminder-${reminder.id}`}
+          label="Escuchar"
+          stopLabel="Detener"
+          text={() => buildReminderSpeech(reminder)}
+          textVariant="button"
+          compact
+          style={{
+            marginTop: scaleSpacing(Space[8]),
+            backgroundColor: lightChrome ? '#E8ECEF' : colors.surfaceElevated,
+            borderColor: lightChrome ? '#E8ECEF' : colors.border,
+          }}
+        />
 
-      <SpeakButton
-        id={`reminder-${reminder.id}`}
-        label="Escuchar"
-        stopLabel="Detener"
-        text={() => buildReminderSpeech(reminder)}
-        style={{ marginTop: scaleSpacing(Space[12]), alignSelf: 'stretch' }}
-      />
-
-      {showAvailableHint ? (
-        <AppText
-          variant="caption"
-          tone="secondary"
-          style={{ marginTop: scaleSpacing(Space[12]), flexShrink: 1 }}
-        >
-          {`Disponible a las ${formatTimeForDisplay(reminder.scheduledTime)}`}
-        </AppText>
-      ) : null}
-
-      {canRegisterDose ? (
-        <>
-          {reminder.status === 'missed' ? (
-            <AppText
-              variant="caption"
-              tone="secondary"
-              style={{ marginTop: scaleSpacing(Space[12]), flexShrink: 1 }}
-            >
-              ¿Qué ocurrió con esta toma?
-            </AppText>
-          ) : null}
+        {canRegisterDose ? (
           <DoseActions
             onTaken={onMarkTaken!}
             onMissed={onMarkSkipped!}
@@ -148,33 +168,50 @@ export default function ReminderCard({
             loading={actionLoading}
             disabled={actionLoading}
           />
-        </>
-      ) : null}
-    </SurfaceCard>
+        ) : null}
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
+  card: {
+    width: '100%',
+    borderRadius: 24,
+    shadowColor: '#000000',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    elevation: 1,
+  },
+  topRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 16,
-    width: '100%',
-  },
-  headerStack: {
-    flexDirection: 'column',
     gap: 12,
   },
-  timeCol: {
-    minWidth: 0,
-    flexShrink: 1,
+  periodIcon: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
   },
-  info: {
+  periodArt: {
+    width: 52,
+    height: 52,
+  },
+  topCopy: {
     flex: 1,
     minWidth: 0,
-    flexShrink: 1,
   },
-  infoFull: {
-    width: '100%',
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  badgeWrap: {
+    flexShrink: 0,
+    maxWidth: '48%',
   },
 });

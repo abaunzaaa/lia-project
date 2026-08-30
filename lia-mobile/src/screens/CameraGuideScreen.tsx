@@ -53,6 +53,7 @@ const TIMEOUT_MESSAGE =
 export default function CameraGuideScreen({ navigation }: Props) {
   const { scaleSpacing, scaleFont, minTouch, voiceEnabled } = useAccessibility();
   const { colors, isHighContrast, isDark } = useTheme();
+  const lightChrome = !isDark && !isHighContrast;
   const { compact } = useResponsive();
   const { medications } = useMedications();
   const { setPendingResult, clearPendingResult } = useCameraRecognition();
@@ -493,7 +494,7 @@ export default function CameraGuideScreen({ navigation }: Props) {
                 : isDark
                   ? colors.surfaceElevated
                   : BrandColors.white,
-              borderColor: isHighContrast ? colors.border : BrandColors.skyBlue,
+              borderColor: lightChrome ? BrandColors.skyBlue : colors.border,
               borderWidth: isHighContrast ? 2 : 1,
             }}
           >

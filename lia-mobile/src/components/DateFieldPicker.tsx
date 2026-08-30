@@ -38,6 +38,8 @@ type Props = {
   valueYmd: string;
   onChange: (ymd: string) => void;
   minimumYmd?: string;
+  /** `icon` = solo el icono (p. ej. tarjeta de Recordatorios). */
+  variant?: 'field' | 'icon';
 };
 
 function pad2(n: number): string {
@@ -76,9 +78,16 @@ function monthKey(year: number, month: number): number {
   return year * 12 + month;
 }
 
-export default function DateFieldPicker({ label, valueYmd, onChange, minimumYmd }: Props) {
+export default function DateFieldPicker({
+  label,
+  valueYmd,
+  onChange,
+  minimumYmd,
+  variant = 'field',
+}: Props) {
   const insets = useSafeAreaInsets();
   const { colors, isHighContrast, isDark } = useTheme();
+  const lightChrome = !isDark && !isHighContrast;
   const { scaleSpacing, minTouch, scaleFont } = useAccessibility();
   const [open, setOpen] = useState(false);
   const [pickingYear, setPickingYear] = useState(false);
@@ -150,38 +159,64 @@ export default function DateFieldPicker({ label, valueYmd, onChange, minimumYmd 
 
   const dayFont = Math.min(scaleFont(15), 18);
   const navHit = Math.max(44, Math.min(minTouch, 52));
+  const iconOnly = variant === 'icon';
 
   return (
-    <View style={{ marginBottom: scaleSpacing(Space[16]), width: '100%' }}>
-      <AppText variant="label" style={{ marginBottom: scaleSpacing(Space[8]) }}>
-        {label}
-      </AppText>
-      <Pressable
-        onPress={openCalendar}
-        accessibilityRole="button"
-        accessibilityLabel={`${label}: ${formatShortDate(valueYmd)}`}
-        accessibilityHint="Abre el calendario para elegir una fecha"
-        style={({ pressed }) => [
-          styles.field,
-          {
-            minHeight: minTouch,
-            backgroundColor: fieldBg,
-            borderColor: colors.border,
-            borderWidth: isHighContrast ? 2 : 1,
-            opacity: pressed ? 0.9 : 1,
-            paddingHorizontal: scaleSpacing(Space[16]),
-          },
-        ]}
-      >
-        <AppText variant="body" style={{ flexShrink: 1, fontSize: scaleFont(16) }}>
-          {formatShortDate(valueYmd)}
-        </AppText>
-        <Ionicons
-          name="calendar-outline"
-          size={scaleFont(20)}
-          color={isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.teal}
-        />
-      </Pressable>
+    <View style={iconOnly ? styles.iconWrap : { marginBottom: scaleSpacing(Space[16]), width: '100%' }}>
+      {iconOnly ? (
+        <Pressable
+          onPress={openCalendar}
+          accessibilityRole="button"
+          accessibilityLabel="Elegir otra fecha"
+          accessibilityHint="Abre el calendario para seleccionar un día"
+          style={({ pressed }) => [
+            styles.iconBtn,
+            {
+              minWidth: minTouch,
+              minHeight: minTouch,
+              opacity: pressed ? 0.72 : 1,
+            },
+          ]}
+        >
+          <Ionicons
+            name="calendar-outline"
+            size={scaleFont(22)}
+            color={isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.navy}
+          />
+        </Pressable>
+      ) : (
+        <>
+          <AppText variant="label" style={{ marginBottom: scaleSpacing(Space[8]) }}>
+            {label}
+          </AppText>
+          <Pressable
+            onPress={openCalendar}
+            accessibilityRole="button"
+            accessibilityLabel={`${label}: ${formatShortDate(valueYmd)}`}
+            accessibilityHint="Abre el calendario para elegir una fecha"
+            style={({ pressed }) => [
+              styles.field,
+              {
+                minHeight: minTouch,
+                backgroundColor: fieldBg,
+                borderColor: colors.border,
+                borderWidth: isHighContrast ? 2 : 1,
+                opacity: pressed ? 0.9 : 1,
+                paddingHorizontal: scaleSpacing(Space[16]),
+              },
+            ]}
+          >
+            <AppText variant="body" style={{ flexShrink: 1, fontSize: scaleFont(16) }}>
+              {formatShortDate(valueYmd)}
+            </AppText>
+            <Ionicons
+              name="calendar-outline"
+              size={scaleFont(20)}
+              color={isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.teal}
+            />
+          </Pressable>
+        </>
+      )}
 
       <Modal transparent visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>
         <TouchableWithoutFeedback onPress={() => setOpen(false)}>
@@ -278,7 +313,9 @@ export default function DateFieldPicker({ label, valueYmd, onChange, minimumYmd 
                                     : BrandColors.navy
                                 : isHighContrast
                                   ? colors.border
-                                  : BrandColors.cardBorder,
+                                  : lightChrome
+                                    ? BrandColors.cardBorder
+                                    : colors.border,
                               borderWidth: 1,
                             },
                           ]}
@@ -378,6 +415,13 @@ export default function DateFieldPicker({ label, valueYmd, onChange, minimumYmd 
 }
 
 const styles = StyleSheet.create({
+  iconWrap: {
+    alignSelf: 'center',
+  },
+  iconBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   field: {
     flexDirection: 'row',
     alignItems: 'center',

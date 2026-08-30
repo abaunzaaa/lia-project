@@ -30,7 +30,7 @@ const Input = React.forwardRef<TextInput, InputProps>(function Input(
   const [focused, setFocused] = useState(false);
   const [hidden, setHidden] = useState(true);
   const isSecure = secureToggle ? hidden : !!secureTextEntry;
-  const whiteChrome = !isHighContrast && (chrome === 'white' || !isDark);
+  const whiteChrome = !isDark && !isHighContrast;
 
   return (
     <View style={[styles.container, { marginBottom: scaleSpacing(Space[16]) }]}>

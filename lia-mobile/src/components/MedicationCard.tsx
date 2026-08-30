@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FontFamily, FontWeight, Radius, Space } from '../theme/tokens';
 import { useTheme } from '../context/ThemeContext';
 import { useAccessibility } from '../context/AccessibilityContext';
-import { BrandColors } from '../theme/brand';
+import { BrandColors, liaCardBorder } from '../theme/brand';
 import { formatScheduleTimes, formatTime } from '../utils/helpers';
 import { parseDoseString, unitSingularLabel, isCountDoseUnit } from '../utils/medicationFormHelpers';
 import { getMedicationImageScale, MEDICATION_IMAGE_SLOT } from '../config/medicationImages';
@@ -90,7 +90,7 @@ export default function MedicationCard({
         {
           marginBottom: scaleSpacing(Space[16]),
           backgroundColor: lightChrome ? '#FFFFFF' : colors.surface,
-          borderColor: isHighContrast ? colors.border : '#F0F1F2',
+          borderColor: liaCardBorder(lightChrome, colors.border),
           borderWidth: isHighContrast ? 2 : 1,
           opacity: pressed ? 0.96 : 1,
         },
@@ -195,7 +195,7 @@ export default function MedicationCard({
                 {
                   minHeight: Math.max(minTouch, 44),
                   backgroundColor: lightChrome ? BrandColors.white : colors.surfaceElevated,
-                  borderColor: isHighContrast ? colors.border : BrandColors.skyBlue,
+                  borderColor: lightChrome ? BrandColors.skyBlue : colors.border,
                   opacity: pressed ? 0.88 : 1,
                 },
               ]}

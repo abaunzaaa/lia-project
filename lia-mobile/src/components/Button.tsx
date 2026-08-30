@@ -21,6 +21,7 @@ interface ButtonProps {
   disabled?: boolean;
   icon?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
+  hitSlop?: number | { top?: number; bottom?: number; left?: number; right?: number };
   accessibilityLabel?: string;
   accessibilityHint?: string;
 }
@@ -34,10 +35,12 @@ export default function Button({
   disabled = false,
   icon,
   style,
+  hitSlop,
   accessibilityLabel,
   accessibilityHint,
 }: ButtonProps) {
-  const { colors, isHighContrast } = useTheme();
+  const { colors, isHighContrast, isDark } = useTheme();
+  const lightChrome = !isDark && !isHighContrast;
   const { scaleFont, buttonScale, minTouch } = useAccessibility();
 
   const vertical = { sm: 10, md: 14, lg: 16 }[size] * buttonScale;
@@ -73,7 +76,9 @@ export default function Button({
       : variant === 'primary' && isHighContrast
         ? colors.border
         : variant === 'outline' || variant === 'secondary'
-          ? colors.primary
+          ? lightChrome || isHighContrast
+            ? colors.primary
+            : colors.border
           : 'transparent';
 
   const labelStyle = [
@@ -94,6 +99,7 @@ export default function Button({
       accessibilityLabel={accessibilityLabel || title}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: disabled || loading, busy: loading }}
+      hitSlop={hitSlop}
       style={[
         styles.base,
         {

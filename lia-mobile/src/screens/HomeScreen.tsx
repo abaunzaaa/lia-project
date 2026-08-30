@@ -22,7 +22,7 @@ import { useCameraRecognition } from '../context/CameraRecognitionContext';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useTheme } from '../context/ThemeContext';
 import { useResponsive } from '../hooks/useResponsive';
-import { BrandColors, brandAccent } from '../theme/brand';
+import { BrandColors, brandAccent, liaCardBorder } from '../theme/brand';
 import { FontFamily, FontWeight, Radius, Space } from '../theme/tokens';
 import { getMedicationImageScale, MEDICATION_IMAGE_SLOT } from '../config/medicationImages';
 import { getGreeting, normalizeMedicationName } from '../utils/helpers';
@@ -216,7 +216,7 @@ export default function HomeScreen({ navigation }: Props) {
               {
                 backgroundColor: isHighContrast ? colors.surface : BrandColors.navy,
                 borderWidth: isHighContrast ? 2 : 1,
-                borderColor: isHighContrast ? colors.border : '#F0F1F2',
+                borderColor: liaCardBorder(lightChrome, colors.border),
                 width: Math.max(56, minTouch),
                 height: Math.max(56, minTouch),
                 minWidth: Math.max(56, minTouch),
@@ -253,7 +253,7 @@ export default function HomeScreen({ navigation }: Props) {
                 : isDark
                   ? colors.surfaceElevated
                   : BrandColors.white,
-              borderColor: isHighContrast ? colors.border : BrandColors.skyBlue,
+              borderColor: liaCardBorder(lightChrome, colors.border),
               borderWidth: isHighContrast ? 2 : 1,
             }}
           >
@@ -332,7 +332,7 @@ export default function HomeScreen({ navigation }: Props) {
           />
           <HomeActionCard
             image={CAMERA_IMAGE}
-            tint="#D6E8F5"
+            tint="#E8ECEF"
             imageSize={100}
             title="Identificar con cámara"
             description="Reconoce tus medicamentos de forma rápida y sencilla con LIA"
@@ -435,7 +435,7 @@ function HomeDailyTipBanner({ hasMedications }: { hasMedications: boolean }) {
         styles.tipCard,
         {
           backgroundColor: lightChrome ? BrandColors.white : colors.surface,
-          borderColor: isHighContrast ? colors.border : BrandColors.cardBorder,
+          borderColor: liaCardBorder(lightChrome, colors.border),
           borderWidth: isHighContrast ? 2 : 1,
         },
       ]}
@@ -512,7 +512,7 @@ function HomeActionCard({
         styles.actionCard,
         {
           backgroundColor: lightChrome ? tint : colors.surface,
-          borderColor: isHighContrast ? colors.border : '#F0F1F2',
+          borderColor: liaCardBorder(lightChrome, colors.border),
           borderWidth: isHighContrast ? 2 : 1,
           minHeight: Math.max(124, minTouch + 64),
           opacity: pressed ? 0.94 : 1,
@@ -622,7 +622,7 @@ function HomeMedicationCard({
         {
           width,
           backgroundColor: lightChrome ? '#FFFFFF' : colors.surface,
-          borderColor: isHighContrast ? colors.border : '#F0F1F2',
+          borderColor: liaCardBorder(lightChrome, colors.border),
           borderWidth: isHighContrast ? 2 : 1,
         },
       ]}
@@ -728,7 +728,12 @@ function HomeMedicationCard({
           }
           style={[
             styles.medReview,
-            { minHeight: Math.min(minTouch, 40) },
+            {
+              minHeight: Math.min(minTouch, 40),
+              ...(lightChrome
+                ? { backgroundColor: '#E8ECEF', borderColor: '#E8ECEF' }
+                : null),
+            },
           ]}
         />
 

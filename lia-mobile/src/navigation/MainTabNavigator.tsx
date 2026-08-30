@@ -19,6 +19,7 @@ import HistoryScreen from '../screens/HistoryScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
 import { useAccessibility } from '../context/AccessibilityContext';
+import { useTheme } from '../context/ThemeContext';
 
 import { BrandColors } from '../theme/brand';
 import { FontFamily, FontWeight, Radius } from '../theme/tokens';
@@ -73,7 +74,8 @@ const TAB_META: Record<
 export default function MainTabNavigator() {
 
   const insets = useSafeAreaInsets();
-
+  const { colors, isDark, isHighContrast } = useTheme();
+  const lightChrome = !isDark && !isHighContrast;
 
   const {
     isSeniorMode,
@@ -128,7 +130,9 @@ export default function MainTabNavigator() {
           tabBarStyle: {
 
             backgroundColor:
-              BrandColors.white,
+              lightChrome
+                ? BrandColors.white
+                : colors.surface,
 
 
             borderTopWidth:
@@ -136,7 +140,9 @@ export default function MainTabNavigator() {
 
 
             borderTopColor:
-              BrandColors.cardBorder,
+              lightChrome
+                ? BrandColors.cardBorder
+                : colors.border,
 
 
             height:
@@ -155,7 +161,17 @@ export default function MainTabNavigator() {
 
             shadowOpacity:0,
 
+            shadowColor: 'transparent',
+
           },
+
+
+          tabBarActiveTintColor:
+            lightChrome ? BrandColors.navy : colors.textPrimary,
+
+
+          tabBarInactiveTintColor:
+            lightChrome ? BrandColors.teal : colors.textSecondary,
 
 
           tabBarItemStyle: {
@@ -181,7 +197,11 @@ export default function MainTabNavigator() {
                 style={[
                   styles.iconContainer,
 
-                  focused && styles.iconActive,
+                  focused && (
+                    lightChrome
+                      ? styles.iconActive
+                      : { backgroundColor: colors.accentSoft }
+                  ),
                 ]}
 
               >
@@ -198,7 +218,7 @@ export default function MainTabNavigator() {
 
                   color={
                     focused
-                      ? BrandColors.navy
+                      ? (lightChrome ? BrandColors.navy : colors.textPrimary)
                       : color
                   }
 
@@ -213,7 +233,15 @@ export default function MainTabNavigator() {
                 style={[
                   styles.label,
 
-                  focused && styles.labelActive,
+                  focused && (
+                    lightChrome
+                      ? styles.labelActive
+                      : { color: colors.textPrimary }
+                  ),
+
+                  !lightChrome && !focused
+                    ? { color: colors.textSecondary }
+                    : null,
                 ]}
 
               >

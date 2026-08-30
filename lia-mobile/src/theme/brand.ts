@@ -12,6 +12,11 @@ export const BrandColors = {
   cardBorder: '#F0F1F2',
 } as const;
 
+/** Borde de tarjetas: gris claro en modo claro; sutil del tema en oscuro/contraste (como Perfil). */
+export function liaCardBorder(lightChrome: boolean, themeBorder: string): string {
+  return lightChrome ? BrandColors.cardBorder : themeBorder;
+}
+
 /** Navy en claro; en oscuro/contraste usa el texto del tema. */
 export function brandInk(
   isDark: boolean,

@@ -12,6 +12,7 @@ export { default as Screen } from './Screen';
 export { default as SurfaceCard } from './SurfaceCard';
 export { default as EmptyState } from './EmptyState';
 export { default as EmptyMedicationsCard } from './EmptyMedicationsCard';
+export { default as EmptyMedicationsView } from './EmptyMedicationsView';
 export { default as SectionHeader } from './SectionHeader';
 export { default as StatusBadge } from './StatusBadge';
 export { default as DoseActions } from './DoseActions';

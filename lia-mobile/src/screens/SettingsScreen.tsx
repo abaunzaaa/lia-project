@@ -172,7 +172,7 @@ export default function SettingsScreen({ navigation }: Props) {
           Tema
         </AppText>
         <AppText variant="caption" tone="secondary" style={styles.sectionCaption}>
-          Claro o Noche. Se guarda en este dispositivo.
+          Claro o noche, se guardará en este dispositivo
         </AppText>
 
         <View style={[styles.cardList, cardStyle]}>

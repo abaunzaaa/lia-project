@@ -23,6 +23,7 @@ type Props = {
 export default function ScanMedicationScreen({ navigation }: Props) {
   const { scaleSpacing, scaleFont, minTouch } = useAccessibility();
   const { colors, isHighContrast, isDark } = useTheme();
+  const lightChrome = !isDark && !isHighContrast;
   const { compact } = useResponsive();
 
   const cardBg = isHighContrast
@@ -168,7 +169,7 @@ export default function ScanMedicationScreen({ navigation }: Props) {
           style={{
             backgroundColor: cardBg,
             borderWidth: isHighContrast ? 2 : 1,
-            borderColor: isHighContrast ? colors.border : BrandColors.skyBlue,
+            borderColor: lightChrome ? BrandColors.skyBlue : colors.border,
           }}
         >
           <View style={styles.pathHeader}>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
-import { BrandColors } from '../theme/brand';
+import { BrandColors, liaCardBorder } from '../theme/brand';
 import AppText from './AppText';
 
 const HOME_CARD_IMAGE = require('../assets/images/homecard.png');
@@ -23,7 +23,7 @@ export default function EmptyMedicationsCard() {
         styles.card,
         {
           backgroundColor: lightChrome ? BrandColors.white : colors.surface,
-          borderColor: isHighContrast ? colors.border : '#F0F1F2',
+          borderColor: liaCardBorder(lightChrome, colors.border),
           borderWidth: isHighContrast ? 2 : 1,
         },
       ]}

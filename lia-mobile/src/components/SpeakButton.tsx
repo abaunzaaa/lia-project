@@ -20,6 +20,8 @@ interface SpeakButtonProps {
   visible?: boolean;
   /** Variante tipográfica del texto. Por defecto body. */
   textVariant?: 'body' | 'label' | 'button';
+  /** Más compacto visualmente; la zona de toque se conserva con hitSlop. */
+  compact?: boolean;
 }
 
 /**
@@ -34,6 +36,7 @@ export default function SpeakButton({
   style,
   visible = true,
   textVariant = 'body',
+  compact = false,
 }: SpeakButtonProps) {
   const { voiceEnabled, minTouch, scaleSpacing, scaleFont } = useAccessibility();
   const { colors, isHighContrast, isDark } = useTheme();
@@ -78,13 +81,18 @@ export default function SpeakButton({
             : 'Lee esta información en voz alta'
         }
         accessibilityState={{ busy: isThis }}
+        hitSlop={
+          compact
+            ? { top: 8, bottom: 8, left: 6, right: 6 }
+            : undefined
+        }
         style={({ pressed }) => [
           styles.btn,
           {
-            minHeight: minTouch,
-            paddingHorizontal: scaleSpacing(Space[12]),
-            paddingVertical: scaleSpacing(Space[8]),
-            gap: scaleSpacing(Space[8]),
+            minHeight: compact ? 36 : minTouch,
+            paddingHorizontal: scaleSpacing(compact ? Space[8] : Space[12]),
+            paddingVertical: scaleSpacing(compact ? Space[4] : Space[8]),
+            gap: scaleSpacing(compact ? Space[4] : Space[8]),
             backgroundColor: isHighContrast
               ? colors.surface
               : isDark

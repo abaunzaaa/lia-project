@@ -9,16 +9,17 @@ import { RootStackParamList, MainTabParamList, Medication } from '../types';
 import {
   AppText,
   AppModal,
-  EmptyState,
+  EmptyMedicationsView,
   MedicationCard,
   Toast,
 } from '../components';
+import OptionPickerModal from '../components/OptionPickerModal';
 import { useMedications, MedicationApiError } from '../context/MedicationContext';
 import { useReminders } from '../context/ReminderContext';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useTheme } from '../context/ThemeContext';
 import { useResponsive } from '../hooks/useResponsive';
-import { BrandColors } from '../theme/brand';
+import { BrandColors, liaCardBorder } from '../theme/brand';
 import { FontFamily, FontWeight, Radius, Space } from '../theme/tokens';
 import { formatTimeForDisplay } from '../utils/dateTime';
 
@@ -56,6 +57,7 @@ export default function MedicationsScreen({ navigation }: Props) {
   const [deleteTarget, setDeleteTarget] = useState<Medication | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [medSort, setMedSort] = useState<MedSort>('newest');
+  const [filterOpen, setFilterOpen] = useState(false);
   const [toast, setToast] = useState<{
     visible: boolean;
     message: string;
@@ -144,7 +146,7 @@ export default function MedicationsScreen({ navigation }: Props) {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: lightChrome ? '#FFFFFF' : colors.background }]}>
+    <View style={[styles.container, { backgroundColor: lightChrome ? (medications.length === 0 && !loading ? '#D6E8F5' : '#FFFFFF') : colors.background }]}>
       {loading ? (
         <>
           <View style={titleSafePad}>{screenTitle}</View>
@@ -156,16 +158,7 @@ export default function MedicationsScreen({ navigation }: Props) {
           </View>
         </>
       ) : medications.length === 0 ? (
-        <>
-          <View style={titleSafePad}>{screenTitle}</View>
-          <EmptyState
-            icon="medkit-outline"
-            title="Aún no tienes medicamentos"
-            description="Cuando agregues el primero, LIA te ayudará a organizar cada toma con calma."
-            actionLabel="Agregar medicamento"
-            onAction={goToAdd}
-          />
-        </>
+        <EmptyMedicationsView onAdd={goToAdd} />
       ) : (
         <FlatList
           key={`cols-${numColumns}-${medSort}`}
@@ -210,7 +203,7 @@ export default function MedicationsScreen({ navigation }: Props) {
                         ? colors.surface
                         : isDark
                           ? colors.surfaceElevated
-                          : '#D6E8F5',
+                          : '#E8ECEF',
                       borderColor: isHighContrast ? colors.border : 'transparent',
                       borderWidth: isHighContrast ? 2 : 0,
                       paddingRight: Math.max(72, Math.round(summaryArtSize * 0.36)),
@@ -305,64 +298,39 @@ export default function MedicationsScreen({ navigation }: Props) {
                 </View>
               </View>
 
-              <View
-                style={[
-                  styles.filterRow,
-                  { gap: scaleSpacing(Space[8]), marginTop: scaleSpacing(Space[24]) },
-                ]}
-              >
-                {SORTS.map((item) => {
-                  const selected = medSort === item.id;
-                  return (
-                    <Pressable
-                      key={item.id}
-                      onPress={() => setMedSort(item.id)}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected }}
-                      accessibilityLabel={item.label}
-                      style={({ pressed }) => [
-                        styles.filterChip,
-                        {
-                          backgroundColor: selected
-                            ? isHighContrast
-                              ? colors.textPrimary
-                              : isDark
-                                ? colors.primary
-                                : BrandColors.navy
-                            : lightChrome
-                              ? '#FFFFFF'
-                              : colors.surface,
-                          borderColor: selected
-                            ? isHighContrast
-                              ? colors.border
-                              : BrandColors.navy
-                            : isHighContrast
-                              ? colors.border
-                              : '#F0F1F2',
-                          borderWidth: isHighContrast ? 2 : 1,
-                          opacity: pressed ? 0.88 : 1,
-                        },
-                      ]}
-                    >
-                      <AppText
-                        variant="caption"
-                        style={{
-                          color: selected
-                            ? isHighContrast
-                              ? colors.background
-                              : BrandColors.white
-                            : lightChrome
-                              ? BrandColors.navy
-                              : colors.textPrimary,
-                          fontFamily: FontFamily.medium,
-                          fontWeight: FontWeight.medium,
-                        }}
-                      >
-                        {item.label}
-                      </AppText>
-                    </Pressable>
-                  );
-                })}
+              <View style={{ marginTop: scaleSpacing(Space[24]), alignSelf: 'flex-start' }}>
+                <Pressable
+                  onPress={() => setFilterOpen(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Filtrar"
+                  accessibilityHint="Elige si ver los registros más recientes o los más antiguos"
+                  style={({ pressed }) => [
+                    styles.filterBtn,
+                    {
+                      minHeight: Math.max(40, minTouch - 8),
+                      backgroundColor: lightChrome ? BrandColors.white : colors.surface,
+                      borderColor: liaCardBorder(lightChrome, colors.border),
+                      borderWidth: isHighContrast ? 2 : 1,
+                      opacity: pressed ? 0.88 : 1,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="filter-outline"
+                    size={scaleFont(18)}
+                    color={lightChrome ? BrandColors.navy : colors.textPrimary}
+                  />
+                  <AppText
+                    variant="caption"
+                    style={{
+                      color: lightChrome ? BrandColors.navy : colors.textPrimary,
+                      fontFamily: FontFamily.medium,
+                      fontWeight: FontWeight.medium,
+                    }}
+                  >
+                    Filtrar
+                  </AppText>
+                </Pressable>
               </View>
             </View>
             </View>
@@ -383,7 +351,7 @@ export default function MedicationsScreen({ navigation }: Props) {
         />
       )}
 
-      {!loading ? (
+      {!loading && medications.length > 0 ? (
         <Pressable
           onPress={goToAdd}
           accessibilityRole="button"
@@ -407,6 +375,18 @@ export default function MedicationsScreen({ navigation }: Props) {
           <Ionicons name="add" size={scaleFont(26)} color={BrandColors.white} />
         </Pressable>
       ) : null}
+
+      <OptionPickerModal
+        visible={filterOpen}
+        title="Filtrar"
+        selectedValue={medSort}
+        options={SORTS.map((item) => ({ value: item.id, label: item.label }))}
+        onSelect={(value) => {
+          setMedSort(value as MedSort);
+          setFilterOpen(false);
+        }}
+        onClose={() => setFilterOpen(false)}
+      />
 
       <AppModal
         visible={!!deleteTarget}
@@ -448,7 +428,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     paddingVertical: 20,
     paddingHorizontal: 20,
-    backgroundColor: '#D6E8F5',
+    backgroundColor: '#E8ECEF',
     shadowColor: '#000000',
     shadowOpacity: 0.06,
     shadowRadius: 10,
@@ -469,18 +449,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  filterRow: {
+  filterBtn: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     alignItems: 'center',
-  },
-  filterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    minHeight: 32,
-    borderRadius: Radius.full,
-    justifyContent: 'center',
-    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: Radius.lg,
   },
   listOverflow: {
     overflow: 'visible',
