@@ -14,6 +14,7 @@ export type ApiMedication = {
   startDate: string | null;
   endDate: string | null;
   instructions: string | null;
+  imageUrl?: string | null;
   schedules: MedicationSchedule[];
   createdAt: string;
   updatedAt: string | null;
@@ -165,6 +166,7 @@ export function mapApiMedicationToLocal(api: ApiMedication, userId = ''): Medica
     startDate: api.startDate || '',
     endDate: api.endDate || undefined,
     description: api.instructions || undefined,
+    imageUrl: api.imageUrl || undefined,
     createdAt: api.createdAt,
     updatedAt: api.updatedAt || undefined,
   };

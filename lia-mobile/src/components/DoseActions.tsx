@@ -15,7 +15,7 @@ interface DoseActionsProps {
 }
 
 /**
- * Acciones Tomado / Omitir — misma altura tipográfica, touch ≥48.
+ * Acciones Tomado / Omitir — compactas visualmente, zona de toque ampliada con hitSlop.
  * Fila cuando hay espacio; columna en small phone, A+, senior o fuente grande.
  */
 export default function DoseActions({
@@ -37,7 +37,7 @@ export default function DoseActions({
     width < 390;
 
   const busy = disabled || loading;
-  const btnMin = Math.max(48, minTouch);
+  const visualHeight = isSeniorMode ? Math.max(44, Math.min(minTouch, 48)) : 40;
 
   return (
     <View
@@ -45,7 +45,7 @@ export default function DoseActions({
         styles.row,
         {
           gap: scaleSpacing(Space[8]),
-          marginTop: scaleSpacing(Space[12]),
+          marginTop: scaleSpacing(Space[8]),
         },
         stack && styles.stack,
       ]}
@@ -54,7 +54,11 @@ export default function DoseActions({
         title={loading ? 'Guardando…' : takenLabel}
         onPress={onTaken}
         size="md"
-        style={[styles.flexBtn, { minHeight: btnMin }]}
+        hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+        style={[
+          styles.compactBtn,
+          { minHeight: visualHeight, paddingVertical: 6, paddingHorizontal: 12 },
+        ]}
         disabled={busy}
         loading={loading}
         accessibilityLabel="Marcar toma como realizada"
@@ -65,7 +69,11 @@ export default function DoseActions({
         variant="outline"
         size="md"
         onPress={onMissed}
-        style={[styles.flexBtn, { minHeight: btnMin }]}
+        hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+        style={[
+          styles.compactBtn,
+          { minHeight: visualHeight, paddingVertical: 6, paddingHorizontal: 12 },
+        ]}
         disabled={busy}
         accessibilityLabel="Omitir esta toma"
         accessibilityHint="Registra que no tomaste este medicamento ahora"
@@ -78,17 +86,19 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     flexWrap: 'nowrap',
-    alignItems: 'stretch',
-    width: '100%',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
     maxWidth: '100%',
   },
   stack: {
     flexDirection: 'column',
     flexWrap: 'nowrap',
-  },
-  flexBtn: {
-    flex: 1,
-    maxWidth: '100%',
+    alignItems: 'stretch',
     alignSelf: 'stretch',
+  },
+  compactBtn: {
+    flexGrow: 0,
+    flexShrink: 1,
+    alignSelf: 'flex-start',
   },
 });

@@ -43,6 +43,7 @@ export default function MedicationDetailScreen({ navigation, route }: Props) {
 
   const { scaleFont, scaleSpacing } = useAccessibility();
   const { colors, isHighContrast, isDark } = useTheme();
+  const lightChrome = !isDark && !isHighContrast;
   const { horizontalPadding, contentMaxWidth } = useResponsive();
 
   const openDrugChat = () => {
@@ -150,8 +151,8 @@ export default function MedicationDetailScreen({ navigation, route }: Props) {
                   ? colors.surface
                   : isDark
                     ? colors.surfaceElevated
-                    : BrandColors.beige,
-                borderColor: isHighContrast ? colors.border : BrandColors.skyBlue,
+                    : BrandColors.white,
+                borderColor: lightChrome ? BrandColors.skyBlue : colors.border,
                 borderWidth: isHighContrast ? 2 : 1,
                 padding: scaleSpacing(Space[16]),
                 marginBottom: scaleSpacing(Space[20]),

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { BrandColors } from '../theme/brand';
 import { Radius, Space, Layout } from '../theme/tokens';
 import { Appearance } from '../theme/themes';
 import { useTheme } from '../context/ThemeContext';
@@ -32,8 +33,29 @@ const FULL_OPTIONS: {
 ];
 
 export default function ThemeSelector({ mode = 'appearance' }: ThemeSelectorProps) {
-  const { appearance, setAppearance, colors, isHighContrast } = useTheme();
+  const { appearance, setAppearance, colors, isHighContrast, isDark } = useTheme();
   const { minTouch, scaleSpacing, scaleFont, isSeniorMode } = useAccessibility();
+  const lightChrome = !isDark && !isHighContrast;
+
+  const optionChrome = (selected: boolean) => ({
+    minHeight: minTouch + 8,
+    backgroundColor: lightChrome
+      ? '#FFFFFF'
+      : selected
+        ? colors.primaryLight
+        : colors.surface,
+    borderWidth: selected || isHighContrast ? 2 : 1,
+    borderColor: selected
+      ? lightChrome
+        ? BrandColors.navy
+        : colors.primary
+      : lightChrome
+        ? '#F0F1F2'
+        : colors.border,
+    padding: scaleSpacing(Space[12]),
+  });
+
+  const iconColor = lightChrome ? BrandColors.navy : colors.primary;
 
   if (mode === 'full') {
     return (
@@ -49,16 +71,10 @@ export default function ThemeSelector({ mode = 'appearance' }: ThemeSelectorProp
               accessibilityState={{ selected }}
               style={[
                 styles.option,
-                {
-                  minHeight: minTouch + 8,
-                  backgroundColor: selected ? colors.primaryLight : colors.surface,
-                  borderWidth: selected || isHighContrast ? 2 : 1,
-                  borderColor: selected ? colors.primary : colors.border,
-                  padding: scaleSpacing(Space[12]),
-                },
+                optionChrome(selected),
               ]}
             >
-              <Ionicons name={opt.icon} size={scaleFont(20)} color={colors.primary} />
+              <Ionicons name={opt.icon} size={scaleFont(20)} color={iconColor} />
               <AppText variant="caption" style={{ marginTop: 6, textAlign: 'center', flexShrink: 1 }}>
                 {opt.label}
               </AppText>
@@ -82,16 +98,10 @@ export default function ThemeSelector({ mode = 'appearance' }: ThemeSelectorProp
             accessibilityState={{ selected }}
             style={[
               styles.option,
-              {
-                minHeight: minTouch + 8,
-                backgroundColor: selected ? colors.primaryLight : colors.surface,
-                borderWidth: selected || isHighContrast ? 2 : 1,
-                borderColor: selected ? colors.primary : colors.border,
-                padding: scaleSpacing(Space[12]),
-              },
+              optionChrome(selected),
             ]}
           >
-            <Ionicons name={opt.icon} size={scaleFont(20)} color={colors.primary} />
+            <Ionicons name={opt.icon} size={scaleFont(20)} color={iconColor} />
               <AppText variant="caption" style={{ marginTop: 6, textAlign: 'center', flexShrink: 1 }}>
                 {opt.label}
               </AppText>

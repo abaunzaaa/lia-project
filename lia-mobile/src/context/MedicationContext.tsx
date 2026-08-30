@@ -20,6 +20,7 @@ import { useAuth } from './AuthContext';
 import { Medication, MedicationFormData } from '../types';
 import { generateId, normalizeScheduleTimes } from '../utils/helpers';
 import { getLocalDateString } from '../utils/dateTime';
+import { getMedicationImage } from '../config/medicationImages';
 
 interface MedicationContextType {
   medications: Medication[];
@@ -84,6 +85,13 @@ function formToApiPayload(data: MedicationFormData | Partial<MedicationFormData>
   };
 }
 
+function attachCatalogImage(med: Medication): Medication {
+  return {
+    ...med,
+    imageUrl: med.imageUrl || getMedicationImage(med.name),
+  };
+}
+
 function localMedicationFromForm(
   data: MedicationFormData,
   id: string,
@@ -103,6 +111,7 @@ function localMedicationFromForm(
     startDate: data.startDate?.trim() || getLocalDateString(),
     endDate: data.endDate?.trim() || undefined,
     description: data.description?.trim() || undefined,
+    imageUrl: data.imageUrl || getMedicationImage(data.name),
     createdAt: new Date().toISOString(),
   };
 }
@@ -122,7 +131,7 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
     }
 
     if (isDemo) {
-      setMedications(DEMO_MEDICATIONS);
+      setMedications(DEMO_MEDICATIONS.map(attachCatalogImage));
       setLoading(false);
       return;
     }
@@ -130,7 +139,7 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const data = await apiGetMedications();
-      setMedications(data);
+      setMedications(data.map(attachCatalogImage));
     } catch (error) {
       setMedications([]);
       if (__DEV__) {
@@ -153,7 +162,7 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
     }
 
     if (isDemo) {
-      setMedications(DEMO_MEDICATIONS);
+      setMedications(DEMO_MEDICATIONS.map(attachCatalogImage));
       setLoading(false);
       return;
     }
@@ -165,7 +174,7 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
     (async () => {
       try {
         const data = await apiGetMedications();
-        if (!cancelled) setMedications(data);
+        if (!cancelled) setMedications(data.map(attachCatalogImage));
       } catch {
         if (!cancelled) setMedications([]);
       } finally {
@@ -195,19 +204,21 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
         throw new Error('Completa nombre y dosis.');
       }
 
-      const saved = await apiCreateMedication({
-        name: payload.name,
-        dose: payload.dose,
-        frequency: payload.frequency,
-        amount: payload.amount ?? null,
-        ...(payload.unitsPerIntake !== undefined
-          ? { unitsPerIntake: payload.unitsPerIntake }
-          : {}),
-        startDate: payload.startDate,
-        endDate: payload.endDate,
-        instructions: payload.instructions,
-        schedules: payload.schedules ?? [],
-      });
+      const saved = attachCatalogImage(
+        await apiCreateMedication({
+          name: payload.name,
+          dose: payload.dose,
+          frequency: payload.frequency,
+          amount: payload.amount ?? null,
+          ...(payload.unitsPerIntake !== undefined
+            ? { unitsPerIntake: payload.unitsPerIntake }
+            : {}),
+          startDate: payload.startDate,
+          endDate: payload.endDate,
+          instructions: payload.instructions,
+          schedules: payload.schedules ?? [],
+        })
+      );
 
       setMedications((prev) => [saved, ...prev]);
       void syncMedicationNotifications([saved, ...medications.filter((m) => m.id !== saved.id)], {
@@ -253,6 +264,7 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
                 data.description !== undefined
                   ? data.description.trim() || undefined
                   : m.description,
+              imageUrl: getMedicationImage(data.name?.trim() ?? m.name),
             };
             result = next;
             return next;
@@ -263,19 +275,21 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
       }
 
       const payload = formToApiPayload(data);
-      const saved = await apiUpdateMedication(id, {
-        ...(payload.name !== undefined ? { name: payload.name } : {}),
-        ...(payload.dose !== undefined ? { dose: payload.dose } : {}),
-        ...(data.frequency !== undefined ? { frequency: payload.frequency } : {}),
-        ...(data.quantity !== undefined ? { amount: payload.amount ?? null } : {}),
-        ...(data.unitsPerIntake !== undefined
-          ? { unitsPerIntake: payload.unitsPerIntake ?? null }
-          : {}),
-        ...(data.startDate !== undefined ? { startDate: payload.startDate } : {}),
-        ...(data.endDate !== undefined ? { endDate: payload.endDate } : {}),
-        ...(data.description !== undefined ? { instructions: payload.instructions } : {}),
-        ...(data.schedules !== undefined ? { schedules: payload.schedules } : {}),
-      });
+      const saved = attachCatalogImage(
+        await apiUpdateMedication(id, {
+          ...(payload.name !== undefined ? { name: payload.name } : {}),
+          ...(payload.dose !== undefined ? { dose: payload.dose } : {}),
+          ...(data.frequency !== undefined ? { frequency: payload.frequency } : {}),
+          ...(data.quantity !== undefined ? { amount: payload.amount ?? null } : {}),
+          ...(data.unitsPerIntake !== undefined
+            ? { unitsPerIntake: payload.unitsPerIntake ?? null }
+            : {}),
+          ...(data.startDate !== undefined ? { startDate: payload.startDate } : {}),
+          ...(data.endDate !== undefined ? { endDate: payload.endDate } : {}),
+          ...(data.description !== undefined ? { instructions: payload.instructions } : {}),
+          ...(data.schedules !== undefined ? { schedules: payload.schedules } : {}),
+        })
+      );
 
       setMedications((prev) => prev.map((m) => (m.id === id ? saved : m)));
       void syncMedicationNotifications(

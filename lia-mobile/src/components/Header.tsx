@@ -51,7 +51,7 @@ export default function Header({
         style,
       ]}
     >
-      <View style={styles.row}>
+      <View style={[styles.row, !subtitle && styles.rowCentered]}>
         {showBack && onBack ? (
           <TouchableOpacity
             onPress={onBack}
@@ -123,6 +123,9 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+  },
+  rowCentered: {
+    alignItems: 'center',
   },
   side: {
     minWidth: Layout.minTouchTarget,

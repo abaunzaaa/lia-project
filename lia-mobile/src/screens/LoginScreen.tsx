@@ -1,16 +1,17 @@
 import React, { useRef, useState } from 'react';
-import { View, Pressable, TextInput, StyleSheet, Platform, Text } from 'react-native';
+import { View, Pressable, TextInput, StyleSheet, Image } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../types';
 import {
   AppText,
   Button,
-  EditorialText,
+  GoogleAuthButton,
+  Header,
   Input,
   Screen,
   Toast,
-  WelcomeBrandLogo,
+  ONBOARDING_CIRCLE_BG,
 } from '../components';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -24,13 +25,8 @@ type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Login'>;
 };
 
+const LOGIN_IMAGE = require('../assets/images/iniciosesion.png');
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const SANS = Platform.select({
-  ios: 'System',
-  android: 'sans-serif',
-  default: undefined,
-});
 
 function isNetworkError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
@@ -46,9 +42,10 @@ function isNetworkError(error: unknown): boolean {
 
 export default function LoginScreen({ navigation }: Props) {
   const { login } = useAuth();
-  const { isDark, isHighContrast } = useTheme();
-  const { scaleSpacing, minTouch, scaleFont } = useAccessibility();
-  const { compact, horizontalPadding, isTablet } = useResponsive();
+  const { colors, isDark, isHighContrast } = useTheme();
+  const { scaleSpacing, minTouch } = useAccessibility();
+  const { compact, horizontalPadding, width } = useResponsive();
+  const lightChrome = !isDark && !isHighContrast;
   const passwordRef = useRef<TextInput>(null);
 
   const [email, setEmail] = useState('');
@@ -62,16 +59,11 @@ export default function LoginScreen({ navigation }: Props) {
     type: 'error' as 'error' | 'info' | 'success',
   });
 
-  const bg = isHighContrast ? '#000000' : isDark ? '#10161C' : BrandColors.beige;
-  const subtitleColor = isHighContrast ? '#E8E8E8' : isDark ? BrandColors.skyBlue : BrandColors.teal;
-  const backColor = isHighContrast ? BrandColors.white : isDark ? BrandColors.beige : BrandColors.navy;
-  const linkColor = isHighContrast ? BrandColors.white : isDark ? BrandColors.beige : BrandColors.navy;
-  const googleSurface = isHighContrast ? '#000000' : isDark ? '#182028' : BrandColors.white;
-  const googleBorder = isHighContrast ? BrandColors.white : isDark ? BrandColors.teal : BrandColors.skyBlue;
-  const googleText = isHighContrast ? BrandColors.white : isDark ? BrandColors.beige : BrandColors.navy;
+  const iconColor = lightChrome ? BrandColors.navy : colors.textPrimary;
 
-  /** Logo más protagonista — responsive sin desbordar */
-  const logoSize = isTablet ? 220 : compact ? 176 : 200;
+  const circleSize = Math.min(compact ? 176 : 208, Math.round(width * 0.52));
+  const imageSize = circleSize * 1.42;
+  const overflowTop = Math.round(imageSize - circleSize);
 
   const validate = () => {
     let ok = true;
@@ -102,7 +94,6 @@ export default function LoginScreen({ navigation }: Props) {
     setLoading(true);
     try {
       await login(email.trim().toLowerCase(), password);
-      // AuthContext guarda JWT + usuario → AppNavigator entra a Main
     } catch (error) {
       let message = 'No pudimos iniciar sesión. Revisa el correo y la contraseña.';
 
@@ -123,258 +114,191 @@ export default function LoginScreen({ navigation }: Props) {
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: bg }]}>
-      {/* Único acento de marca — arco sky blue deliberado */}
-      {!isHighContrast && (
-        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+    <View style={[styles.root, { backgroundColor: lightChrome ? '#FFFFFF' : colors.background }]}>
+      <Header
+        title="Iniciar sesión"
+        showBack
+        onBack={() => navigation.goBack()}
+        editorial={false}
+      />
+
+      <Screen scroll keyboard transparent padded={false} contentStyle={styles.scrollBody}>
+        <View style={{ paddingHorizontal: horizontalPadding, alignItems: 'center' }}>
           <View
-            style={[
-              styles.brandArc,
-              {
-                borderColor: BrandColors.skyBlue,
-                opacity: isDark ? 0.22 : 0.55,
-                top: compact ? -40 : -28,
-              },
-            ]}
-          />
-        </View>
-      )}
-
-      <Screen scroll keyboard safeTop transparent padded={false} contentStyle={styles.scrollBody}>
-        <View style={{ paddingHorizontal: horizontalPadding }}>
-          <Pressable
-            onPress={() => navigation.goBack()}
-            accessibilityRole="button"
-            accessibilityLabel="Volver"
-            accessibilityHint="Regresa a la pantalla anterior"
-            style={[
-              styles.back,
-              {
-                minHeight: minTouch,
-                minWidth: minTouch,
-                marginBottom: scaleSpacing(compact ? Space[12] : Space[20]),
-              },
-            ]}
-          >
-            <Ionicons name="chevron-back" size={26} color={backColor} />
-          </Pressable>
-
-          {/* Marca: logo oficial + tagline (sin repetir “LIA”) */}
-          <View
-            style={[
-              styles.brandBlock,
-              { marginBottom: scaleSpacing(compact ? Space[24] : Space[32]) },
-            ]}
-          >
-            <WelcomeBrandLogo pageBackground={bg} size={logoSize} elevated />
-            <Text
-              maxFontSizeMultiplier={1.3}
-              style={[
-                styles.tagline,
-                {
-                  color: subtitleColor,
-                  fontSize: scaleFont(13),
-                  lineHeight: scaleFont(18),
-                  marginTop: scaleSpacing(Space[16]),
-                },
-              ]}
-            >
-              Asistente Inteligente de Medicamentos
-            </Text>
-          </View>
-
-          <EditorialText
-            variant="subhead"
-            accessibilityRole="header"
             style={{
-              fontSize: scaleFont(compact ? 26 : 28),
-              lineHeight: scaleFont(compact ? 32 : 34),
-              marginBottom: scaleSpacing(Space[8]),
+              width: circleSize,
+              height: circleSize + overflowTop,
+              marginTop: -scaleSpacing(Space[32]),
+              marginBottom: scaleSpacing(Space[20]),
+              overflow: 'visible',
             }}
-          >
-            Qué bueno verte de nuevo
-          </EditorialText>
-
-          <Text
-            maxFontSizeMultiplier={1.35}
-            style={[
-              styles.subtitle,
-              {
-                color: subtitleColor,
-                fontSize: scaleFont(compact ? 15 : 16),
-                lineHeight: scaleFont(compact ? 22 : 24),
-                marginBottom: scaleSpacing(compact ? Space[24] : Space[32]),
-                maxWidth: 340,
-              },
-            ]}
-          >
-            Tus medicamentos y recordatorios te están esperando.
-          </Text>
-
-          <Input
-            label="Correo electrónico"
-            placeholder="Ej. maria@correo.com"
-            value={email}
-            onChangeText={(value) => {
-              setEmail(value);
-              if (emailError) setEmailError('');
-            }}
-            error={emailError}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoComplete="email"
-            textContentType="emailAddress"
-            returnKeyType="next"
-            blurOnSubmit={false}
-            onSubmitEditing={() => passwordRef.current?.focus()}
-            accessibilityHint="Introduce el correo con el que te registraste"
-          />
-
-          <Input
-            ref={passwordRef}
-            label="Contraseña"
-            placeholder="Tu contraseña"
-            value={password}
-            onChangeText={(value) => {
-              setPassword(value);
-              if (passwordError) setPasswordError('');
-            }}
-            error={passwordError}
-            secureToggle
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoComplete="password"
-            textContentType="password"
-            returnKeyType="go"
-            onSubmitEditing={handleLogin}
-            accessibilityHint="Introduce tu contraseña. Puedes mostrarla u ocultarla."
-          />
-
-          <Pressable
-            onPress={() => navigation.navigate('ForgotPassword')}
-            accessibilityRole="button"
-            accessibilityLabel="¿Olvidaste tu contraseña?"
-            accessibilityHint="Abre la recuperación de contraseña"
-            style={[
-              styles.forgot,
-              {
-                minHeight: minTouch,
-                marginBottom: scaleSpacing(Space[16]),
-              },
-            ]}
-          >
-            <AppText
-              variant="body"
-              style={{
-                color: linkColor,
-                fontFamily: FontFamily.medium,
-                fontWeight: FontWeight.medium,
-                opacity: 0.85,
-              }}
-            >
-              ¿Olvidaste tu contraseña?
-            </AppText>
-          </Pressable>
-
-          <Button
-            title={loading ? 'Ingresando...' : 'Iniciar sesión'}
-            onPress={handleLogin}
-            loading={loading}
-            disabled={loading}
-            accessibilityLabel="Iniciar sesión"
-            accessibilityHint="Entra a LIA con tu correo y contraseña"
-          />
-
-          <Pressable
-            onPress={() =>
-              setToast({
-                visible: true,
-                message: 'Próximamente disponible',
-                type: 'info',
-              })
-            }
-            accessibilityRole="button"
-            accessibilityLabel="Iniciar sesión con Google"
-            accessibilityHint="Próximamente disponible. Aún no está activo."
-            accessibilityState={{ disabled: false }}
-            style={({ pressed }) => [
-              styles.googleBtn,
-              {
-                minHeight: Math.max(minTouch, 52),
-                marginTop: scaleSpacing(Space[12]),
-                backgroundColor: googleSurface,
-                borderColor: googleBorder,
-                opacity: pressed ? 0.88 : 1,
-              },
-            ]}
           >
             <View
               style={[
-                styles.googleMark,
+                styles.heroCircle,
                 {
-                  backgroundColor: isHighContrast ? BrandColors.white : BrandColors.beige,
-                  borderColor: googleBorder,
+                  width: circleSize,
+                  height: circleSize,
+                  borderRadius: circleSize / 2,
+                  top: overflowTop,
+                  backgroundColor: isHighContrast ? colors.surface : ONBOARDING_CIRCLE_BG,
                 },
               ]}
-            >
-              <Text
-                style={[
-                  styles.googleG,
-                  {
-                    color: googleText,
-                    fontSize: scaleFont(15),
-                  },
-                ]}
-              >
-                G
-              </Text>
-            </View>
-            <Text
-              maxFontSizeMultiplier={1.3}
-              style={[
-                styles.googleLabel,
-                {
-                  color: googleText,
-                  fontSize: scaleFont(16),
-                },
-              ]}
-            >
-              Iniciar sesión con Google
-            </Text>
-          </Pressable>
+            />
+            <Image
+              source={LOGIN_IMAGE}
+              style={{
+                position: 'absolute',
+                width: imageSize,
+                height: imageSize,
+                left: (circleSize - imageSize) / 2,
+                top: 10,
+                zIndex: 2,
+              }}
+              resizeMode="contain"
+              accessibilityIgnoresInvertColors
+            />
+          </View>
 
-          <View style={{ flexGrow: 1, minHeight: scaleSpacing(Space[20]) }} />
-
-          <View
-            style={[
-              styles.footer,
-              {
-                marginTop: scaleSpacing(Space[16]),
-                marginBottom: scaleSpacing(Space[8]),
-              },
-            ]}
+          <AppText
+            variant="h2"
+            accessibilityRole="header"
+            style={{
+              color: lightChrome ? BrandColors.navy : colors.textPrimary,
+              fontWeight: '600',
+              textAlign: 'center',
+              marginBottom: scaleSpacing(compact ? Space[24] : Space[32]),
+            }}
           >
-            <AppText variant="body" tone="secondary" style={{ textAlign: 'center' }}>
-              ¿Aún no tienes cuenta?{' '}
-            </AppText>
+            ¡Qué bueno verte de nuevo!
+          </AppText>
+
+          <View style={styles.form}>
+            <Input
+              chrome="white"
+              label="Correo electrónico"
+              placeholder="Ej. maria@correo.com"
+              value={email}
+              onChangeText={(value) => {
+                setEmail(value);
+                if (emailError) setEmailError('');
+              }}
+              error={emailError}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+              textContentType="emailAddress"
+              returnKeyType="next"
+              blurOnSubmit={false}
+              onSubmitEditing={() => passwordRef.current?.focus()}
+              icon={<Ionicons name="mail-outline" size={20} color={iconColor} />}
+              accessibilityHint="Introduce el correo con el que te registraste"
+            />
+
+            <Input
+              ref={passwordRef}
+              chrome="white"
+              label="Contraseña"
+              placeholder="Tu contraseña"
+              value={password}
+              onChangeText={(value) => {
+                setPassword(value);
+                if (passwordError) setPasswordError('');
+              }}
+              error={passwordError}
+              secureToggle
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="password"
+              textContentType="password"
+              returnKeyType="go"
+              onSubmitEditing={handleLogin}
+              icon={<Ionicons name="lock-closed-outline" size={20} color={iconColor} />}
+              accessibilityHint="Introduce tu contraseña. Puedes mostrarla u ocultarla."
+            />
+
+            <Pressable
+              onPress={() => navigation.navigate('ForgotPassword')}
+              accessibilityRole="button"
+              accessibilityLabel="¿Olvidaste tu contraseña?"
+              accessibilityHint="Abre la recuperación de contraseña"
+              style={[
+                styles.forgot,
+                {
+                  minHeight: minTouch,
+                  marginTop: -scaleSpacing(Space[8]),
+                  paddingTop: scaleSpacing(Space[4]),
+                },
+              ]}
+            >
+              <AppText
+                variant="body"
+                style={{
+                  color: lightChrome ? BrandColors.navy : colors.textPrimary,
+                  fontFamily: FontFamily.medium,
+                  fontWeight: FontWeight.medium,
+                }}
+              >
+                ¿Olvidaste tu contraseña?
+              </AppText>
+            </Pressable>
+
+            <Button
+              title={loading ? 'Ingresando...' : 'Iniciar sesión'}
+              onPress={handleLogin}
+              loading={loading}
+              disabled={loading}
+              accessibilityLabel="Iniciar sesión"
+              accessibilityHint="Entra a LIA con tu correo y contraseña"
+              style={{
+                marginTop: scaleSpacing(Space[16]),
+                borderRadius: Radius.lg,
+                minHeight: Math.max(minTouch, 56),
+                backgroundColor: lightChrome ? BrandColors.navy : colors.primary,
+              }}
+            />
+
+            <GoogleAuthButton
+              title="Iniciar sesión con Google"
+              onPress={() =>
+                setToast({
+                  visible: true,
+                  message: 'Próximamente disponible',
+                  type: 'info',
+                })
+              }
+              accessibilityLabel="Iniciar sesión con Google"
+              accessibilityHint="Próximamente disponible. Aún no está activo."
+              style={{ marginTop: scaleSpacing(Space[12]) }}
+            />
+
             <Pressable
               onPress={() => navigation.navigate('Register')}
               accessibilityRole="button"
               accessibilityLabel="Crear cuenta"
               accessibilityHint="Abre el registro de LIA"
-              style={[styles.footerAction, { minHeight: minTouch }]}
+              style={[
+                styles.loginLink,
+                {
+                  minHeight: minTouch,
+                  marginTop: scaleSpacing(Space[4]),
+                  paddingTop: scaleSpacing(Space[4]),
+                },
+              ]}
             >
-              <AppText
-                variant="body"
-                style={{
-                  color: linkColor,
-                  fontFamily: FontFamily.semiBold,
-                  fontWeight: FontWeight.semiBold,
-                  textAlign: 'center',
-                }}
-              >
-                Crear cuenta
+              <AppText variant="body" tone="secondary" style={{ textAlign: 'center' }}>
+                ¿No tienes cuenta?{' '}
+                <AppText
+                  variant="body"
+                  style={{
+                    color: lightChrome ? BrandColors.navy : colors.textPrimary,
+                    fontFamily: FontFamily.semiBold,
+                    fontWeight: FontWeight.semiBold,
+                  }}
+                >
+                  Crear cuenta
+                </AppText>
               </AppText>
             </Pressable>
           </View>
@@ -397,79 +321,23 @@ const styles = StyleSheet.create({
   },
   scrollBody: {
     paddingHorizontal: 0,
+    paddingBottom: 40,
   },
-  back: {
-    alignSelf: 'flex-start',
-    justifyContent: 'center',
-    marginLeft: -8,
+  heroCircle: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
   },
-  brandBlock: {
-    alignItems: 'center',
+  form: {
     width: '100%',
-  },
-  tagline: {
-    fontFamily: SANS,
-    fontWeight: FontWeight.regular,
-    textAlign: 'center',
-    letterSpacing: 0.2,
-  },
-  subtitle: {
-    fontFamily: SANS,
-    fontWeight: FontWeight.regular,
   },
   forgot: {
     alignSelf: 'flex-start',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
   },
-  footer: {
-    width: '100%',
+  loginLink: {
     alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  footerAction: {
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     borderRadius: Radius.md,
-  },
-  googleBtn: {
-    width: '100%',
-    maxWidth: 400,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radius.md,
-    borderWidth: 1.5,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    gap: 10,
-  },
-  googleMark: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  googleG: {
-    fontFamily: SANS,
-    fontWeight: FontWeight.semiBold,
-    includeFontPadding: false,
-  },
-  googleLabel: {
-    fontFamily: FontFamily.semiBold,
-    fontWeight: FontWeight.semiBold,
-    letterSpacing: 0.1,
-  },
-  brandArc: {
-    position: 'absolute',
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    borderWidth: 1.5,
-    right: -90,
-    backgroundColor: 'transparent',
   },
 });

@@ -72,6 +72,7 @@ export default function DrugInfoScreen({ navigation, route }: Props) {
   const { rxcui, displayName } = route.params;
   const { scaleSpacing, scaleFont, minTouch } = useAccessibility();
   const { colors, isHighContrast, isDark } = useTheme();
+  const lightChrome = !isDark && !isHighContrast;
   const { compact, contentMaxWidth } = useResponsive();
   const { medications } = useMedications();
 
@@ -337,8 +338,8 @@ export default function DrugInfoScreen({ navigation, route }: Props) {
                         ? colors.surface
                         : isDark
                           ? colors.surfaceElevated
-                          : BrandColors.beige,
-                      borderColor: isHighContrast ? colors.border : BrandColors.skyBlue,
+                          : BrandColors.white,
+                      borderColor: lightChrome ? BrandColors.skyBlue : colors.border,
                       borderWidth: isHighContrast ? 2 : 1,
                       padding: scaleSpacing(Space[16]),
                     },

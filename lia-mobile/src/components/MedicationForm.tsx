@@ -66,6 +66,7 @@ export default function MedicationForm({
 }: Props) {
   const { scaleSpacing, scaleFont, minTouch, isSeniorMode } = useAccessibility();
   const { colors, isHighContrast, isDark } = useTheme();
+  const lightChrome = !isDark && !isHighContrast;
   const { horizontalPadding, contentMaxWidth, isSmallPhone } = useResponsive();
   const { medications } = useMedications();
   const stackDose = isSmallPhone || isSeniorMode;
@@ -512,8 +513,8 @@ export default function MedicationForm({
                         ? colors.surface
                         : isDark
                           ? colors.surfaceElevated
-                          : BrandColors.beige,
-                      borderColor: isHighContrast ? colors.border : BrandColors.skyBlue,
+                          : BrandColors.white,
+                      borderColor: lightChrome ? BrandColors.skyBlue : colors.border,
                       borderWidth: isHighContrast ? 2 : 1,
                       marginTop: scaleSpacing(Space[8]),
                       padding: scaleSpacing(Space[12]),
@@ -768,8 +769,8 @@ export default function MedicationForm({
                     ? colors.surface
                     : isDark
                       ? colors.surfaceElevated
-                      : BrandColors.beige,
-                  borderColor: isHighContrast ? colors.border : BrandColors.skyBlue,
+                      : BrandColors.white,
+                  borderColor: lightChrome ? BrandColors.skyBlue : colors.border,
                   borderWidth: isHighContrast ? 2 : 1,
                   padding: scaleSpacing(Space[16]),
                   marginTop: scaleSpacing(Space[8]),

@@ -35,6 +35,7 @@ export interface Medication {
   startDate: string;
   endDate?: string;
   description?: string;
+  /** URL de imagen del medicamento (backend/API). */
   imageUrl?: string;
   createdAt: string;
   updatedAt?: string;
@@ -52,6 +53,7 @@ export type MedicationFormData = {
   startDate?: string;
   endDate?: string;
   description?: string;
+  imageUrl?: string;
 };
 
 export type DoseStatus = 'pending' | 'taken' | 'skipped' | 'missed';

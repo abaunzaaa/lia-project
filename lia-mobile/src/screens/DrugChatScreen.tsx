@@ -68,6 +68,7 @@ export default function DrugChatScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { scaleFont, scaleSpacing, minTouch } = useAccessibility();
   const { colors, isHighContrast, isDark } = useTheme();
+  const lightChrome = !isDark && !isHighContrast;
   const { horizontalPadding, contentMaxWidth, compact } = useResponsive();
 
   const listRef = useRef<FlatList<UiMessage>>(null);
@@ -207,8 +208,8 @@ export default function DrugChatScreen({ navigation, route }: Props) {
                 ? colors.surface
                 : isDark
                   ? colors.surfaceElevated
-                  : BrandColors.beige,
-              borderColor: isHighContrast ? colors.border : BrandColors.skyBlue,
+                  : BrandColors.white,
+              borderColor: lightChrome ? BrandColors.skyBlue : colors.border,
               borderWidth: isHighContrast ? 2 : 1,
             },
           ]}
@@ -248,7 +249,7 @@ export default function DrugChatScreen({ navigation, route }: Props) {
                 {
                   minHeight: minTouch,
                   opacity: pressed ? 0.85 : 1,
-                  borderColor: isHighContrast ? colors.border : isDark ? colors.primary : BrandColors.teal,
+                  borderColor: isHighContrast ? colors.border : isDark ? colors.border : BrandColors.teal,
                 },
               ]}
             >
@@ -417,8 +418,8 @@ export default function DrugChatScreen({ navigation, route }: Props) {
                         ? colors.surface
                         : isDark
                           ? colors.surfaceElevated
-                          : BrandColors.beige,
-                      borderColor: isHighContrast ? colors.border : BrandColors.skyBlue,
+                          : BrandColors.white,
+                      borderColor: lightChrome ? BrandColors.skyBlue : colors.border,
                       borderWidth: isHighContrast ? 2 : 1,
                       opacity: sending ? 0.5 : pressed ? 0.88 : 1,
                       paddingHorizontal: scaleSpacing(Space[12]),

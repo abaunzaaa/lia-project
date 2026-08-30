@@ -21,6 +21,7 @@ interface ButtonProps {
   disabled?: boolean;
   icon?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
+  hitSlop?: number | { top?: number; bottom?: number; left?: number; right?: number };
   accessibilityLabel?: string;
   accessibilityHint?: string;
 }
@@ -34,10 +35,12 @@ export default function Button({
   disabled = false,
   icon,
   style,
+  hitSlop,
   accessibilityLabel,
   accessibilityHint,
 }: ButtonProps) {
-  const { colors, isHighContrast } = useTheme();
+  const { colors, isHighContrast, isDark } = useTheme();
+  const lightChrome = !isDark && !isHighContrast;
   const { scaleFont, buttonScale, minTouch } = useAccessibility();
 
   const vertical = { sm: 10, md: 14, lg: 16 }[size] * buttonScale;
@@ -73,7 +76,9 @@ export default function Button({
       : variant === 'primary' && isHighContrast
         ? colors.border
         : variant === 'outline' || variant === 'secondary'
-          ? colors.primary
+          ? lightChrome || isHighContrast
+            ? colors.primary
+            : colors.border
           : 'transparent';
 
   const labelStyle = [
@@ -94,15 +99,17 @@ export default function Button({
       accessibilityLabel={accessibilityLabel || title}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: disabled || loading, busy: loading }}
+      hitSlop={hitSlop}
       style={[
         styles.base,
         {
           paddingVertical: vertical,
           paddingHorizontal: 16,
-          minHeight: Math.max(minTouch, 52 * buttonScale),
+          minHeight: Math.max(minTouch, 56 * buttonScale),
           backgroundColor: backgrounds[variant],
           borderWidth,
           borderColor,
+          borderRadius: Radius.lg,
           opacity: disabled ? 0.45 : 1,
         },
         style,
@@ -133,7 +140,7 @@ const styles = StyleSheet.create({
     flexWrap: 'nowrap',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     gap: 8,
     minHeight: Layout.minTouchTarget,
     maxWidth: '100%',
