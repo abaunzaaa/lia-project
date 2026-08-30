@@ -3,6 +3,7 @@ import { ZodError } from 'zod';
 import {
   registerSchema,
   loginSchema,
+  updateEmergencyContactSchema,
   formatZodError,
   registerZodErrorCode,
 } from '../models/authSchemas';
@@ -132,6 +133,48 @@ export async function me(req: AuthenticatedRequest, res: Response) {
     return res.status(500).json({
       success: false,
       message: 'Error interno al obtener el perfil.',
+    });
+  }
+}
+
+export async function updateMe(req: AuthenticatedRequest, res: Response) {
+  try {
+    const userId = req.auth?.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'No autorizado. Token requerido.',
+      });
+    }
+
+    const parsed = updateEmergencyContactSchema.parse(req.body);
+    const user = await authService.updateEmergencyContact(userId, parsed.emergencyContact);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Contacto de emergencia actualizado.',
+      data: { user },
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: formatZodError(error),
+        code: registerZodErrorCode(error),
+      });
+    }
+
+    if (error instanceof AuthServiceError) {
+      return res.status(error.statusCode).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    logAuthError('updateMe', error);
+    return res.status(500).json({
+      success: false,
+      message: 'No pudimos guardar el contacto. Inténtalo nuevamente.',
     });
   }
 }

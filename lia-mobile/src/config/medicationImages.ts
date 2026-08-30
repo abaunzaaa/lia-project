@@ -41,6 +41,11 @@ function resolveCatalogAsset(source: ImageSourcePropType) {
   }
 }
 
+/** Fuente local del catálogo 3D, o undefined si no hay coincidencia. */
+export function getMedicationImageSource(name: string): ImageSourcePropType | undefined {
+  return catalogSourceForName(name);
+}
+
 /** URI del PNG del catálogo, o undefined si no hay coincidencia. */
 export function getMedicationImage(name: string): string | undefined {
   const source = catalogSourceForName(name);

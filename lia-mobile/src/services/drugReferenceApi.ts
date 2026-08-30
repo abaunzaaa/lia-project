@@ -1,7 +1,8 @@
 import { API_BASE_URL } from '../config/api';
 import { getAuthToken } from './authApi';
 import { ApiClientError, friendlyApiMessage } from './apiClient';
-import type { PatientDrugInfo, DrugSearchResult } from '../types';
+import { PatientDrugInfo, DrugSearchResult } from '../types';
+import { presentDrugName } from '../utils/drugReferenceLabels';
 
 const SEARCH_MIN_CHARS = 2;
 
@@ -70,10 +71,12 @@ async function drugRequest(path: string): Promise<Response> {
 }
 
 function mapSearchItem(raw: DrugSearchResult): DrugSearchResult {
+  const name = presentDrugName(raw.name) || raw.name || '';
+  const displayName = presentDrugName(raw.displayName || raw.name) || name;
   return {
     id: String(raw.id ?? ''),
-    name: raw.name ?? '',
-    displayName: raw.displayName || raw.name || '',
+    name,
+    displayName,
     tty: raw.tty ?? null,
     source: raw.source || 'rxnorm',
     score: raw.score ?? null,
@@ -84,9 +87,11 @@ function mapSearchItem(raw: DrugSearchResult): DrugSearchResult {
 function mapPatientDrugInfo(raw: PatientDrugInfo): PatientDrugInfo {
   return {
     id: raw.id ?? null,
-    name: raw.name ?? '',
-    genericName: raw.genericName ?? null,
-    brandNames: Array.isArray(raw.brandNames) ? raw.brandNames : [],
+    name: presentDrugName(raw.name) || raw.name || '',
+    genericName: presentDrugName(raw.genericName) ?? raw.genericName ?? null,
+    brandNames: Array.isArray(raw.brandNames)
+      ? raw.brandNames.map((item) => presentDrugName(item) || item)
+      : [],
     purpose: raw.purpose ?? null,
     importantInformation: Array.isArray(raw.importantInformation)
       ? raw.importantInformation

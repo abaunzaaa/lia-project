@@ -14,6 +14,7 @@ import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import ScanMedicationScreen from '../screens/ScanMedicationScreen';
 import CameraGuideScreen from '../screens/CameraGuideScreen';
 import DrugSearchScreen from '../screens/DrugSearchScreen';
+import DrugMatchesScreen from '../screens/DrugMatchesScreen';
 import DrugInfoScreen from '../screens/DrugInfoScreen';
 import RecognitionResultScreen from '../screens/RecognitionResultScreen';
 import AddMedicationScreen from '../screens/AddMedicationScreen';
@@ -21,6 +22,7 @@ import EditMedicationScreen from '../screens/EditMedicationScreen';
 import MedicationDetailScreen from '../screens/MedicationDetailScreen';
 import DrugChatScreen from '../screens/DrugChatScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import EmergencyContactScreen from '../screens/EmergencyContactScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -66,6 +68,7 @@ export default function AppNavigator() {
             <Stack.Screen name="ScanMedication" component={ScanMedicationScreen} />
             <Stack.Screen name="CameraGuide" component={CameraGuideScreen} />
             <Stack.Screen name="DrugSearch" component={DrugSearchScreen} />
+            <Stack.Screen name="DrugMatches" component={DrugMatchesScreen} />
             <Stack.Screen name="DrugInfo" component={DrugInfoScreen} />
             <Stack.Screen name="RecognitionResult" component={RecognitionResultScreen} />
             <Stack.Screen name="AddMedication" component={AddMedicationScreen} />
@@ -73,6 +76,7 @@ export default function AppNavigator() {
             <Stack.Screen name="MedicationDetail" component={MedicationDetailScreen} />
             <Stack.Screen name="DrugChat" component={DrugChatScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} />
+            <Stack.Screen name="EmergencyContact" component={EmergencyContactScreen} />
           </>
         )}
       </Stack.Navigator>

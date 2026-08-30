@@ -6,7 +6,6 @@ import { RootStackParamList } from '../types';
 import {
   AppText,
   Button,
-  GoogleAuthButton,
   Header,
   Input,
   Screen,
@@ -257,20 +256,6 @@ export default function LoginScreen({ navigation }: Props) {
                 minHeight: Math.max(minTouch, 56),
                 backgroundColor: lightChrome ? BrandColors.navy : colors.primary,
               }}
-            />
-
-            <GoogleAuthButton
-              title="Iniciar sesión con Google"
-              onPress={() =>
-                setToast({
-                  visible: true,
-                  message: 'Próximamente disponible',
-                  type: 'info',
-                })
-              }
-              accessibilityLabel="Iniciar sesión con Google"
-              accessibilityHint="Próximamente disponible. Aún no está activo."
-              style={{ marginTop: scaleSpacing(Space[12]) }}
             />
 
             <Pressable

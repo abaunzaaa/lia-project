@@ -866,56 +866,35 @@ export default function ProfileScreen({
 
 
         </View>
-                {/* SEGURIDAD */}
+        {/* SEGURIDAD */}
 
+        <AppText
+          variant="body"
+          style={sectionTitleStyle}
+        >
+          Seguridad
+        </AppText>
 
-        {
-          user?.emergencyContact && (
-
-            <>
-
-              <AppText
-
-                variant="body"
-
-                style={sectionTitleStyle}
-
-              >
-
-                Seguridad
-
-              </AppText>
-
-
-
-              <View
-
-                style={[
-                  styles.cardList,
-                  cardStyle,
-                ]}
-
-              >
-
-                <ProfileOption
-
-                  icon="call-outline"
-
-                  title="Contacto de emergencia"
-
-                  subtitle={
-                    user.emergencyContact
-                  }
-
-                />
-
-              </View>
-
-
-            </>
-
-          )
-        }
+        <View
+          style={[
+            styles.cardList,
+            cardStyle,
+          ]}
+        >
+          <ProfileOption
+            icon="call-outline"
+            title="Contacto de emergencia"
+            subtitle={
+              user?.emergencyContact?.trim()
+                ? user.emergencyContact
+                : 'No registrado'
+            }
+            accessibilityLabel="Editar contacto de emergencia"
+            onPress={() =>
+              navigation.navigate('EmergencyContact')
+            }
+          />
+        </View>
 
 
         {/* CERRAR SESIÓN */}
@@ -1025,6 +1004,7 @@ function ProfileOption({
   subtitle,
   right,
   onPress,
+  accessibilityLabel,
 
 }:{
 
@@ -1033,10 +1013,12 @@ function ProfileOption({
   subtitle?:string;
   right?:React.ReactNode;
   onPress?:()=>void;
+  accessibilityLabel?:string;
 
 }){
 
   const { colors, isDark, isHighContrast } = useTheme();
+  const { minTouch } = useAccessibility();
   const lightChrome = !isDark && !isHighContrast;
   const iconColor = lightChrome ? BrandColors.navy : colors.textPrimary;
 
@@ -1044,7 +1026,12 @@ function ProfileOption({
 
     <Pressable
       onPress={onPress}
-      style={styles.row}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={accessibilityLabel ?? title}
+      style={[
+        styles.row,
+        { minHeight: Math.max(48, minTouch) },
+      ]}
 
     >
 

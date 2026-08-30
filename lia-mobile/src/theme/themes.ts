@@ -1,6 +1,8 @@
 import { ViewStyle } from 'react-native';
 
-export type Appearance = 'light' | 'dark' | 'highContrast';
+export type ColorScheme = 'light' | 'dark';
+/** @deprecated Use ColorScheme. Kept for stored-value migration. */
+export type Appearance = ColorScheme | 'highContrast';
 
 export type ColorPalette = {
   primary: string;
@@ -86,53 +88,93 @@ export const dark: ColorPalette = {
   focusRing: '#8BB8D9',
 };
 
-/** Negro + blanco. El estado nunca depende solo del color. */
-export const highContrast: ColorPalette = {
-  primary: '#FFFFFF',
-  primaryLight: '#111111',
+/** Tema claro con bordes y texto más marcados. No es modo noche. */
+export const lightHighContrast: ColorPalette = {
+  primary: '#173B59',
+  primaryLight: '#EAF5FB',
+  primaryDark: '#10161C',
+  secondary: '#314A5C',
+  background: '#FFFFFF',
+  surface: '#FFFFFF',
+  surfaceElevated: '#EAF5FB',
+  textPrimary: '#10161C',
+  textSecondary: '#314A5C',
+  textMuted: '#527181',
+  border: '#527181',
+  success: '#1F5C4C',
+  warning: '#8A5A10',
+  error: '#8B2E28',
+  info: '#173B59',
+  overlay: 'rgba(16, 22, 28, 0.5)',
+  onPrimary: '#FFFFFF',
+  accentSoft: '#EAF5FB',
+  successSoft: '#E4F0EC',
+  warningSoft: '#E8EEF2',
+  errorSoft: '#F6E8E6',
+  taken: '#1F5C4C',
+  pending: '#173B59',
+  missed: '#527181',
+  focusRing: '#173B59',
+};
+
+/** Tema oscuro con contraste máximo. */
+export const darkHighContrast: ColorPalette = {
+  primary: '#F4F7FA',
+  primaryLight: '#000000',
   primaryDark: '#FFFFFF',
-  secondary: '#FFFFFF',
+  secondary: '#E8EEF2',
   background: '#000000',
   surface: '#000000',
-  surfaceElevated: '#0A0A0A',
+  surfaceElevated: '#12181E',
   textPrimary: '#FFFFFF',
-  textSecondary: '#FFFFFF',
-  textMuted: '#E6E6E6',
-  border: '#FFFFFF',
-  success: '#FFFFFF',
-  warning: '#FFFFFF',
-  error: '#FFFFFF',
-  info: '#FFFFFF',
+  textSecondary: '#E8EEF2',
+  textMuted: '#DCE8EE',
+  border: '#E8EEF2',
+  success: '#A6E3C5',
+  warning: '#F0C56A',
+  error: '#F0A8A0',
+  info: '#F4F7FA',
   overlay: 'rgba(0, 0, 0, 0.82)',
   onPrimary: '#000000',
-  accentSoft: '#111111',
-  successSoft: '#111111',
-  warningSoft: '#111111',
-  errorSoft: '#111111',
-  taken: '#FFFFFF',
-  pending: '#FFFFFF',
-  missed: '#FFFFFF',
+  accentSoft: '#12181E',
+  successSoft: '#0A1A12',
+  warningSoft: '#1A1408',
+  errorSoft: '#1A0C0A',
+  taken: '#A6E3C5',
+  pending: '#F4F7FA',
+  missed: '#DCE8EE',
   focusRing: '#FFFFFF',
 };
 
-export const palettes: Record<Appearance, ColorPalette> = {
+export function resolvePalette(scheme: ColorScheme, highContrast: boolean): ColorPalette {
+  if (scheme === 'dark') return highContrast ? darkHighContrast : dark;
+  return highContrast ? lightHighContrast : light;
+}
+
+/** Alias de alto contraste claro (compatibilidad). */
+export const highContrast = lightHighContrast;
+
+export const palettes: Record<ColorScheme, ColorPalette> = {
   light,
   dark,
-  highContrast,
 };
 
-export function getShadows(appearance: Appearance): Record<'none' | 'sm' | 'md' | 'lg', ViewStyle> {
-  if (appearance === 'highContrast') {
+export function getShadows(
+  scheme: ColorScheme,
+  highContrastEnabled = false
+): Record<'none' | 'sm' | 'md' | 'lg', ViewStyle> {
+  if (highContrastEnabled) {
+    const borderColor = scheme === 'dark' ? '#E8EEF2' : '#527181';
     return {
       none: {},
-      sm: { borderWidth: 2, borderColor: '#FFFFFF' },
-      md: { borderWidth: 2, borderColor: '#FFFFFF' },
-      lg: { borderWidth: 2, borderColor: '#FFFFFF' },
+      sm: { borderWidth: 2, borderColor },
+      md: { borderWidth: 2, borderColor },
+      lg: { borderWidth: 2, borderColor },
     };
   }
 
-  const shadowColor = appearance === 'dark' ? '#000000' : '#1A2733';
-  const opacity = appearance === 'dark' ? 0.35 : 0.08;
+  const shadowColor = scheme === 'dark' ? '#000000' : '#1A2733';
+  const opacity = scheme === 'dark' ? 0.35 : 0.08;
 
   return {
     none: {},

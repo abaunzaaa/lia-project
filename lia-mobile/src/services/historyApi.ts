@@ -31,6 +31,7 @@ export function mapApiHistoryItem(item: ApiHistoryItem): HistoryEntry {
     scheduledFor: item.scheduledFor,
     status: item.status,
     actionAt: item.actionAt,
+    intakeId: item.intakeId ?? null,
   };
 }
 

@@ -87,6 +87,8 @@ export interface HistoryEntry {
   scheduledFor: string;
   status: DoseStatus;
   actionAt: string | null;
+  /** ID de `medication_intakes` cuando la toma ya fue tomada u omitida. */
+  intakeId: string | null;
 }
 
 /** @deprecated Prefer HistoryEntry — alias de compatibilidad. */
@@ -219,6 +221,12 @@ export type MainTabParamList = {
   Profile: undefined;
 };
 
+export type HistoryStackParamList = {
+  HistoryHome: undefined;
+  HistoryCalendar: undefined;
+  HistoryAnalysis: undefined;
+};
+
 export type RootStackParamList = {
   Onboarding: undefined;
   Login: undefined;
@@ -233,6 +241,11 @@ export type RootStackParamList = {
   ScanMedication: undefined;
   CameraGuide: undefined;
   DrugSearch: { fresh?: boolean } | undefined;
+  DrugMatches: {
+    query: string;
+    results: DrugSearchResult[];
+    error?: string;
+  };
   DrugInfo: { rxcui: string; displayName?: string };
   RecognitionResult: { result: RecognitionResult; imageUri?: string };
   AddMedication: { prefilled?: Partial<Medication> };
@@ -245,4 +258,5 @@ export type RootStackParamList = {
     registeredDose?: string;
   };
   Settings: undefined;
+  EmergencyContact: undefined;
 };

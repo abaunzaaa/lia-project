@@ -347,6 +347,7 @@ export function ReminderProvider({ children }: { children: ReactNode }) {
             scheduledFor: reminder.scheduledFor,
             status: 'taken',
             actionAt: new Date().toISOString(),
+            intakeId: reminder.intakeId,
           };
           setDemoHistory((prev) => [entry, ...prev.filter((h) => h.id !== entry.id)]);
           setReminders((prev) =>
@@ -392,6 +393,7 @@ export function ReminderProvider({ children }: { children: ReactNode }) {
             scheduledFor: reminder.scheduledFor,
             status: 'skipped',
             actionAt: new Date().toISOString(),
+            intakeId: reminder.intakeId,
           };
           setDemoHistory((prev) => [entry, ...prev.filter((h) => h.id !== entry.id)]);
           setReminders((prev) =>

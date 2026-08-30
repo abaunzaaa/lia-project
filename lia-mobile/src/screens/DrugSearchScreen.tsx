@@ -1,62 +1,79 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   View,
   StyleSheet,
-  Pressable,
   Keyboard,
+  Image,
+  Pressable,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { DrugSearchResult, RootStackParamList } from '../types';
+import { RootStackParamList } from '../types';
 import {
   AppText,
-  Button,
-  EditorialText,
-  EmptyState,
-  Header,
-  Input,
+  DrugSearchBar,
   Screen,
-  Toast,
 } from '../components';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useTheme } from '../context/ThemeContext';
 import { useResponsive } from '../hooks/useResponsive';
 import { BrandColors } from '../theme/brand';
-import { Radius, Space } from '../theme/tokens';
+import { Space } from '../theme/tokens';
 import {
   SEARCH_MIN_CHARS,
   searchDrugs,
   DrugReferenceApiError,
 } from '../services/drugReferenceApi';
-import { friendlyTtyLabel } from '../utils/drugReferenceLabels';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'DrugSearch'>;
   route: RouteProp<RootStackParamList, 'DrugSearch'>;
 };
 
+const HERO_BG = '#EAF3F7';
+const ORGANIC = '#DCE8EE';
+const SHEET_BG = '#FFFFFF';
+const SENIORS_IMAGE = require('../assets/images/adultosmayorbuscando.png');
+
+function searchFailureMessage(error: unknown): string {
+  if (error instanceof DrugReferenceApiError && error.status !== undefined) {
+    return error.message;
+  }
+  return 'No pudimos realizar la búsqueda. Verifica tu conexión y vuelve a intentarlo.';
+}
+
 export default function DrugSearchScreen({ navigation, route }: Props) {
+  const insets = useSafeAreaInsets();
   const { scaleSpacing, scaleFont, minTouch } = useAccessibility();
   const { colors, isHighContrast, isDark } = useTheme();
-  const { compact } = useResponsive();
+  const { compact, width, horizontalPadding, isShortScreen } = useResponsive();
+  const lightChrome = !isDark && !isHighContrast;
 
   const [query, setQuery] = useState('');
   const [fieldError, setFieldError] = useState<string | undefined>();
   const [searching, setSearching] = useState(false);
-  const [results, setResults] = useState<DrugSearchResult[] | null>(null);
-  const [toast, setToast] = useState<{ visible: boolean; message: string }>({
-    visible: false,
-    message: '',
-  });
+  const inFlight = useRef(false);
 
   const busy = searching;
+  const heroBg = isHighContrast ? colors.background : isDark ? colors.surface : HERO_BG;
+  const sheetBg = lightChrome ? SHEET_BG : colors.background;
+  const artWidth = Math.round(width * (isShortScreen ? 0.78 : compact ? 0.88 : 0.94));
+  const artHeight = Math.round(artWidth * (1249 / 1406));
+  const overlap = Math.round(Math.min(35, Math.max(24, artHeight * 0.09)));
+  const circleSize = Math.round(width * 2.05);
+  const radius = circleSize / 2;
+  const capHeight = Math.max(
+    overlap + 12,
+    Math.round(radius - Math.sqrt(Math.max(0, radius * radius - (width / 2) * (width / 2))))
+  );
+  const barWidth = Math.min(Math.round(width * 0.86), 360);
 
   useFocusEffect(
     useCallback(() => {
       if (route.params?.fresh) {
         setQuery('');
-        setResults(null);
         setFieldError(undefined);
         navigation.setParams({ fresh: undefined });
       }
@@ -64,227 +81,260 @@ export default function DrugSearchScreen({ navigation, route }: Props) {
   );
 
   const runSearch = useCallback(async () => {
+    if (inFlight.current || searching) return;
+
     const trimmed = query.trim();
     Keyboard.dismiss();
 
     if (!trimmed) {
-      setFieldError('Escribe el nombre de un medicamento.');
-      setResults(null);
+      setFieldError('Escribe el nombre del medicamento para comenzar.');
       return;
     }
     if (trimmed.length < SEARCH_MIN_CHARS) {
       setFieldError('Escribe al menos 2 caracteres.');
-      setResults(null);
       return;
     }
 
+    inFlight.current = true;
     setFieldError(undefined);
     setSearching(true);
-    setResults(null);
 
     try {
       const data = await searchDrugs(trimmed, 10);
-      setResults(data);
+      navigation.navigate('DrugMatches', {
+        query: trimmed,
+        results: data,
+      });
     } catch (e) {
-      const message =
-        e instanceof DrugReferenceApiError
-          ? e.message
-          : 'No pudimos completar la búsqueda. Inténtalo nuevamente.';
-      setToast({ visible: true, message });
-      setResults(null);
+      navigation.navigate('DrugMatches', {
+        query: trimmed,
+        results: [],
+        error: searchFailureMessage(e),
+      });
     } finally {
+      inFlight.current = false;
       setSearching(false);
     }
-  }, [query]);
-
-  const onSelect = (item: DrugSearchResult) => {
-    if (busy) return;
-    navigation.navigate('DrugInfo', {
-      rxcui: item.id,
-      displayName: item.displayName || item.name,
-    });
-  };
-
-  const divider = isHighContrast
-    ? colors.border
-    : isDark
-      ? colors.border
-      : 'rgba(47,65,86,0.12)';
+  }, [query, searching, navigation]);
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <Header title="Buscar" showBack onBack={() => navigation.goBack()} editorial />
-
+    <View style={[styles.root, { backgroundColor: sheetBg }]}>
       <Screen
         scroll
-        padded
         keyboard
-        contentStyle={{ paddingBottom: scaleSpacing(Space[40]) }}
+        transparent
+        padded={false}
+        maxWidth={width}
+        contentStyle={{
+          flexGrow: 1,
+          paddingBottom: 0,
+        }}
       >
-        <EditorialText
-          variant="headline"
-          accessibilityRole="header"
-          style={{
-            fontSize: scaleFont(compact ? 28 : 32),
-            lineHeight: scaleFont(compact ? 34 : 38),
-            marginBottom: scaleSpacing(Space[8]),
-          }}
+        <View
+          style={[
+            styles.hero,
+            {
+              backgroundColor: heroBg,
+              paddingTop: insets.top + scaleSpacing(Space[4]),
+              paddingHorizontal: horizontalPadding,
+            },
+          ]}
         >
-          Busca tu medicamento
-        </EditorialText>
+          {lightChrome ? (
+            <View pointerEvents="none" style={[styles.softShape, { backgroundColor: ORGANIC }]} />
+          ) : null}
 
-        <AppText
-          variant="body"
-          tone="secondary"
-          style={{
-            marginBottom: scaleSpacing(Space[20]),
-            maxWidth: 420,
-            flexShrink: 1,
-          }}
-        >
-          Escribe el nombre y LIA te ayudará a encontrarlo.
-        </AppText>
-
-        <Input
-          label="Nombre del medicamento"
-          placeholder="Ej. Losartán"
-          value={query}
-          onChangeText={(text) => {
-            setQuery(text);
-            if (fieldError) setFieldError(undefined);
-          }}
-          error={fieldError}
-          autoCapitalize="words"
-          autoCorrect={false}
-          returnKeyType="search"
-          onSubmitEditing={() => {
-            if (!busy) void runSearch();
-          }}
-          editable={!busy}
-          icon={
+          <Pressable
+            onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+            accessibilityLabel="Volver"
+            style={({ pressed }) => [
+              styles.backBtn,
+              {
+                minWidth: minTouch,
+                minHeight: minTouch,
+                opacity: pressed ? 0.75 : 1,
+              },
+            ]}
+          >
             <Ionicons
-              name="medical-outline"
-              size={scaleFont(20)}
-              color={colors.textSecondary}
+              name="chevron-back"
+              size={26}
+              color={lightChrome ? BrandColors.navy : colors.textPrimary}
             />
-          }
-        />
+          </Pressable>
 
-        <Button
-          title={searching ? 'Buscando...' : 'Buscar'}
-          onPress={() => void runSearch()}
-          loading={searching}
-          disabled={busy}
-          accessibilityLabel="Buscar medicamento"
-        />
+          <AppText
+            variant="label"
+            tone="secondary"
+            style={{ marginTop: scaleSpacing(Space[4]) }}
+          >
+            Identificación manual
+          </AppText>
 
-        {!searching && results && results.length === 0 ? (
-          <View style={{ marginTop: scaleSpacing(Space[24]) }}>
-            <EmptyState
-              icon="search-outline"
-              title="No encontramos coincidencias"
-              description="Revisa el nombre o intenta escribir una parte diferente."
+          <AppText
+            variant="h1"
+            accessibilityRole="header"
+            style={{
+              color: lightChrome ? BrandColors.navy : colors.textPrimary,
+              fontSize: scaleFont(26),
+              lineHeight: scaleFont(32),
+              letterSpacing: -0.2,
+              fontWeight: '600',
+              marginTop: scaleSpacing(Space[8]),
+              marginBottom: scaleSpacing(Space[8]),
+            }}
+          >
+            Encuentra tu medicamento
+          </AppText>
+        </View>
+
+        <View style={[styles.artBlock, { backgroundColor: heroBg }]}>
+          <View
+            style={[
+              styles.artStage,
+              {
+                height: artHeight,
+              },
+            ]}
+          >
+            <Image
+              source={SENIORS_IMAGE}
+              style={{
+                width: artWidth,
+                height: artHeight,
+              }}
+              resizeMode="contain"
+              accessibilityIgnoresInvertColors
+              accessibilityLabel="Adultos mayores buscando un medicamento"
             />
           </View>
-        ) : null}
 
-        {!searching && results && results.length > 0 ? (
-          <View style={{ marginTop: scaleSpacing(Space[24]) }}>
-            <AppText variant="label" style={{ marginBottom: scaleSpacing(Space[12]) }}>
-              Coincidencias
-            </AppText>
+          <View
+            style={[
+              styles.sheetWrap,
+              {
+                marginTop: -overlap,
+              },
+            ]}
+          >
+            <View style={[styles.waveClip, { height: capHeight, backgroundColor: heroBg }]}>
+              <View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: Math.round((width - circleSize) / 2),
+                  width: circleSize,
+                  height: circleSize,
+                  borderRadius: circleSize / 2,
+                  backgroundColor: sheetBg,
+                }}
+              />
+            </View>
 
             <View
               style={[
-                styles.list,
+                styles.sheet,
                 {
-                  backgroundColor: isHighContrast
-                    ? colors.surface
-                    : isDark
-                      ? colors.surfaceElevated
-                      : BrandColors.white,
-                  borderColor: colors.border,
-                  borderWidth: isHighContrast ? 2 : 1,
+                  backgroundColor: sheetBg,
+                  paddingHorizontal: horizontalPadding,
+                  paddingTop: scaleSpacing(Space[24]),
+                  paddingBottom: scaleSpacing(Space[32]) + insets.bottom,
+                  alignItems: 'center',
                 },
               ]}
             >
-              {results.map((item, index) => {
-                const ttyLabel = friendlyTtyLabel(item.tty);
-                return (
-                  <Pressable
-                    key={`${item.id}-${index}`}
-                    onPress={() => void onSelect(item)}
-                    disabled={busy}
-                    accessibilityRole="button"
-                    accessibilityLabel={item.displayName}
-                    accessibilityHint="Abre la ficha informativa de este medicamento"
-                    style={({ pressed }) => [
-                      styles.resultRow,
-                      {
-                        minHeight: Math.max(minTouch + 8, 56),
-                        borderTopWidth: index === 0 ? 0 : StyleSheet.hairlineWidth,
-                        borderTopColor: divider,
-                        opacity: pressed ? 0.85 : 1,
-                        paddingVertical: scaleSpacing(Space[12]),
-                        paddingHorizontal: scaleSpacing(Space[16]),
-                      },
-                    ]}
-                  >
-                    <View style={styles.resultText}>
-                      <AppText
-                        variant="medicationName"
-                        style={{ flexShrink: 1, fontSize: scaleFont(17) }}
-                      >
-                        {item.displayName}
-                      </AppText>
-                      {ttyLabel ? (
-                        <AppText
-                          variant="caption"
-                          tone="secondary"
-                          style={{ marginTop: 4, flexShrink: 1 }}
-                        >
-                          {ttyLabel}
-                        </AppText>
-                      ) : null}
-                    </View>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={scaleFont(20)}
-                      color={isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.teal}
-                    />
-                  </Pressable>
-                );
-              })}
+            <AppText
+              variant="h3"
+              style={{
+                color: lightChrome ? BrandColors.navy : colors.textPrimary,
+                textAlign: 'center',
+                marginBottom: scaleSpacing(Space[8]),
+                flexShrink: 1,
+              }}
+            >
+              Coloca el nombre del medicamento
+            </AppText>
+            <AppText
+              variant="body"
+              tone="secondary"
+              style={{
+                textAlign: 'center',
+                marginBottom: scaleSpacing(Space[20]),
+                flexShrink: 1,
+                maxWidth: barWidth,
+              }}
+            >
+              Escríbelo y pulsa la lupa para buscarlo.
+            </AppText>
+
+            <View style={{ width: barWidth }}>
+              <DrugSearchBar
+                value={query}
+                onChangeText={(text) => {
+                  setQuery(text);
+                  if (fieldError) setFieldError(undefined);
+                }}
+                onSubmit={() => {
+                  if (!busy) void runSearch();
+                }}
+                searching={searching}
+                disabled={busy}
+                error={fieldError}
+              />
             </View>
           </View>
-        ) : null}
+        </View>
+        </View>
       </Screen>
-
-      <Toast
-        visible={toast.visible}
-        message={toast.message}
-        type="error"
-        onHide={() => setToast((t) => ({ ...t, visible: false }))}
-      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  list: {
-    borderRadius: Radius.lg,
-    overflow: 'hidden',
+  hero: {
     width: '100%',
+    zIndex: 3,
   },
-  resultRow: {
-    flexDirection: 'row',
+  softShape: {
+    position: 'absolute',
+    width: 240,
+    height: 160,
+    borderRadius: 120,
+    top: -80,
+    right: -70,
+    opacity: 0.5,
+  },
+  backBtn: {
+    alignSelf: 'flex-start',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  artBlock: {
+    width: '100%',
+    flexGrow: 1,
+    overflow: 'visible',
+  },
+  artStage: {
+    width: '100%',
     alignItems: 'center',
-    gap: 12,
-    width: '100%',
+    justifyContent: 'flex-end',
+    overflow: 'visible',
+    zIndex: 1,
   },
-  resultText: {
-    flex: 1,
-    minWidth: 0,
+  sheetWrap: {
+    width: '100%',
+    zIndex: 2,
+    flexGrow: 1,
+  },
+  waveClip: {
+    width: '100%',
+    overflow: 'hidden',
+  },
+  sheet: {
+    width: '100%',
+    flexGrow: 1,
   },
 });
