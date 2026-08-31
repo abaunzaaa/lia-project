@@ -145,11 +145,10 @@ function insightsFromEntries(
 function medicationArt(
   name: string,
   imageUrl?: string | null
-): ImageSourcePropType | null {
+): ImageSourcePropType {
   const catalog = getMedicationImageSource(name);
-  if (catalog) return catalog;
   if (imageUrl && imageUrl.trim().length > 0) return { uri: imageUrl };
-  return null;
+  return catalog;
 }
 
 export default function HistoryAnalysisScreen({ navigation }: Props) {

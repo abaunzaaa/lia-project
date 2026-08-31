@@ -16,6 +16,24 @@ export interface MedicationSchedule {
   time: string;
 }
 
+export type MedicationPresentation =
+  | 'tablet'
+  | 'capsule'
+  | 'liquid'
+  | 'drops'
+  | 'sachet';
+
+export type MealRelation = 'before_meal' | 'after_meal' | 'with_meal';
+
+export type Weekday =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday';
+
 /**
  * Modelo UI de medicamento.
  * quantity ↔ amount (stock), unitsPerIntake ↔ unidades por toma, description ↔ instructions.
@@ -35,6 +53,13 @@ export interface Medication {
   startDate: string;
   endDate?: string;
   description?: string;
+  presentation?: MedicationPresentation | null;
+  doseAmount?: number | null;
+  doseUnit?: string | null;
+  purpose?: string;
+  weekdays?: Weekday[] | null;
+  mealRelation?: MealRelation | null;
+  reminderEnabled?: boolean;
   /** URL de imagen del medicamento (backend/API). */
   imageUrl?: string;
   createdAt: string;
@@ -54,6 +79,13 @@ export type MedicationFormData = {
   endDate?: string;
   description?: string;
   imageUrl?: string;
+  presentation?: MedicationPresentation | null;
+  doseAmount?: number;
+  doseUnit?: string;
+  purpose?: string;
+  weekdays?: Weekday[];
+  mealRelation?: MealRelation | null;
+  reminderEnabled?: boolean;
 };
 
 export type DoseStatus = 'pending' | 'taken' | 'skipped' | 'missed';

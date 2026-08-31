@@ -10,6 +10,13 @@ export interface DbMedication {
   start_date: string | null;
   end_date: string | null;
   instructions: string | null;
+  presentation: string | null;
+  dose_amount: string | number | null;
+  dose_unit: string | null;
+  purpose: string | null;
+  weekdays: string[] | null;
+  meal_relation: string | null;
+  reminder_enabled: boolean;
   is_active: boolean;
   archived_at: Date | null;
   created_at: Date;
@@ -29,6 +36,17 @@ export interface MedicationSchedule {
   time: string;
 }
 
+export type MedicationPresentation = 'tablet' | 'capsule' | 'liquid' | 'drops' | 'sachet';
+export type MealRelation = 'before_meal' | 'after_meal' | 'with_meal';
+export type Weekday =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday';
+
 /** Respuesta de medicamento para la API (camelCase, sin user_id). */
 export interface MedicationResponse {
   id: string;
@@ -40,6 +58,13 @@ export interface MedicationResponse {
   startDate: string | null;
   endDate: string | null;
   instructions: string | null;
+  presentation: MedicationPresentation | null;
+  doseAmount: number | null;
+  doseUnit: string | null;
+  purpose: string | null;
+  weekdays: Weekday[] | null;
+  mealRelation: MealRelation | null;
+  reminderEnabled: boolean;
   schedules: MedicationSchedule[];
   createdAt: string;
   updatedAt: string | null;
@@ -54,6 +79,13 @@ export interface CreateMedicationInput {
   startDate?: string | null;
   endDate?: string | null;
   instructions?: string | null;
+  presentation?: MedicationPresentation | null;
+  doseAmount?: number | null;
+  doseUnit?: string | null;
+  purpose?: string | null;
+  weekdays?: Weekday[] | null;
+  mealRelation?: MealRelation | null;
+  reminderEnabled?: boolean;
   schedules?: string[];
 }
 
@@ -66,6 +98,13 @@ export interface UpdateMedicationInput {
   startDate?: string | null;
   endDate?: string | null;
   instructions?: string | null;
+  presentation?: MedicationPresentation | null;
+  doseAmount?: number | null;
+  doseUnit?: string | null;
+  purpose?: string | null;
+  weekdays?: Weekday[] | null;
+  mealRelation?: MealRelation | null;
+  reminderEnabled?: boolean;
   schedules?: string[];
 }
 

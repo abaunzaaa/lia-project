@@ -24,7 +24,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useResponsive } from '../hooks/useResponsive';
 import { BrandColors, brandAccent, liaCardBorder } from '../theme/brand';
 import { FontFamily, FontWeight, Radius, Space } from '../theme/tokens';
-import { getMedicationImageScale, MEDICATION_IMAGE_SLOT } from '../config/medicationImages';
+import { getMedicationImageScale, getMedicationImageSource, MEDICATION_IMAGE_SLOT } from '../config/medicationImages';
 import { getGreeting, normalizeMedicationName } from '../utils/helpers';
 import { formatTimeForDisplay } from '../utils/dateTime';
 import { buildNextDoseSpeech, buildReminderSpeech } from '../utils/speechPhrases';
@@ -59,12 +59,6 @@ export default function HomeScreen({ navigation }: Props) {
   const hasMeds = medications.length > 0;
   const lightChrome = !isDark && !isHighContrast;
   const greeting = getGreeting();
-
-  React.useEffect(() => {
-    medications.forEach((medication) => {
-      console.log('MEDICATION IMAGE:', medication.name, medication.imageUrl);
-    });
-  }, [medications]);
 
   useFocusEffect(
     useCallback(() => {
@@ -695,24 +689,20 @@ function HomeMedicationCard({
         </View>
 
         <View style={styles.medArt} pointerEvents="none">
-          {showImage ? (
-            <Image
-              source={{ uri: imageUrl }}
-              style={[
-                styles.medArtImage,
-                { transform: [{ scale: getMedicationImageScale(name) }] },
-              ]}
-              resizeMode="contain"
-              accessibilityIgnoresInvertColors
-              onError={() => setImageFailed(true)}
-            />
-          ) : (
-            <Ionicons
-              name="medkit-outline"
-              size={36}
-              color={lightChrome ? BrandColors.navy : colors.textPrimary}
-            />
-          )}
+          <Image
+            source={
+              showImage && imageUrl
+                ? { uri: imageUrl }
+                : getMedicationImageSource(name)
+            }
+            style={[
+              styles.medArtImage,
+              { transform: [{ scale: getMedicationImageScale(name) }] },
+            ]}
+            resizeMode="contain"
+            accessibilityIgnoresInvertColors
+            onError={() => setImageFailed(true)}
+          />
         </View>
       </View>
 

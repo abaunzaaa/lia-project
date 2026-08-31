@@ -81,6 +81,13 @@ function formToApiPayload(data: MedicationFormData | Partial<MedicationFormData>
     startDate: data.startDate?.trim() || null,
     endDate: data.endDate?.trim() || null,
     instructions: data.description?.trim() || null,
+    presentation: data.presentation !== undefined ? data.presentation : undefined,
+    doseAmount: data.doseAmount !== undefined ? data.doseAmount : undefined,
+    doseUnit: data.doseUnit !== undefined ? data.doseUnit : undefined,
+    purpose: data.purpose !== undefined ? data.purpose.trim() || null : undefined,
+    weekdays: data.weekdays !== undefined ? data.weekdays : undefined,
+    mealRelation: data.mealRelation !== undefined ? data.mealRelation : undefined,
+    reminderEnabled: data.reminderEnabled,
     schedules,
   };
 }
@@ -111,6 +118,13 @@ function localMedicationFromForm(
     startDate: data.startDate?.trim() || getLocalDateString(),
     endDate: data.endDate?.trim() || undefined,
     description: data.description?.trim() || undefined,
+    presentation: data.presentation ?? null,
+    doseAmount: data.doseAmount ?? null,
+    doseUnit: data.doseUnit ?? null,
+    purpose: data.purpose?.trim() || undefined,
+    weekdays: data.weekdays ?? null,
+    mealRelation: data.mealRelation ?? null,
+    reminderEnabled: data.reminderEnabled !== false,
     imageUrl: data.imageUrl || getMedicationImage(data.name),
     createdAt: new Date().toISOString(),
   };
@@ -216,6 +230,13 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
           startDate: payload.startDate,
           endDate: payload.endDate,
           instructions: payload.instructions,
+          presentation: payload.presentation ?? null,
+          doseAmount: payload.doseAmount ?? null,
+          doseUnit: payload.doseUnit ?? null,
+          purpose: payload.purpose ?? null,
+          weekdays: payload.weekdays ?? null,
+          mealRelation: payload.mealRelation ?? null,
+          reminderEnabled: payload.reminderEnabled !== false,
           schedules: payload.schedules ?? [],
         })
       );
@@ -264,6 +285,16 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
                 data.description !== undefined
                   ? data.description.trim() || undefined
                   : m.description,
+              presentation:
+                data.presentation !== undefined ? data.presentation : m.presentation,
+              doseAmount: data.doseAmount !== undefined ? data.doseAmount : m.doseAmount,
+              doseUnit: data.doseUnit !== undefined ? data.doseUnit : m.doseUnit,
+              purpose: data.purpose !== undefined ? data.purpose.trim() || undefined : m.purpose,
+              weekdays: data.weekdays !== undefined ? data.weekdays : m.weekdays,
+              mealRelation:
+                data.mealRelation !== undefined ? data.mealRelation : m.mealRelation,
+              reminderEnabled:
+                data.reminderEnabled !== undefined ? data.reminderEnabled : m.reminderEnabled,
               imageUrl: getMedicationImage(data.name?.trim() ?? m.name),
             };
             result = next;
@@ -287,6 +318,17 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
           ...(data.startDate !== undefined ? { startDate: payload.startDate } : {}),
           ...(data.endDate !== undefined ? { endDate: payload.endDate } : {}),
           ...(data.description !== undefined ? { instructions: payload.instructions } : {}),
+          ...(data.presentation !== undefined ? { presentation: payload.presentation ?? null } : {}),
+          ...(data.doseAmount !== undefined ? { doseAmount: payload.doseAmount ?? null } : {}),
+          ...(data.doseUnit !== undefined ? { doseUnit: payload.doseUnit ?? null } : {}),
+          ...(data.purpose !== undefined ? { purpose: payload.purpose ?? null } : {}),
+          ...(data.weekdays !== undefined ? { weekdays: payload.weekdays ?? null } : {}),
+          ...(data.mealRelation !== undefined
+            ? { mealRelation: payload.mealRelation ?? null }
+            : {}),
+          ...(data.reminderEnabled !== undefined
+            ? { reminderEnabled: payload.reminderEnabled }
+            : {}),
           ...(data.schedules !== undefined ? { schedules: payload.schedules } : {}),
         })
       );

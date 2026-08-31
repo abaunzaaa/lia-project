@@ -11,7 +11,9 @@ type Props = {
   children?: React.ReactNode;
 };
 
-/** Anillo circular nativo (sin librería de gráficas). `progress` de 0 a 1. */
+const SEGMENTS = 72;
+
+/** Anillo 0–100 %: cada segmento es 1/72 del círculo, de las 12 en punto hacia la derecha. */
 export default function HistoryProgressRing({
   progress,
   size,
@@ -22,9 +24,10 @@ export default function HistoryProgressRing({
   children,
 }: Props) {
   const p = Math.max(0, Math.min(1, progress));
-  const half = size / 2;
-  const first = Math.min(p, 0.5) / 0.5;
-  const second = p > 0.5 ? (p - 0.5) / 0.5 : 0;
+  const filled = Math.round(p * SEGMENTS);
+  const angle = 360 / SEGMENTS;
+  const tickWidth = Math.max(2, thickness * 0.72);
+  const inner = size - thickness * 2;
 
   return (
     <View
@@ -36,59 +39,38 @@ export default function HistoryProgressRing({
         now: Math.round(p * 100),
       }}
     >
-      <View
-        style={[
-          styles.track,
-          {
-            width: size,
-            height: size,
-            borderRadius: half,
-            borderWidth: thickness,
-            borderColor: trackColor,
-          },
-        ]}
-      />
-
-      <View style={[styles.halfClip, { width: half, height: size }]}>
+      {Array.from({ length: SEGMENTS }, (_, index) => (
         <View
-          style={{
-            width: size,
-            height: size,
-            borderRadius: half,
-            borderWidth: thickness,
-            borderColor: 'transparent',
-            borderTopColor: color,
-            borderRightColor: color,
-            transform: [{ rotate: `${-135 + first * 180}deg` }],
-          }}
-        />
-      </View>
-
-      <View style={[styles.halfClip, { width: half, height: size, left: half }]}>
-        <View
-          style={{
-            width: size,
-            height: size,
-            marginLeft: -half,
-            borderRadius: half,
-            borderWidth: thickness,
-            borderColor: 'transparent',
-            borderTopColor: color,
-            borderRightColor: color,
-            opacity: second > 0 ? 1 : 0,
-            transform: [{ rotate: `${-135 + 180 + second * 180}deg` }],
-          }}
-        />
-      </View>
+          key={index}
+          pointerEvents="none"
+          style={[
+            styles.spoke,
+            {
+              width: size,
+              height: size,
+              transform: [{ rotate: `${index * angle}deg` }],
+            },
+          ]}
+        >
+          <View
+            style={{
+              width: tickWidth,
+              height: thickness,
+              borderRadius: tickWidth / 2,
+              backgroundColor: index < filled ? color : trackColor,
+            }}
+          />
+        </View>
+      ))}
 
       <View
         style={{
           position: 'absolute',
           top: thickness,
           left: thickness,
-          width: size - thickness * 2,
-          height: size - thickness * 2,
-          borderRadius: (size - thickness * 2) / 2,
+          width: inner,
+          height: inner,
+          borderRadius: inner / 2,
           backgroundColor: holeColor,
           alignItems: 'center',
           justifyContent: 'center',
@@ -101,15 +83,10 @@ export default function HistoryProgressRing({
 }
 
 const styles = StyleSheet.create({
-  track: {
+  spoke: {
     position: 'absolute',
     top: 0,
     left: 0,
-  },
-  halfClip: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    overflow: 'hidden',
+    alignItems: 'center',
   },
 });

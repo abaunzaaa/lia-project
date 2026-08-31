@@ -7,6 +7,9 @@ export const MEDICATION_IMAGE_SLOT = {
   height: 118,
 };
 
+/** Tableta genérica sin nombre ni marca, PNG con transparencia. */
+export const GENERIC_MEDICATION_IMAGE: ImageSourcePropType = require('../assets/medications/generic.png');
+
 const CATALOG: Record<string, ImageSourcePropType> = {
   acetaminofen: require('../assets/medications/acetaminofen.png'),
   paracetamol: require('../assets/medications/acetaminofen.png'),
@@ -27,10 +30,10 @@ function catalogKeyForName(name: string): string | null {
   return null;
 }
 
-function catalogSourceForName(name: string): ImageSourcePropType | undefined {
+function catalogSourceForName(name: string): ImageSourcePropType {
   const key = catalogKeyForName(name);
-  if (!key) return undefined;
-  return CATALOG[key];
+  if (key && CATALOG[key]) return CATALOG[key];
+  return GENERIC_MEDICATION_IMAGE;
 }
 
 function resolveCatalogAsset(source: ImageSourcePropType) {
@@ -41,16 +44,14 @@ function resolveCatalogAsset(source: ImageSourcePropType) {
   }
 }
 
-/** Fuente local del catálogo 3D, o undefined si no hay coincidencia. */
-export function getMedicationImageSource(name: string): ImageSourcePropType | undefined {
+/** Fuente local del catálogo 3D, o tableta genérica sin nombre. */
+export function getMedicationImageSource(name: string): ImageSourcePropType {
   return catalogSourceForName(name);
 }
 
-/** URI del PNG del catálogo, o undefined si no hay coincidencia. */
+/** URI del PNG del catálogo o de la tableta genérica. */
 export function getMedicationImage(name: string): string | undefined {
-  const source = catalogSourceForName(name);
-  if (!source) return undefined;
-  return resolveCatalogAsset(source)?.uri || undefined;
+  return resolveCatalogAsset(catalogSourceForName(name))?.uri || undefined;
 }
 
 /**
@@ -60,7 +61,6 @@ export function getMedicationImage(name: string): string | undefined {
  */
 export function getMedicationImageScale(name: string): number {
   const source = catalogSourceForName(name);
-  if (!source) return 1;
   const resolved = resolveCatalogAsset(source);
   const width = resolved?.width;
   const height = resolved?.height;

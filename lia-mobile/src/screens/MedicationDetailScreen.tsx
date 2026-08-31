@@ -20,7 +20,7 @@ import { BrandColors } from '../theme/brand';
 import { Space } from '../theme/tokens';
 import { formatScheduleTimes, formatTime } from '../utils/helpers';
 import { buildMedicationDetailsSpeech } from '../utils/speechPhrases';
-import { parseDoseString, unitSingularLabel, isCountDoseUnit } from '../utils/medicationFormHelpers';
+import { parseDoseString, unitSingularLabel, isCountDoseUnit, presentationLabel, formatWeekdaysPhrase, mealLabel, formatShortDate } from '../utils/medicationFormHelpers';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'MedicationDetail'>;
@@ -176,15 +176,45 @@ export default function MedicationDetailScreen({ navigation, route }: Props) {
         </AppText>
 
         <View style={{ marginBottom: scaleSpacing(Space[24]), gap: scaleSpacing(Space[16]) }}>
-          {frequency ? <InfoBlock label="Frecuencia" value={frequency} colors={colors} /> : null}
+          {medication.presentation ? (
+            <InfoBlock
+              label="Presentación"
+              value={presentationLabel(medication.presentation)}
+              colors={colors}
+            />
+          ) : null}
+          {medication.purpose ? (
+            <InfoBlock label="Para qué lo tomas" value={medication.purpose} colors={colors} />
+          ) : null}
+          {medication.weekdays && medication.weekdays.length > 0 ? (
+            <InfoBlock
+              label="Días"
+              value={formatWeekdaysPhrase(medication.weekdays)}
+              colors={colors}
+            />
+          ) : frequency ? (
+            <InfoBlock label="Frecuencia" value={frequency} colors={colors} />
+          ) : null}
+          {medication.mealRelation ? (
+            <InfoBlock
+              label="Con la comida"
+              value={mealLabel(medication.mealRelation)}
+              colors={colors}
+            />
+          ) : null}
           {medication.startDate ? (
-            <InfoBlock label="Inicio" value={medication.startDate} colors={colors} />
+            <InfoBlock label="Inicio" value={formatShortDate(medication.startDate)} colors={colors} />
           ) : null}
-          {medication.endDate ? (
-            <InfoBlock label="Fin" value={medication.endDate} colors={colors} />
-          ) : null}
+          <InfoBlock
+            label="Fin"
+            value={medication.endDate ? formatShortDate(medication.endDate) : 'Sin fecha de finalización'}
+            colors={colors}
+          />
           {medication.description ? (
             <InfoBlock label="Indicaciones" value={medication.description} colors={colors} />
+          ) : null}
+          {medication.reminderEnabled === false ? (
+            <InfoBlock label="Recordatorio" value="Desactivado en el teléfono" colors={colors} />
           ) : null}
         </View>
 

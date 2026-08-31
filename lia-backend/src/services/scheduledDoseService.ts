@@ -108,7 +108,21 @@ export async function fetchScheduledDoses(params: {
        ${activeFilter}
       INNER JOIN public.medication_schedules s
         ON s.medication_id = m.id
-      WHERE 1 = 1
+      WHERE (
+        m.weekdays IS NULL
+        OR cardinality(m.weekdays) = 0
+        OR (
+          CASE EXTRACT(ISODOW FROM d.day)::integer
+            WHEN 1 THEN 'monday'
+            WHEN 2 THEN 'tuesday'
+            WHEN 3 THEN 'wednesday'
+            WHEN 4 THEN 'thursday'
+            WHEN 5 THEN 'friday'
+            WHEN 6 THEN 'saturday'
+            WHEN 7 THEN 'sunday'
+          END
+        ) = ANY (m.weekdays)
+      )
        ${archiveFilter}
     )
     SELECT
@@ -128,6 +142,18 @@ export async function fetchScheduledDoses(params: {
      AND i.medication_id = p.medication_id
      AND i.schedule_id = p.schedule_id
      AND i.scheduled_for = p.scheduled_for
+    ${
+      mode === 'historical'
+        ? `WHERE NOT EXISTS (
+             SELECT 1
+             FROM public.medication_history_hides h
+             WHERE h.user_id = $4
+               AND h.medication_id = p.medication_id
+               AND h.schedule_id = p.schedule_id
+               AND h.scheduled_for = p.scheduled_for
+           )`
+        : ''
+    }
     `,
     [from, to, timezone, userId]
   );

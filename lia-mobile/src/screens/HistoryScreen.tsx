@@ -35,7 +35,7 @@ type Props = {
 
 export default function HistoryScreen({ navigation }: Props) {
   const { isDemo } = useAuth();
-  const { history: contextHistory } = useReminders();
+  const { history: contextHistory, hideHistoryEntry } = useReminders();
   const insets = useSafeAreaInsets();
   const { scaleFont, scaleSpacing, minTouch } = useAccessibility();
   const { colors, isHighContrast, isDark } = useTheme();
@@ -46,6 +46,7 @@ export default function HistoryScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [confirmEntry, setConfirmEntry] = useState<HistoryEntry | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState<{
     visible: boolean;
     message: string;
@@ -123,13 +124,30 @@ export default function HistoryScreen({ navigation }: Props) {
   const ringSize = isSmallPhone ? 100 : 112;
   const actionIcon = isSmallPhone ? 40 : 48;
 
-  const onConfirmDelete = () => {
-    setConfirmEntry(null);
-    setToast({
-      visible: true,
-      message: 'No pudimos eliminar el registro. Inténtalo nuevamente.',
-      type: 'error',
-    });
+  const onConfirmDelete = async () => {
+    const entry = confirmEntry;
+    if (!entry || deleting) return;
+    setDeleting(true);
+    try {
+      await hideHistoryEntry(entry);
+      setConfirmEntry(null);
+      setEntries((prev) => prev.filter((item) => item.id !== entry.id));
+      setToast({
+        visible: true,
+        message: 'Registro eliminado del historial.',
+        type: 'success',
+      });
+      void load({ silent: true });
+    } catch {
+      setConfirmEntry(null);
+      setToast({
+        visible: true,
+        message: 'No pudimos eliminar el registro. Inténtalo nuevamente.',
+        type: 'error',
+      });
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const listHeader = (

@@ -1,7 +1,8 @@
 import * as Notifications from 'expo-notifications';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
-import { Medication } from '../types';
+import { Medication, Weekday } from '../types';
+import { weekdayFromYmd } from '../utils/medicationFormHelpers';
 import {
   formatTimeForDisplay,
   getLocalDateString,
@@ -215,6 +216,11 @@ function isMedicationActiveOnDate(med: Medication, dateYmd: string): boolean {
   const end = normalizeDateField(med.endDate);
   if (start && dateYmd < start) return false;
   if (end && dateYmd > end) return false;
+  const days = med.weekdays;
+  if (days && days.length > 0) {
+    const day = weekdayFromYmd(dateYmd) as Weekday;
+    if (!days.includes(day)) return false;
+  }
   return true;
 }
 
@@ -272,6 +278,7 @@ export async function syncMedicationNotifications(
       let scheduled = 0;
 
       for (const med of medications) {
+        if (med.reminderEnabled === false) continue;
         const schedules = schedulesOf(med);
         for (const date of dates) {
           if (!isMedicationActiveOnDate(med, date)) continue;

@@ -83,6 +83,25 @@ export const createIntakeSchema = z
     }
   });
 
+export const hideHistoryDoseSchema = z
+  .object({
+    medicationId: uuidSchema,
+    scheduleId: uuidSchema,
+    date: dateStringSchema,
+    timezone: timezoneSchema,
+    userId: z.unknown().optional(),
+  })
+  .strict()
+  .superRefine((data, ctx) => {
+    if (data.userId !== undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['userId'],
+        message: 'No se permite enviar userId. El usuario se obtiene del token.',
+      });
+    }
+  });
+
 export const historyQuerySchema = z
   .object({
     from: dateStringSchema,
@@ -112,6 +131,7 @@ export const historyInsightsQuerySchema = z
 
 export type ReminderQuery = z.infer<typeof reminderQuerySchema>;
 export type CreateIntakeInput = z.infer<typeof createIntakeSchema>;
+export type HideHistoryDoseInput = z.infer<typeof hideHistoryDoseSchema>;
 export type HistoryQuery = z.infer<typeof historyQuerySchema>;
 export type AdherenceQuery = z.infer<typeof adherenceQuerySchema>;
 export type HistoryInsightsQuery = z.infer<typeof historyInsightsQuerySchema>;
