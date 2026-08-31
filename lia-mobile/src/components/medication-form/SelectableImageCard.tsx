@@ -16,8 +16,6 @@ type Props = {
   fill?: boolean;
 };
 
-const IMAGE_BOX = 64;
-
 export default function SelectableImageCard({
   label,
   image,
@@ -29,7 +27,8 @@ export default function SelectableImageCard({
 }: Props) {
   const { minTouch, scaleSpacing, scaleFont } = useAccessibility();
   const palette = useMedicationFormColors();
-  const cardWidth = fill ? '100%' : compact ? 112 : 120;
+  const imageSize = compact ? 36 : 64;
+  const cardWidth = fill ? '100%' : compact ? undefined : 120;
 
   return (
     <Pressable
@@ -39,41 +38,47 @@ export default function SelectableImageCard({
       accessibilityState={{ selected }}
       style={({ pressed }) => [
         styles.card,
+        compact ? styles.cardCompact : null,
         {
           width: cardWidth,
-          minHeight: Math.max(48, minTouch + 24),
-          height: fill ? '100%' : undefined,
+          minHeight: compact ? Math.max(72, minTouch + 8) : Math.max(48, minTouch + 24),
           backgroundColor: selected ? palette.ice : palette.card,
           borderColor: selected ? palette.navy : palette.border,
           borderWidth: selected || palette.isHighContrast ? 2 : 1,
           opacity: pressed ? 0.92 : 1,
-          paddingVertical: scaleSpacing(Space[12]),
-          paddingHorizontal: scaleSpacing(Space[8]),
+          paddingVertical: scaleSpacing(compact ? Space[8] : Space[12]),
+          paddingHorizontal: scaleSpacing(compact ? Space[4] : Space[8]),
+          gap: compact ? 4 : 8,
         },
       ]}
     >
       {selected ? (
-        <View style={[styles.check, { backgroundColor: palette.navy }]}>
-          <Ionicons name="checkmark" size={12} color={palette.onPrimary} />
+        <View
+          style={[
+            styles.check,
+            compact ? styles.checkCompact : null,
+            { backgroundColor: palette.navy },
+          ]}
+        >
+          <Ionicons name="checkmark" size={compact ? 10 : 12} color={palette.onPrimary} />
         </View>
       ) : null}
-      <View style={styles.imageBox}>
+      <View style={{ width: imageSize, height: imageSize, alignItems: 'center', justifyContent: 'center' }}>
         <Image
           source={image}
-          style={styles.image}
+          style={{ width: imageSize, height: imageSize, backgroundColor: 'transparent' }}
           resizeMode="contain"
           accessibilityIgnoresInvertColors
         />
       </View>
       <AppText
         variant="caption"
-        numberOfLines={2}
+        numberOfLines={compact ? 1 : 2}
         style={{
           color: palette.navy,
           fontWeight: '600',
           textAlign: 'center',
-          fontSize: scaleFont(13),
-          minHeight: scaleFont(32),
+          fontSize: scaleFont(compact ? 12 : 13),
         }}
       >
         {label}
@@ -87,19 +92,12 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     alignItems: 'center',
     justifyContent: 'flex-start',
-    gap: 8,
     position: 'relative',
   },
-  imageBox: {
-    width: IMAGE_BOX,
-    height: IMAGE_BOX,
-    alignItems: 'center',
+  cardCompact: {
+    flex: 1,
+    minWidth: 0,
     justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  image: {
-    width: IMAGE_BOX,
-    height: IMAGE_BOX,
   },
   check: {
     position: 'absolute',
@@ -111,5 +109,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,
+  },
+  checkCompact: {
+    top: 4,
+    right: 4,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
   },
 });

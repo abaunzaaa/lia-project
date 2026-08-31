@@ -28,6 +28,7 @@ type Props = {
   endDate?: string | null;
   instructions?: string;
   reminderEnabled?: boolean;
+  stockLabel?: string;
   compact?: boolean;
 };
 
@@ -42,6 +43,7 @@ export default function MedicationSummaryCard({
   endDate,
   instructions,
   reminderEnabled,
+  stockLabel,
   compact,
 }: Props) {
   const { scaleSpacing, scaleFont } = useAccessibility();
@@ -69,7 +71,12 @@ export default function MedicationSummaryCard({
     >
       <View style={styles.top}>
         {image ? (
-          <Image source={image} style={styles.art} resizeMode="contain" accessibilityIgnoresInvertColors />
+          <Image
+            source={image}
+            style={[styles.art, { backgroundColor: 'transparent' }]}
+            resizeMode="contain"
+            accessibilityIgnoresInvertColors
+          />
         ) : (
           <View style={styles.art} />
         )}
@@ -80,6 +87,11 @@ export default function MedicationSummaryCard({
           {presentationText ? (
             <AppText variant="body" style={{ color: palette.secondary, marginTop: 4 }}>
               {presentationText}
+            </AppText>
+          ) : null}
+          {stockLabel ? (
+            <AppText variant="caption" style={{ color: palette.navyMain, marginTop: 4, fontWeight: '600' }}>
+              Te quedan {stockLabel}
             </AppText>
           ) : null}
         </View>

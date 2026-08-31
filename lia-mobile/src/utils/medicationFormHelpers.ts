@@ -313,6 +313,7 @@ export type Weekday =
 export const FORM_DOSE_UNITS = [
   'mg',
   'g',
+  'mcg',
   'ml',
   'gotas',
   'unidades',
@@ -333,6 +334,88 @@ export const PRESENTATION_OPTIONS: {
   { id: 'drops', label: 'Gotas' },
   { id: 'sachet', label: 'Sobre' },
 ];
+
+/** Unidades típicas de esa presentación. Tabletas/cápsulas también se recetan en mg o g. */
+export function unitsForPresentation(presentation: MedicationPresentation | null): FormDoseUnit[] {
+  switch (presentation) {
+    case 'tablet':
+      return ['mg', 'g', 'mcg', 'tabletas', 'otra'];
+    case 'capsule':
+      return ['mg', 'g', 'mcg', 'cápsulas', 'otra'];
+    case 'liquid':
+      return ['ml', 'otra'];
+    case 'drops':
+      return ['gotas', 'ml', 'otra'];
+    case 'sachet':
+      return ['g', 'mg', 'unidades', 'otra'];
+    default:
+      return [...FORM_DOSE_UNITS];
+  }
+}
+
+export function doseUnitForPresentation(presentation: MedicationPresentation): FormDoseUnit {
+  switch (presentation) {
+    case 'tablet':
+    case 'capsule':
+      return 'mg';
+    case 'liquid':
+      return 'ml';
+    case 'drops':
+      return 'gotas';
+    case 'sachet':
+      return 'unidades';
+    default:
+      return 'mg';
+  }
+}
+
+export function formDoseUnitLabel(unit: FormDoseUnit): string {
+  switch (unit) {
+    case 'mg':
+      return 'miligramos (mg)';
+    case 'g':
+      return 'gramos (g)';
+    case 'mcg':
+      return 'microgramos (mcg)';
+    case 'ml':
+      return 'mililitros (ml)';
+    case 'gotas':
+      return 'gotas';
+    case 'unidades':
+      return 'unidades';
+    case 'tabletas':
+      return 'tabletas';
+    case 'cápsulas':
+      return 'cápsulas';
+    case 'otra':
+      return 'otra';
+    default:
+      return unit;
+  }
+}
+
+export function formDoseUnitShort(unit: FormDoseUnit, customUnit?: string): string {
+  if (unit === 'otra') return customUnit?.trim() || 'otra';
+  return unit;
+}
+
+/** Cuántas unidades hay en casa, según la presentación (no la dosis en mg). */
+export function stockUnitForPresentation(presentation: MedicationPresentation | null): string {
+  switch (presentation) {
+    case 'tablet':
+      return 'tabletas';
+    case 'capsule':
+      return 'cápsulas';
+    case 'liquid':
+      return 'ml';
+    case 'drops':
+      return 'gotas';
+    case 'sachet':
+      return 'sobres';
+    default:
+      return 'unidades';
+  }
+}
 
 export const MEAL_OPTIONS: { id: MealRelation; label: string }[] = [
   { id: 'before_meal', label: 'Antes de comer' },
@@ -451,6 +534,7 @@ export function parseDoseAmount(raw: string): number | null {
 export function toFormDoseUnit(unit: DoseUnitOption | string): FormDoseUnit {
   const lower = unit.toLowerCase();
   if (lower === 'ml' || lower === 'ml') return 'ml';
+  if (lower === 'mcg' || lower === 'ug' || lower === 'µg') return 'mcg';
   if (lower === 'tableta' || lower === 'tabletas') return 'tabletas';
   if (lower === 'cápsula' || lower === 'capsula' || lower === 'cápsulas' || lower === 'capsulas') {
     return 'cápsulas';

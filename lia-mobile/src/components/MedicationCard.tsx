@@ -171,7 +171,7 @@ export default function MedicationCard({
             }
             style={[
               styles.artImage,
-              { transform: [{ scale: getMedicationImageScale(medication.name) }] },
+              { transform: [{ scale: getMedicationImageScale(medication.name) }], backgroundColor: 'transparent' },
             ]}
             resizeMode="contain"
             accessibilityIgnoresInvertColors

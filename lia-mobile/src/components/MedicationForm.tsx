@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
   Keyboard,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -20,6 +19,7 @@ import DateFieldPicker from './DateFieldPicker';
 import Input from './Input';
 import OptionPickerModal from './OptionPickerModal';
 import Toast from './Toast';
+import KeyboardCheckBar, { MED_FORM_KEYBOARD_ACCESSORY_ID } from './medication-form/KeyboardCheckBar';
 import FormNavigationButtons from './medication-form/FormNavigationButtons';
 import MealRelationSelector from './medication-form/MealRelationSelector';
 import MedicationFormHeader from './medication-form/MedicationFormHeader';
@@ -41,11 +41,11 @@ import {
   scheduleBellAsset,
   scheduleClockAddAsset,
   presentationAssets,
+  treatmentCalendarAsset,
   treatmentNotesAsset,
 } from '../utils/medicationFormAssets';
 import {
   ALL_WEEKDAYS,
-  FORM_DOSE_UNITS,
   FormDoseUnit,
   MAX_INSTRUCTIONS,
   MAX_MEDICATION_NAME,
@@ -55,9 +55,11 @@ import {
   PRESENTATION_OPTIONS,
   Weekday,
   formatScheduleSummary,
-  FREQ_MODE_OPTIONS,
+  formDoseUnitLabel,
+  formDoseUnitShort,
   FreqMode,
   defaultTimesForMode,
+  doseUnitForPresentation,
   frequencyFromMode,
   modeFromFrequency,
   nextAvailableTime,
@@ -65,6 +67,8 @@ import {
   parseDoseString,
   toFormDoseUnit,
   todayYmd,
+  unitsForPresentation,
+  stockUnitForPresentation,
 } from '../utils/medicationFormHelpers';
 
 type Props = {
@@ -77,9 +81,12 @@ type Props = {
 
 type FieldErrors = Partial<Record<'name' | 'presentation' | 'dose' | 'unit' | 'weekdays' | 'times' | 'endDate', string>>;
 
-const FREQ_CHIPS: { id: FreqMode; label: string }[] = FREQ_MODE_OPTIONS.filter(
-  (option) => option.id !== 'interval'
-);
+const FREQ_CARDS: { id: FreqMode; label: string; hint: string }[] = [
+  { id: 'once', label: '1 vez al día', hint: 'Una toma' },
+  { id: 'twice', label: '2 veces al día', hint: 'Mañana y noche' },
+  { id: 'thrice', label: '3 veces al día', hint: 'Mañana, tarde y noche' },
+  { id: 'custom', label: 'Personalizado', hint: 'Tú eliges las horas' },
+];
 
 function inferFreqMode(times: string[], frequency?: string): FreqMode {
   if (frequency) {
@@ -131,8 +138,13 @@ export default function MedicationForm({
   const [customUnit, setCustomUnit] = useState(
     doseUnit === 'otra' ? parsedDose.customUnit : ''
   );
+  const [quantity, setQuantity] = useState(
+    initial?.quantity != null ? String(Math.max(0, Math.floor(initial.quantity))) : '1'
+  );
   const [purpose, setPurpose] = useState(initial?.purpose || '');
   const [unitPickerOpen, setUnitPickerOpen] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const [weekdays, setWeekdays] = useState<Weekday[]>(
     initial?.weekdays && initial.weekdays.length > 0 ? initial.weekdays : [...ALL_WEEKDAYS]
@@ -153,7 +165,6 @@ export default function MedicationForm({
   const [confirmed, setConfirmed] = useState(false);
   const [exitOpen, setExitOpen] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [toast, setToast] = useState<{
     visible: boolean;
     message: string;
@@ -161,19 +172,41 @@ export default function MedicationForm({
   }>({ visible: false, message: '', type: 'error' });
 
   useEffect(() => {
-    const show = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => setKeyboardVisible(true)
-    );
-    const hide = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardVisible(false)
-    );
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardVisible(true);
+      setKeyboardHeight(event.endCoordinates.height);
+    });
+    const hide = Keyboard.addListener(hideEvent, () => {
+      setKeyboardVisible(false);
+      setKeyboardHeight(0);
+    });
     return () => {
       show.remove();
       hide.remove();
     };
   }, []);
+
+  const stockUnit = useMemo(() => stockUnitForPresentation(presentation), [presentation]);
+
+  const keyboardFieldProps = Platform.OS === 'ios'
+    ? {
+        inputAccessoryViewID: MED_FORM_KEYBOARD_ACCESSORY_ID,
+        returnKeyType: 'default' as const,
+      }
+    : {
+        returnKeyType: 'done' as const,
+      };
+
+  const unitOptions = useMemo(
+    () =>
+      unitsForPresentation(presentation).map((unit) => ({
+        value: unit,
+        label: formDoseUnitLabel(unit),
+      })),
+    [presentation]
+  );
 
   const dosePreview = useMemo(() => {
     const amount = doseAmount.trim().replace(',', '.');
@@ -190,6 +223,7 @@ export default function MedicationForm({
       presentation !== (initial?.presentation ?? null) ||
       doseAmount.trim() !== (initial?.doseAmount != null ? String(initial.doseAmount) : parsedDose.amount) ||
       purpose.trim() !== (initial?.purpose || '').trim() ||
+      quantity.trim() !== (initial?.quantity != null ? String(Math.max(0, Math.floor(initial.quantity))) : '1') ||
       times.join(',') !== initialTimes.join(',') ||
       weekdays.join(',') !== (initial?.weekdays?.join(',') || ALL_WEEKDAYS.join(',')) ||
       mealRelation !== (initial?.mealRelation ?? null) ||
@@ -210,6 +244,7 @@ export default function MedicationForm({
     parsedDose.amount,
     presentation,
     purpose,
+    quantity,
     reminderEnabled,
     startDate,
     times,
@@ -285,6 +320,7 @@ export default function MedicationForm({
   };
 
   const goNext = () => {
+    Keyboard.dismiss();
     if (!validateStep(step)) return;
     setStep((current) => (current === 1 ? 2 : 3));
   };
@@ -332,6 +368,7 @@ export default function MedicationForm({
   };
 
   const handleSave = async () => {
+    Keyboard.dismiss();
     if (!validateStep(1) || !validateStep(2) || !validateStep(3)) return;
     if (!confirmed) {
       setToast({
@@ -376,6 +413,7 @@ export default function MedicationForm({
     }
 
     const amount = parseDoseAmount(doseAmount);
+    const countUnits = doseUnit === 'tabletas' || doseUnit === 'cápsulas' || doseUnit === 'unidades';
     try {
       await onSubmit({
         name: name.trim(),
@@ -384,6 +422,8 @@ export default function MedicationForm({
         doseUnit: doseUnit === 'otra' ? customUnit.trim() : doseUnit,
         presentation,
         purpose: purpose.trim() || undefined,
+        quantity: Math.max(0, Math.floor(Number.parseInt(quantity, 10) || 0)),
+        unitsPerIntake: countUnits ? Math.max(1, Math.round(amount ?? 1)) : 1,
         weekdays,
         mealRelation,
         reminderEnabled,
@@ -420,11 +460,7 @@ export default function MedicationForm({
   );
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.root, { backgroundColor: palette.page }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
-    >
+    <View style={[styles.root, { backgroundColor: palette.page }]}>
       <MedicationFormHeader
         step={step}
         flowTitle={mode === 'edit' ? 'Editar medicamento' : 'Agregar medicamento'}
@@ -436,11 +472,12 @@ export default function MedicationForm({
       <ScrollView
         ref={scrollRef}
         keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: horizontalPadding,
-          paddingBottom: scaleSpacing(Space[24]),
+          paddingBottom: Math.max(insets.bottom, scaleSpacing(Space[24])) + scaleSpacing(Space[16]),
           maxWidth: contentMaxWidth,
           width: '100%',
           alignSelf: 'center',
@@ -460,7 +497,7 @@ export default function MedicationForm({
               placeholder="Nombre"
               autoCapitalize="words"
               autoCorrect={false}
-              returnKeyType="done"
+              {...keyboardFieldProps}
               blurOnSubmit
               onSubmitEditing={() => Keyboard.dismiss()}
               error={fieldErrors.name}
@@ -492,9 +529,17 @@ export default function MedicationForm({
                   image={presentationAssets[option.id]}
                   selected={presentation === option.id}
                   onPress={() => {
+                    const allowed = unitsForPresentation(option.id);
                     setPresentation(option.id);
-                    if (fieldErrors.presentation) {
-                      setFieldErrors((prev) => ({ ...prev, presentation: undefined }));
+                    setDoseUnit((current) =>
+                      allowed.includes(current) ? current : doseUnitForPresentation(option.id)
+                    );
+                    if (fieldErrors.presentation || fieldErrors.unit) {
+                      setFieldErrors((prev) => ({
+                        ...prev,
+                        presentation: undefined,
+                        unit: undefined,
+                      }));
                     }
                   }}
                   accessibilityLabel={`${option.label}${presentation === option.id ? ', seleccionado' : ''}`}
@@ -519,7 +564,7 @@ export default function MedicationForm({
                   }}
                   placeholder="0"
                   keyboardType="decimal-pad"
-                  returnKeyType="done"
+                  {...keyboardFieldProps}
                   blurOnSubmit
                   onSubmitEditing={() => Keyboard.dismiss()}
                   error={fieldErrors.dose}
@@ -540,7 +585,7 @@ export default function MedicationForm({
                 ]}
               >
                 <AppText variant="body" style={{ color: palette.navy, fontWeight: '600' }}>
-                  {doseUnit === 'otra' && customUnit ? customUnit : doseUnit}
+                  {formDoseUnitShort(doseUnit, customUnit)}
                 </AppText>
                 <Ionicons name="chevron-down" size={18} color={palette.navy} />
               </Pressable>
@@ -552,9 +597,72 @@ export default function MedicationForm({
                 value={customUnit}
                 onChangeText={setCustomUnit}
                 placeholder="Ej. UI"
+                {...keyboardFieldProps}
+                blurOnSubmit
+                onSubmitEditing={() => Keyboard.dismiss()}
                 error={fieldErrors.unit}
               />
             ) : null}
+
+            {sectionLabel('¿Cuántos tienes en casa?')}
+            <AppText variant="caption" style={{ color: palette.secondary, marginTop: -4, marginBottom: 8 }}>
+              Las {stockUnit} que te quedan. Así LÍA puede avisarte cuando se estén acabando.
+            </AppText>
+            <View style={styles.stockRow}>
+              <Pressable
+                onPress={() => {
+                  const next = Math.max(0, (Number.parseInt(quantity, 10) || 0) - 1);
+                  setQuantity(String(next));
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Quitar uno"
+                style={[
+                  styles.stockStep,
+                  {
+                    minWidth: Math.max(48, minTouch),
+                    minHeight: Math.max(48, minTouch),
+                    backgroundColor: palette.ice,
+                    borderColor: palette.border,
+                  },
+                ]}
+              >
+                <Ionicons name="remove" size={22} color={palette.navy} />
+              </Pressable>
+              <View style={{ flex: 1 }}>
+                <Input
+                  chrome="white"
+                  value={quantity}
+                  onChangeText={(value) => setQuantity(value.replace(/[^0-9]/g, ''))}
+                  placeholder="1"
+                  keyboardType="number-pad"
+                  {...keyboardFieldProps}
+                  blurOnSubmit
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                />
+              </View>
+              <Pressable
+                onPress={() => {
+                  const next = Math.min(9999, (Number.parseInt(quantity, 10) || 0) + 1);
+                  setQuantity(String(next));
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Agregar uno"
+                style={[
+                  styles.stockStep,
+                  {
+                    minWidth: Math.max(48, minTouch),
+                    minHeight: Math.max(48, minTouch),
+                    backgroundColor: palette.ice,
+                    borderColor: palette.border,
+                  },
+                ]}
+              >
+                <Ionicons name="add" size={22} color={palette.navy} />
+              </Pressable>
+              <AppText variant="body" style={{ color: palette.navy, fontWeight: '700', minWidth: 72 }}>
+                {stockUnit}
+              </AppText>
+            </View>
 
             {sectionLabel('¿Para qué lo tomas?')}
             <Input
@@ -562,7 +670,7 @@ export default function MedicationForm({
               value={purpose}
               onChangeText={(value) => setPurpose(value.slice(0, MAX_PURPOSE))}
               placeholder="Opcional"
-              returnKeyType="done"
+              {...keyboardFieldProps}
               blurOnSubmit
               onSubmitEditing={() => Keyboard.dismiss()}
             />
@@ -575,6 +683,7 @@ export default function MedicationForm({
                 name={name.trim()}
                 presentation={presentation}
                 dosePreview={dosePreview}
+                stockLabel={quantity ? `${quantity} ${stockUnit}` : undefined}
                 compact
               />
             </View>
@@ -587,8 +696,8 @@ export default function MedicationForm({
             <WeekdaySelector value={weekdays} onChange={setWeekdays} error={fieldErrors.weekdays} />
 
             {sectionLabel('¿Con qué frecuencia?')}
-            <View style={styles.freqWrap}>
-              {FREQ_CHIPS.map((option) => {
+            <View style={styles.freqGrid}>
+              {FREQ_CARDS.map((option) => {
                 const selected = freqMode === option.id;
                 return (
                   <Pressable
@@ -596,26 +705,37 @@ export default function MedicationForm({
                     onPress={() => applyFreq(option.id)}
                     accessibilityRole="button"
                     accessibilityLabel={option.label}
+                    accessibilityHint={option.hint}
                     accessibilityState={{ selected }}
-                    style={{
-                      minHeight: Math.max(44, minTouch),
-                      paddingHorizontal: 14,
-                      borderRadius: Radius.lg,
-                      backgroundColor: selected ? palette.navy : palette.ice,
-                      borderWidth: 1,
-                      borderColor: selected ? palette.navy : palette.border,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
+                    style={[
+                      styles.freqCard,
+                      {
+                        minHeight: Math.max(64, minTouch + 8),
+                        backgroundColor: selected ? palette.navy : palette.ice,
+                        borderColor: selected ? palette.navy : palette.border,
+                        borderWidth: selected ? 2 : 1,
+                      },
+                    ]}
                   >
                     <AppText
-                      variant="caption"
+                      variant="body"
                       style={{
                         color: selected ? palette.onPrimary : palette.navy,
                         fontWeight: '700',
+                        textAlign: 'center',
                       }}
                     >
                       {option.label}
+                    </AppText>
+                    <AppText
+                      variant="caption"
+                      style={{
+                        color: selected ? palette.pastel : palette.secondary,
+                        textAlign: 'center',
+                        marginTop: 2,
+                      }}
+                    >
+                      {option.hint}
                     </AppText>
                   </Pressable>
                 );
@@ -628,6 +748,7 @@ export default function MedicationForm({
                 <TimeScheduleCard
                   key={`${time}-${index}`}
                   valueHhmm={time}
+                  takeLabel={`Toma ${index + 1}`}
                   onChange={(next) => setTimeAt(index, next)}
                   onRemove={times.length > 1 ? () => removeTime(index) : undefined}
                 />
@@ -653,7 +774,7 @@ export default function MedicationForm({
             >
               <Image
                 source={scheduleClockAddAsset}
-                style={{ width: 36, height: 36 }}
+                style={{ width: 36, height: 36, backgroundColor: 'transparent' }}
                 resizeMode="contain"
                 accessibilityIgnoresInvertColors
               />
@@ -679,7 +800,7 @@ export default function MedicationForm({
             >
               <Image
                 source={scheduleBellAsset}
-                style={{ width: 48, height: 48 }}
+                style={{ width: 48, height: 48, backgroundColor: 'transparent' }}
                 resizeMode="contain"
                 accessibilityIgnoresInvertColors
               />
@@ -716,8 +837,32 @@ export default function MedicationForm({
 
         {step === 3 ? (
           <View>
-            {sectionLabel('Duración del tratamiento')}
-            <View style={{ gap: scaleSpacing(Space[12]) }}>
+            <View
+              style={[
+                styles.durationHero,
+                {
+                  backgroundColor: palette.ice,
+                  borderColor: palette.border,
+                  borderWidth: palette.borderWidth,
+                },
+              ]}
+            >
+              <Image
+                source={treatmentCalendarAsset}
+                style={[styles.durationCalendar, { backgroundColor: 'transparent' }]}
+                resizeMode="contain"
+                accessibilityIgnoresInvertColors
+              />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <AppText variant="body" style={{ color: palette.navy, fontWeight: '700' }}>
+                  Duración del tratamiento
+                </AppText>
+                <AppText variant="caption" style={{ color: palette.secondary, marginTop: 4 }}>
+                  Elige las fechas. El fin es opcional.
+                </AppText>
+              </View>
+            </View>
+            <View style={{ gap: scaleSpacing(Space[12]), marginTop: scaleSpacing(Space[12]) }}>
               <View
                 style={[
                   styles.dateCard,
@@ -749,9 +894,45 @@ export default function MedicationForm({
                   },
                 ]}
               >
-                <AppText variant="caption" style={{ color: palette.secondary, marginBottom: 8 }}>
-                  Fecha de finalización
-                </AppText>
+                <View style={styles.endDateHeader}>
+                  <AppText variant="caption" style={{ color: palette.secondary, flex: 1 }}>
+                    Fecha de finalización
+                  </AppText>
+                  <Pressable
+                    onPress={() => {
+                      const next = !hasEndDate;
+                      setHasEndDate(next);
+                      if (next && endDate < startDate) setEndDate(startDate);
+                      if (!next) setFieldErrors((prev) => ({ ...prev, endDate: undefined }));
+                    }}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: hasEndDate }}
+                    accessibilityLabel="Si aplica"
+                    style={[
+                      styles.aplicaChip,
+                      {
+                        minHeight: Math.max(36, minTouch * 0.7),
+                        backgroundColor: hasEndDate ? palette.navy : palette.ice,
+                        borderColor: hasEndDate ? palette.navy : palette.border,
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name={hasEndDate ? 'checkmark' : 'add'}
+                      size={14}
+                      color={hasEndDate ? palette.onPrimary : palette.navy}
+                    />
+                    <AppText
+                      variant="caption"
+                      style={{
+                        color: hasEndDate ? palette.onPrimary : palette.navy,
+                        fontWeight: '700',
+                      }}
+                    >
+                      Si aplica
+                    </AppText>
+                  </Pressable>
+                </View>
                 {hasEndDate ? (
                   <DateFieldPicker
                     label="Elegir fecha de finalización"
@@ -762,37 +943,10 @@ export default function MedicationForm({
                     compact
                   />
                 ) : (
-                  <AppText variant="body" style={{ color: palette.navy, fontWeight: '600' }}>
+                  <AppText variant="body" style={{ color: palette.secondary, marginTop: 4 }}>
                     Sin fecha de finalización
                   </AppText>
                 )}
-                <Pressable
-                  onPress={() => {
-                    const next = !hasEndDate;
-                    setHasEndDate(next);
-                    if (next && endDate < startDate) setEndDate(startDate);
-                    if (!next) setFieldErrors((prev) => ({ ...prev, endDate: undefined }));
-                  }}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: hasEndDate }}
-                  accessibilityLabel="Si aplica"
-                  style={{
-                    minHeight: 48,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 8,
-                    marginTop: 12,
-                  }}
-                >
-                  <Ionicons
-                    name={hasEndDate ? 'checkbox' : 'square-outline'}
-                    size={22}
-                    color={palette.navy}
-                  />
-                  <AppText variant="caption" style={{ color: palette.navy, flex: 1 }}>
-                    Si aplica
-                  </AppText>
-                </Pressable>
               </View>
             </View>
             {fieldErrors.endDate ? (
@@ -819,6 +973,7 @@ export default function MedicationForm({
                 placeholderTextColor={palette.secondary}
                 multiline
                 textAlignVertical="top"
+                {...keyboardFieldProps}
                 style={{
                   minHeight: 88,
                   color: palette.navy,
@@ -835,7 +990,7 @@ export default function MedicationForm({
                 </View>
                 <Image
                   source={treatmentNotesAsset}
-                  style={{ width: 56, height: 56 }}
+                  style={{ width: 56, height: 56, backgroundColor: 'transparent' }}
                   resizeMode="contain"
                   accessibilityIgnoresInvertColors
                 />
@@ -847,6 +1002,7 @@ export default function MedicationForm({
                 name={name.trim()}
                 presentation={presentation}
                 dosePreview={dosePreview}
+                stockLabel={quantity ? `${quantity} ${stockUnit}` : undefined}
                 weekdays={weekdays}
                 times={times}
                 mealRelation={mealRelation}
@@ -885,57 +1041,26 @@ export default function MedicationForm({
             </Pressable>
           </View>
         ) : null}
-      </ScrollView>
 
-      <View
-        style={{
-          paddingHorizontal: horizontalPadding,
-          paddingTop: scaleSpacing(Space[8]),
-          paddingBottom: Math.max(insets.bottom, scaleSpacing(Space[12])),
-          maxWidth: contentMaxWidth,
-          width: '100%',
-          alignSelf: 'center',
-          backgroundColor: palette.page,
-          borderTopWidth: palette.borderWidth,
-          borderTopColor: palette.border,
-        }}
-      >
-        {keyboardVisible ? (
-          <Pressable
-            onPress={() => Keyboard.dismiss()}
-            accessibilityRole="button"
-            accessibilityLabel="Ocultar teclado"
-            style={{
-              minHeight: Math.max(48, minTouch),
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: scaleSpacing(Space[8]),
-              borderRadius: Radius.lg,
-              backgroundColor: palette.ice,
-              borderWidth: palette.borderWidth,
-              borderColor: palette.border,
-            }}
-          >
-            <AppText variant="body" style={{ color: palette.navy, fontWeight: '700' }}>
-              Ocultar teclado
-            </AppText>
-          </Pressable>
+        {!keyboardVisible ? (
+          <View style={{ marginTop: scaleSpacing(Space[24]) }}>
+            <FormNavigationButtons
+              primaryTitle={step === 3 ? 'Guardar medicamento' : 'Continuar'}
+              secondaryTitle={step === 1 ? 'Cancelar' : 'Atrás'}
+              onPrimary={step === 3 ? () => void handleSave() : goNext}
+              onSecondary={step === 1 ? requestExit : handleBack}
+              loading={loading}
+              primaryDisabled={step === 3 && !confirmed}
+            />
+          </View>
         ) : null}
-        <FormNavigationButtons
-          primaryTitle={step === 3 ? 'Guardar medicamento' : 'Continuar'}
-          secondaryTitle={step === 1 ? 'Cancelar' : 'Atrás'}
-          onPrimary={step === 3 ? () => void handleSave() : goNext}
-          onSecondary={step === 1 ? requestExit : handleBack}
-          loading={loading}
-          primaryDisabled={step === 3 && !confirmed}
-        />
-      </View>
+      </ScrollView>
 
       <OptionPickerModal
         visible={unitPickerOpen}
         title="Unidad"
         selectedValue={doseUnit}
-        options={FORM_DOSE_UNITS.map((unit) => ({ value: unit, label: unit }))}
+        options={unitOptions}
         onSelect={(value) => {
           setDoseUnit(value as FormDoseUnit);
           setUnitPickerOpen(false);
@@ -960,19 +1085,41 @@ export default function MedicationForm({
         type={toast.type}
         onHide={() => setToast((current) => ({ ...current, visible: false }))}
       />
-    </KeyboardAvoidingView>
+      <KeyboardCheckBar visible={keyboardVisible} keyboardHeight={keyboardHeight} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  freqWrap: {
+  freqGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
+  freqCard: {
+    width: '48%',
+    flexGrow: 1,
+    borderRadius: Radius.lg,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   doseRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   doseStack: { flexDirection: 'column' },
+  stockRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  stockStep: {
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
   unitCard: {
     minWidth: 120,
     borderRadius: Radius.lg,
@@ -1009,9 +1156,36 @@ const styles = StyleSheet.create({
     gap: 8,
     borderWidth: 1,
   },
+  durationHero: {
+    marginTop: Space[16],
+    borderRadius: Radius.xl,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  durationCalendar: {
+    width: 72,
+    height: 72,
+  },
   dateCard: {
     borderRadius: Radius.xl,
     padding: 14,
+  },
+  endDateHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  aplicaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    borderWidth: 1,
   },
   notesCard: {
     borderRadius: Radius.xl,

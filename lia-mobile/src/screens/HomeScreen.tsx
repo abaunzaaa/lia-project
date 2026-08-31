@@ -697,7 +697,7 @@ function HomeMedicationCard({
             }
             style={[
               styles.medArtImage,
-              { transform: [{ scale: getMedicationImageScale(name) }] },
+              { transform: [{ scale: getMedicationImageScale(name) }], backgroundColor: 'transparent' },
             ]}
             resizeMode="contain"
             accessibilityIgnoresInvertColors
