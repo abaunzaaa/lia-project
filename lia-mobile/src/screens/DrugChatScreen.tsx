@@ -3,23 +3,31 @@ import {
   View,
   StyleSheet,
   FlatList,
-  TextInput,
   Pressable,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../types';
-import { AppText, Header, SpeakButton } from '../components';
+import { AppText, SpeakButton } from '../components';
+import AskLiaHeader from '../components/chat/AskLiaHeader';
+import SuggestedQuestionChip from '../components/chat/SuggestedQuestionChip';
+import ChatComposer from '../components/chat/ChatComposer';
+import {
+  CHAT_BEIGE,
+  CHAT_BUBBLE_SIZE,
+  CHAT_MESSAGE_FILL,
+  LIA_CHAT_BUBBLE,
+} from '../components/chat/chatAssets';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useTheme } from '../context/ThemeContext';
 import { useResponsive } from '../hooks/useResponsive';
-import { BrandColors } from '../theme/brand';
-import { Radius, Space } from '../theme/tokens';
+import { BrandColors, brandInk } from '../theme/brand';
+import { FontFamily, FontWeight, Radius, Space } from '../theme/tokens';
 import { generateId } from '../utils/helpers';
 import {
   sendDrugChatMessage,
@@ -69,7 +77,10 @@ export default function DrugChatScreen({ navigation, route }: Props) {
   const { scaleFont, scaleSpacing, minTouch } = useAccessibility();
   const { colors, isHighContrast, isDark } = useTheme();
   const lightChrome = !isDark && !isHighContrast;
-  const { horizontalPadding, contentMaxWidth, compact } = useResponsive();
+  const { horizontalPadding, contentMaxWidth } = useResponsive();
+  const ink = brandInk(isDark, isHighContrast, colors.textPrimary);
+  const messageFill = lightChrome ? CHAT_MESSAGE_FILL : colors.surfaceElevated;
+  const bubbleSize = Math.min(58, Math.max(48, scaleSpacing(CHAT_BUBBLE_SIZE)));
 
   const listRef = useRef<FlatList<UiMessage>>(null);
   const sendingRef = useRef(false);
@@ -200,26 +211,57 @@ export default function DrugChatScreen({ navigation, route }: Props) {
   const renderMessage = ({ item }: { item: UiMessage }) => {
     if (item.role === 'local') {
       return (
-        <View
-          style={[
-            styles.localCard,
-            {
-              backgroundColor: isHighContrast
-                ? colors.surface
-                : isDark
-                  ? colors.surfaceElevated
-                  : BrandColors.white,
-              borderColor: lightChrome ? BrandColors.skyBlue : colors.border,
-              borderWidth: isHighContrast ? 2 : 1,
-            },
-          ]}
-        >
-          <AppText variant="caption" style={{ fontWeight: '700', marginBottom: 4 }}>
+        <View style={styles.localBlock}>
+          <AppText
+            variant="caption"
+            style={{
+              color: lightChrome ? BrandColors.teal : colors.textSecondary,
+              fontFamily: FontFamily.semiBold,
+              fontWeight: FontWeight.semiBold,
+              marginBottom: scaleSpacing(Space[8]),
+            }}
+          >
             LIA
           </AppText>
-          <AppText variant="body" style={{ flexShrink: 1 }}>
-            {item.content}
-          </AppText>
+          <View style={[styles.localRow, { gap: scaleSpacing(14) }]}>
+            <View
+              style={[styles.liaBubbleSlot, { width: bubbleSize, height: bubbleSize }]}
+              pointerEvents="none"
+              accessible={false}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+            >
+              <Image
+                source={LIA_CHAT_BUBBLE}
+                style={{ width: bubbleSize, height: bubbleSize, backgroundColor: 'transparent' }}
+                resizeMode="contain"
+                accessible={false}
+                accessibilityIgnoresInvertColors
+              />
+            </View>
+            <View
+              style={[
+                styles.localCard,
+                {
+                  backgroundColor: isHighContrast ? colors.surface : messageFill,
+                  borderColor: isHighContrast ? colors.border : messageFill,
+                  borderWidth: isHighContrast ? 2 : 0,
+                },
+              ]}
+            >
+              <AppText
+                variant="body"
+                style={{
+                  flexShrink: 1,
+                  color: ink,
+                  fontFamily: FontFamily.regular,
+                  lineHeight: scaleFont(24),
+                }}
+              >
+                {item.content}
+              </AppText>
+            </View>
+          </View>
         </View>
       );
     }
@@ -284,17 +326,13 @@ export default function DrugChatScreen({ navigation, route }: Props) {
             isUser
               ? {
                   backgroundColor: isHighContrast ? colors.textPrimary : BrandColors.navy,
-                  borderBottomRightRadius: 6,
+                  borderBottomRightRadius: 8,
                 }
               : {
-                  backgroundColor: isHighContrast
-                    ? colors.surface
-                    : isDark
-                      ? colors.surfaceElevated
-                      : BrandColors.skyBlue,
+                  backgroundColor: isHighContrast ? colors.surface : messageFill,
                   borderWidth: isHighContrast ? 2 : 0,
-                  borderColor: colors.border,
-                  borderBottomLeftRadius: 6,
+                  borderColor: isHighContrast ? colors.border : messageFill,
+                  borderBottomLeftRadius: 8,
                 },
           ]}
         >
@@ -303,11 +341,12 @@ export default function DrugChatScreen({ navigation, route }: Props) {
             selectable
             style={{
               flexShrink: 1,
+              fontFamily: FontFamily.regular,
               color: isUser
                 ? isHighContrast
                   ? colors.background
                   : BrandColors.white
-                : colors.textPrimary,
+                : ink,
               lineHeight: scaleFont(24),
             }}
           >
@@ -338,12 +377,10 @@ export default function DrugChatScreen({ navigation, route }: Props) {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <Header
-        title="Preguntar a LIA"
-        subtitle={`Sobre ${name}`}
-        showBack
+      <AskLiaHeader
         onBack={() => navigation.goBack()}
-        editorial
+        medicationName={name}
+        registeredDose={registeredDose}
       />
 
       <KeyboardAvoidingView
@@ -361,19 +398,34 @@ export default function DrugChatScreen({ navigation, route }: Props) {
             },
           ]}
         >
-          <AppText
-            variant="caption"
-            tone="secondary"
-            style={{
-              marginBottom: scaleSpacing(Space[8]),
-              flexShrink: 1,
-              lineHeight: scaleFont(18),
-            }}
+          <View
+            style={[
+              styles.notice,
+              {
+                backgroundColor: lightChrome ? CHAT_BEIGE : colors.surfaceElevated,
+                borderColor: lightChrome ? CHAT_BEIGE : colors.border,
+                borderWidth: isHighContrast ? 2 : 0,
+                paddingVertical: scaleSpacing(12),
+                paddingHorizontal: scaleSpacing(16),
+                marginTop: scaleSpacing(Space[8]),
+                marginBottom: scaleSpacing(Space[8]),
+              },
+            ]}
           >
-            LIA ofrece información orientativa y no reemplaza las indicaciones de tu profesional de
-            salud.
-            {registeredDose ? ` Registrado: ${registeredDose}.` : ''}
-          </AppText>
+            <AppText
+              variant="caption"
+              style={{
+                color: colors.textSecondary,
+                fontFamily: FontFamily.regular,
+                fontSize: scaleFont(14),
+                lineHeight: scaleFont(20),
+                flexShrink: 1,
+              }}
+            >
+              LIA ofrece información orientativa y no reemplaza las indicaciones de tu profesional de
+              salud.
+            </AppText>
+          </View>
 
           <FlatList
             ref={listRef}
@@ -404,126 +456,28 @@ export default function DrugChatScreen({ navigation, route }: Props) {
           {!hasInteracted ? (
             <View style={[styles.quickWrap, { gap: scaleSpacing(Space[8]) }]}>
               {QUICK_QUESTIONS.map((q) => (
-                <Pressable
+                <SuggestedQuestionChip
                   key={q}
+                  question={q}
                   onPress={() => void ask(q)}
                   disabled={sending}
-                  accessibilityRole="button"
-                  accessibilityLabel={q}
-                  style={({ pressed }) => [
-                    styles.quickChip,
-                    {
-                      minHeight: minTouch,
-                      backgroundColor: isHighContrast
-                        ? colors.surface
-                        : isDark
-                          ? colors.surfaceElevated
-                          : BrandColors.white,
-                      borderColor: lightChrome ? BrandColors.skyBlue : colors.border,
-                      borderWidth: isHighContrast ? 2 : 1,
-                      opacity: sending ? 0.5 : pressed ? 0.88 : 1,
-                      paddingHorizontal: scaleSpacing(Space[12]),
-                    },
-                  ]}
-                >
-                  <AppText
-                    variant="body"
-                    style={{
-                      fontWeight: '600',
-                      flexShrink: 1,
-                      fontSize: scaleFont(compact ? 14 : 15),
-                    }}
-                  >
-                    {q}
-                  </AppText>
-                </Pressable>
+                />
               ))}
             </View>
           ) : null}
 
-          <View
-            style={[
-              styles.inputBar,
-              {
-                borderTopColor: colors.border,
-                paddingBottom: Math.max(insets.bottom, scaleSpacing(Space[8])),
-                paddingTop: scaleSpacing(Space[8]),
-                backgroundColor: colors.background,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.inputShell,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
-                  borderWidth: isHighContrast ? 2 : 1,
-                  minHeight: minTouch,
-                },
-              ]}
-            >
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    fontSize: scaleFont(16),
-                    color: colors.textPrimary,
-                    maxHeight: scaleFont(16) * 5,
-                  },
-                ]}
-                placeholder="Escribe tu pregunta…"
-                placeholderTextColor={colors.textMuted}
-                value={input}
-                onChangeText={(t) => setInput(t.slice(0, DRUG_CHAT_MAX_MESSAGE))}
-                multiline
-                editable={!sending}
-                maxLength={DRUG_CHAT_MAX_MESSAGE}
-                accessibilityLabel="Escribe tu pregunta"
-              />
-            </View>
-            <Pressable
-              onPress={() => void ask(input)}
-              disabled={!canSend}
-              accessibilityRole="button"
-              accessibilityLabel="Enviar"
-              accessibilityHint="Envía tu pregunta a LIA"
-              style={({ pressed }) => [
-                styles.sendBtn,
-                {
-                  minWidth: minTouch,
-                  minHeight: minTouch,
-                  backgroundColor: canSend
-                    ? isHighContrast
-                      ? colors.textPrimary
-                      : isDark
-                        ? colors.primary
-                        : BrandColors.navy
-                    : colors.border,
-                  opacity: pressed && canSend ? 0.88 : 1,
-                },
-              ]}
-            >
-              <Ionicons
-                name="send"
-                size={scaleFont(18)}
-                color={
-                  canSend
-                    ? isHighContrast
-                      ? colors.background
-                      : isDark
-                        ? colors.onPrimary
-                        : BrandColors.white
-                    : colors.textMuted
-                }
-              />
-            </Pressable>
-          </View>
-          {nearLimit ? (
-            <AppText variant="caption" tone="muted" style={{ textAlign: 'right', marginBottom: 4 }}>
-              {`${input.length}/${DRUG_CHAT_MAX_MESSAGE}`}
-            </AppText>
-          ) : null}
+          <ChatComposer
+            value={input}
+            onChangeText={(t) => setInput(t.slice(0, DRUG_CHAT_MAX_MESSAGE))}
+            onSend={() => void ask(input)}
+            canSend={canSend}
+            sending={sending}
+            maxLength={DRUG_CHAT_MAX_MESSAGE}
+            nearLimit={nearLimit}
+            placeholder="Escribe tu pregunta…"
+            accessibilityLabel="Escribe tu pregunta"
+            bottomInset={Math.max(insets.bottom, scaleSpacing(Space[8]))}
+          />
         </View>
       </KeyboardAvoidingView>
     </View>
@@ -533,10 +487,30 @@ export default function DrugChatScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   flex: { flex: 1 },
-  localCard: {
-    borderRadius: Radius.lg,
-    padding: Space[16],
+  notice: {
+    borderRadius: 14,
     alignSelf: 'stretch',
+  },
+  localBlock: {
+    alignSelf: 'stretch',
+  },
+  localRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  liaBubbleSlot: {
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  localCard: {
+    flex: 1,
+    minWidth: 0,
+    borderRadius: 28,
+    paddingHorizontal: Space[16],
+    paddingVertical: Space[16],
   },
   errorCard: {
     borderRadius: Radius.lg,
@@ -563,7 +537,7 @@ const styles = StyleSheet.create({
   bubble: {
     paddingHorizontal: Space[16],
     paddingVertical: Space[12],
-    borderRadius: Radius.lg,
+    borderRadius: 26,
     maxWidth: '100%',
   },
   typingRow: {
@@ -573,35 +547,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   quickWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingBottom: Space[8],
-  },
-  quickChip: {
-    borderRadius: Radius.lg,
-    justifyContent: 'center',
-    maxWidth: '100%',
-  },
-  inputBar: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  inputShell: {
-    flex: 1,
-    borderRadius: Radius.lg,
-    paddingHorizontal: 12,
-    justifyContent: 'center',
-    minWidth: 0,
-  },
-  input: {
-    paddingVertical: 10,
-    minWidth: 0,
-  },
-  sendBtn: {
-    borderRadius: Radius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    paddingBottom: Space[12],
   },
 });
