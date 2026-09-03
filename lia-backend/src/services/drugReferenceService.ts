@@ -124,24 +124,54 @@ function mapLabelToDrugInfo(params: {
     { maxItems: 6, maxCharsPerItem: 700 }
   );
 
+  const dosageAndAdministration = cleanStringList(label.dosage_and_administration ?? [], {
+    maxItems: 4,
+    maxCharsPerItem: 700,
+  });
+  const whenUsing = cleanStringList(label.when_using ?? [], {
+    maxItems: 4,
+    maxCharsPerItem: 500,
+  });
+  const storage = cleanStringList(
+    [...(label.storage_and_handling ?? []), ...(label.other_information ?? [])],
+    { maxItems: 3, maxCharsPerItem: 400 }
+  );
+  const interactions = cleanStringList(label.drug_interactions ?? [], {
+    maxItems: 4,
+    maxCharsPerItem: 700,
+  });
+
   const dosageForms = cleanStringList(openfda?.dosage_form ?? [], {
     maxItems: 8,
     maxCharsPerItem: 80,
   });
 
   const setId = label.set_id || openfda?.spl_set_id?.[0] || null;
+  const summary = buildSummary(label);
 
   return {
     id: rxcui,
     name: titleCaseName(name),
     genericName: genericFromLabel || titleCaseName(name),
     brandNames: mergedBrands,
-    summary: buildSummary(label),
+    summary,
     uses,
     warnings,
     precautions,
+    dosageAndAdministration,
+    whenUsing,
+    storage,
+    interactions,
     dosageForms,
-    informationAvailable: Boolean(uses.length || warnings.length || buildSummary(label)),
+    informationAvailable: Boolean(
+      uses.length ||
+        warnings.length ||
+        precautions.length ||
+        dosageAndAdministration.length ||
+        whenUsing.length ||
+        interactions.length ||
+        summary
+    ),
     source: {
       name: sourceName,
       reference: setId,
@@ -164,6 +194,10 @@ function emptyInfo(params: {
     uses: [],
     warnings: [],
     precautions: [],
+    dosageAndAdministration: [],
+    whenUsing: [],
+    storage: [],
+    interactions: [],
     dosageForms: [],
     informationAvailable: false,
     source: {
@@ -174,14 +208,46 @@ function emptyInfo(params: {
   };
 }
 
+function labelHasUsableContent(label: OpenFdaLabelResult): boolean {
+  return Boolean(
+    label.purpose?.[0] ||
+      label.indications_and_usage?.[0] ||
+      label.description?.[0] ||
+      label.warnings?.[0] ||
+      label.warnings_and_cautions?.[0] ||
+      label.dosage_and_administration?.[0]
+  );
+}
+
+function isLikelyComboLabel(label: OpenFdaLabelResult, ingredientName: string): boolean {
+  const generic = (label.openfda?.generic_name?.[0] || '').toLowerCase();
+  const ingredient = ingredientName.toLowerCase();
+  if (!generic || !ingredient) return false;
+  return generic.includes(' and ') && !ingredient.includes(' and ') && generic.includes(ingredient);
+}
+
 async function resolveLabel(
   rxcui: string,
   name: string,
   brandNames: string[]
 ): Promise<{ label: OpenFdaLabelResult; sourceName: 'openFDA' | 'DailyMed' } | null> {
+  const usable: Array<{ label: OpenFdaLabelResult; sourceName: 'openFDA' | 'DailyMed' }> = [];
+
+  const consider = (
+    label: OpenFdaLabelResult | null,
+    sourceName: 'openFDA' | 'DailyMed'
+  ): { label: OpenFdaLabelResult; sourceName: 'openFDA' | 'DailyMed' } | null => {
+    if (!label || !labelHasUsableContent(label)) return null;
+    usable.push({ label, sourceName });
+    if (!isLikelyComboLabel(label, name)) {
+      return { label, sourceName };
+    }
+    return null;
+  };
+
   try {
-    const byRxcui = await openFda.findLabelByRxcui(rxcui);
-    if (byRxcui) return { label: byRxcui, sourceName: 'openFDA' };
+    const preferred = consider(await openFda.findLabelByRxcui(rxcui), 'openFDA');
+    if (preferred) return preferred;
   } catch (error) {
     if (!(error instanceof ExternalApiError && error.kind === 'timeout')) {
       console.error('[openFDA:rxcui]', error instanceof Error ? error.message : 'error');
@@ -191,16 +257,23 @@ async function resolveLabel(
   }
 
   try {
-    const byGeneric = await openFda.findLabelByGenericName(name);
-    if (byGeneric) return { label: byGeneric, sourceName: 'openFDA' };
+    const preferred = consider(await openFda.findLabelBySubstanceName(name), 'openFDA');
+    if (preferred) return preferred;
   } catch (error) {
     if (error instanceof ExternalApiError && error.kind === 'timeout') throw error;
   }
 
-  for (const brand of brandNames.slice(0, 3)) {
+  try {
+    const preferred = consider(await openFda.findLabelByGenericName(name), 'openFDA');
+    if (preferred) return preferred;
+  } catch (error) {
+    if (error instanceof ExternalApiError && error.kind === 'timeout') throw error;
+  }
+
+  for (const brand of brandNames.slice(0, 6)) {
     try {
-      const byBrand = await openFda.findLabelByBrandName(brand);
-      if (byBrand) return { label: byBrand, sourceName: 'openFDA' };
+      const preferred = consider(await openFda.findLabelByBrandName(brand), 'openFDA');
+      if (preferred) return preferred;
     } catch (error) {
       if (error instanceof ExternalApiError && error.kind === 'timeout') throw error;
     }
@@ -213,15 +286,15 @@ async function resolveLabel(
     }
 
     for (const setId of setIds) {
-      const bySetId = await openFda.findLabelBySetId(setId);
-      if (bySetId) return { label: bySetId, sourceName: 'DailyMed' };
+      const preferred = consider(await openFda.findLabelBySetId(setId), 'DailyMed');
+      if (preferred) return preferred;
     }
   } catch (error) {
     if (error instanceof ExternalApiError && error.kind === 'timeout') throw error;
     console.error('[dailyMed:fallback]', error instanceof Error ? error.message : 'error');
   }
 
-  return null;
+  return usable[0] ?? null;
 }
 
 async function fetchRawDrugInfo(params: {
@@ -270,6 +343,14 @@ async function fetchRawDrugInfo(params: {
 
   drugReferenceCache.set(rawCacheKey, info, INFO_CACHE_TTL_MS);
   return info;
+}
+
+/** Ficha cruda de fuentes oficiales, independiente de la simplificación para el paciente. */
+export async function getRawDrugInfo(params: {
+  rxcui?: string;
+  name?: string;
+}): Promise<DrugInfo> {
+  return fetchRawDrugInfo(params);
 }
 
 /**

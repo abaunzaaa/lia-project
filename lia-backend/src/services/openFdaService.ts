@@ -39,6 +39,13 @@ export async function findLabelByGenericName(name: string): Promise<OpenFdaLabel
   return searchLabel(`openfda.generic_name:${quoted}`);
 }
 
+export async function findLabelBySubstanceName(name: string): Promise<OpenFdaLabelResult | null> {
+  const folded = foldAccents(name).trim();
+  if (!folded) return null;
+  const quoted = `"${folded.replace(/"/g, '')}"`;
+  return searchLabel(`openfda.substance_name:${quoted}`);
+}
+
 export async function findLabelByBrandName(name: string): Promise<OpenFdaLabelResult | null> {
   const folded = foldAccents(name).trim();
   if (!folded) return null;

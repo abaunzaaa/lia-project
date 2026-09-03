@@ -26,6 +26,10 @@ export interface DrugInfo {
   uses: string[];
   warnings: string[];
   precautions: string[];
+  dosageAndAdministration: string[];
+  whenUsing: string[];
+  storage: string[];
+  interactions: string[];
   dosageForms: string[];
   informationAvailable: boolean;
   source: DrugInfoSource;
@@ -105,6 +109,7 @@ export interface RxNormRelatedResponse {
 export interface OpenFdaLabelOpenFda {
   generic_name?: string[];
   brand_name?: string[];
+  substance_name?: string[];
   rxcui?: string[];
   dosage_form?: string[];
   spl_set_id?: string[];
@@ -125,6 +130,10 @@ export interface OpenFdaLabelResult {
   pregnancy_or_breast_feeding?: string[];
   precautions?: string[];
   dosage_and_administration?: string[];
+  when_using?: string[];
+  storage_and_handling?: string[];
+  other_information?: string[];
+  drug_interactions?: string[];
   openfda?: OpenFdaLabelOpenFda;
 }
 

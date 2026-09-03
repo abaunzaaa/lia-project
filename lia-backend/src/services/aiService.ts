@@ -16,8 +16,9 @@ export class AiProviderError extends Error {
 interface GeminiGenerateResponse {
   candidates?: Array<{
     content?: {
-      parts?: Array<{ text?: string }>;
+      parts?: Array<{ text?: string; thought?: boolean }>;
     };
+    finishReason?: string;
   }>;
   error?: {
     code?: number | string;
@@ -27,9 +28,34 @@ interface GeminiGenerateResponse {
 }
 
 const DEFAULT_GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+const TRANSIENT_GEMINI_HTTP = new Set([408, 429, 500, 502, 503, 504]);
+const MAX_GEMINI_RETRIES = 2;
 
 function isDev(): boolean {
   return (process.env.NODE_ENV || 'development') !== 'production';
+}
+
+function isTransientGeminiHttp(status?: number): boolean {
+  return typeof status === 'number' && TRANSIENT_GEMINI_HTTP.has(status);
+}
+
+function geminiRetryDelayMs(retryNumber: number): number {
+  const baseMs = 1000 * 2 ** (retryNumber - 1);
+  const jitterMs = Math.floor(Math.random() * 400) - 200;
+  return Math.max(500, baseMs + jitterMs);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function extractGeminiVisibleText(data: GeminiGenerateResponse): string {
+  const parts = data.candidates?.[0]?.content?.parts ?? [];
+  return parts
+    .filter((part) => part.thought !== true)
+    .map((part) => part.text ?? '')
+    .join('')
+    .trim();
 }
 
 function normalizeGeminiBaseUrl(raw?: string | null): string {
@@ -328,16 +354,82 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
     temperature?: number;
     model?: string;
   }): Promise<string> {
+    const primaryModel = this.resolveGeminiModel(params.model, config.ai.chatModel);
+    const fallbackModel = this.resolveGeminiModel(undefined, config.ai.chatFallbackModel);
+
+    try {
+      return await this.callGeminiChatTextWithRetries(params, primaryModel);
+    } catch (error) {
+      const canFallback =
+        error instanceof AiProviderError &&
+        isTransientGeminiHttp(error.httpStatus) &&
+        fallbackModel !== primaryModel;
+
+      if (!canFallback) {
+        throw error;
+      }
+
+      console.warn(`[gemini] fallback activated model=${fallbackModel}`);
+      return this.callGeminiChatTextWithRetries(params, fallbackModel);
+    }
+  }
+
+  private async callGeminiChatTextWithRetries(
+    params: {
+      systemInstruction: string;
+      userContent: string;
+      history?: Array<{ role: 'user' | 'assistant'; content: string }>;
+      temperature?: number;
+    },
+    model: string
+  ): Promise<string> {
+    const maxAttempts = 1 + MAX_GEMINI_RETRIES;
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        console.log(`[gemini] model=${model} attempt=${attempt}`);
+        return await this.callGeminiChatTextOnce(params, model);
+      } catch (error) {
+        lastError = error;
+        const httpStatus = error instanceof AiProviderError ? error.httpStatus : undefined;
+        const retryable =
+          error instanceof AiProviderError &&
+          isTransientGeminiHttp(httpStatus) &&
+          attempt < maxAttempts;
+
+        if (!retryable) {
+          throw error;
+        }
+
+        const delayMs = geminiRetryDelayMs(attempt);
+        console.warn(
+          `[gemini] transient model=${model} attempt=${attempt} http=${httpStatus} retryInMs=${delayMs}`
+        );
+        await sleep(delayMs);
+      }
+    }
+
+    throw lastError instanceof Error
+      ? lastError
+      : new AiProviderError('No se pudo contactar el proveedor de IA.', 'network');
+  }
+
+  private async callGeminiChatTextOnce(
+    params: {
+      systemInstruction: string;
+      userContent: string;
+      history?: Array<{ role: 'user' | 'assistant'; content: string }>;
+      temperature?: number;
+    },
+    model: string
+  ): Promise<string> {
     const apiKey = config.ai.apiKey?.trim();
     if (!apiKey) {
       throw new AiProviderError('IA no configurada (falta AI_API_KEY).', 'not_configured');
     }
 
-    const model = this.resolveGeminiModel(params.model, config.ai.chatModel);
     const { url, baseUrl } = this.buildGeminiGenerateUrl(model);
-    if (isDev()) {
-      console.log(`[gemini] model=${model}`);
-    }
 
     const contents: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [];
     for (const turn of params.history ?? []) {
@@ -404,10 +496,7 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
       }
 
       const data = (parsedBody || {}) as GeminiGenerateResponse;
-      const text = data.candidates?.[0]?.content?.parts
-        ?.map((part) => part.text ?? '')
-        .join('')
-        .trim();
+      const text = extractGeminiVisibleText(data);
 
       if (!text) {
         throw new AiProviderError('La IA no devolvió contenido.', 'invalid_response');

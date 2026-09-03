@@ -56,6 +56,9 @@ export const config = {
     /** Chat “Preguntar a LÍA”. */
     chatModel:
       process.env.AI_CHAT_MODEL || process.env.AI_MODEL || 'gemini-3.6-flash',
+    /** Respaldo del chat si el modelo principal responde con error transitorio. */
+    chatFallbackModel:
+      process.env.AI_CHAT_FALLBACK_MODEL || 'gemini-3.5-flash-lite',
     timeoutMs: parseInt(process.env.AI_TIMEOUT_MS || '30000', 10),
   },
   openFda: {
