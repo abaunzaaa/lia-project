@@ -11,7 +11,7 @@ import { useAuth } from './AuthContext';
 import { useMedications } from './MedicationContext';
 import { getReminders } from '../services/reminderApi';
 import { setIntakeStatus } from '../services/intakeApi';
-import { getHistory } from '../services/historyApi';
+import { getHistory, hideHistoryDose } from '../services/historyApi';
 import { getAdherence } from '../services/adherenceApi';
 import { ApiClientError } from '../services/apiClient';
 import {
@@ -41,6 +41,7 @@ interface ReminderContextType {
   history: HistoryEntry[];
   historyLoading: boolean;
   refreshHistory: () => Promise<void>;
+  hideHistoryEntry: (entry: HistoryEntry) => Promise<void>;
 
   adherence: AdherenceSummary | null;
   adherenceLoading: boolean;
@@ -274,6 +275,28 @@ export function ReminderProvider({ children }: { children: ReactNode }) {
     }
   }, [user, isDemo, demoHistory]);
 
+  const hideHistoryEntry = useCallback(
+    async (entry: HistoryEntry) => {
+      if (!user) {
+        throw new ApiClientError('Tu sesión expiró. Vuelve a iniciar sesión.', 401);
+      }
+
+      if (isDemo) {
+        setDemoHistory((prev) => prev.filter((item) => item.id !== entry.id));
+        return;
+      }
+
+      await hideHistoryDose({
+        medicationId: entry.medicationId,
+        scheduleId: entry.scheduleId,
+        date: entry.date,
+        timezone: getDeviceTimeZone(),
+      });
+      await refreshHistory().catch(() => undefined);
+    },
+    [user, isDemo, refreshHistory]
+  );
+
   const refreshAdherence = useCallback(async () => {
     if (!user) {
       setAdherence(null);
@@ -347,6 +370,7 @@ export function ReminderProvider({ children }: { children: ReactNode }) {
             scheduledFor: reminder.scheduledFor,
             status: 'taken',
             actionAt: new Date().toISOString(),
+            intakeId: reminder.intakeId,
           };
           setDemoHistory((prev) => [entry, ...prev.filter((h) => h.id !== entry.id)]);
           setReminders((prev) =>
@@ -392,6 +416,7 @@ export function ReminderProvider({ children }: { children: ReactNode }) {
             scheduledFor: reminder.scheduledFor,
             status: 'skipped',
             actionAt: new Date().toISOString(),
+            intakeId: reminder.intakeId,
           };
           setDemoHistory((prev) => [entry, ...prev.filter((h) => h.id !== entry.id)]);
           setReminders((prev) =>
@@ -574,6 +599,7 @@ export function ReminderProvider({ children }: { children: ReactNode }) {
         history,
         historyLoading,
         refreshHistory,
+        hideHistoryEntry,
         adherence,
         adherenceLoading,
         refreshAdherence,

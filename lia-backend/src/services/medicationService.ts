@@ -29,6 +29,13 @@ interface MedicationRow {
   start_date: string | null;
   end_date: string | null;
   instructions: string | null;
+  presentation: string | null;
+  dose_amount: string | number | null;
+  dose_unit: string | null;
+  purpose: string | null;
+  weekdays: string[] | null;
+  meal_relation: string | null;
+  reminder_enabled: boolean;
   created_at: Date;
   updated_at: Date | null;
 }
@@ -49,6 +56,13 @@ const MEDICATION_SELECT = `
   start_date::text AS start_date,
   end_date::text AS end_date,
   instructions,
+  presentation,
+  dose_amount,
+  dose_unit,
+  purpose,
+  weekdays,
+  meal_relation,
+  reminder_enabled,
   created_at,
   updated_at
 `;
@@ -56,6 +70,12 @@ const MEDICATION_SELECT = `
 function toIso(value: Date | null): string | null {
   if (!value) return null;
   return value instanceof Date ? value.toISOString() : String(value);
+}
+
+function toNumber(value: string | number | null | undefined): number | null {
+  if (value == null || value === '') return null;
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
 }
 
 function mapMedication(
@@ -72,6 +92,13 @@ function mapMedication(
     startDate: row.start_date,
     endDate: row.end_date,
     instructions: row.instructions,
+    presentation: (row.presentation as MedicationResponse['presentation']) ?? null,
+    doseAmount: toNumber(row.dose_amount),
+    doseUnit: row.dose_unit,
+    purpose: row.purpose,
+    weekdays: (row.weekdays as MedicationResponse['weekdays']) ?? null,
+    mealRelation: (row.meal_relation as MedicationResponse['mealRelation']) ?? null,
+    reminderEnabled: row.reminder_enabled !== false,
     schedules,
     createdAt: toIso(row.created_at) ?? new Date().toISOString(),
     updatedAt: toIso(row.updated_at),
@@ -239,10 +266,12 @@ export async function createMedication(
       `INSERT INTO public.medications (
          id, user_id, name, dose, frequency, amount, units_per_intake,
          start_date, end_date, instructions,
+         presentation, dose_amount, dose_unit, purpose, weekdays, meal_relation, reminder_enabled,
          is_active, archived_at, created_at, updated_at
        ) VALUES (
          $1, $2, $3, $4, $5, $6, $7,
          $8::date, $9::date, $10,
+         $11, $12, $13, $14, $15::text[], $16, $17,
          true, NULL, NOW(), NOW()
        )
        RETURNING ${MEDICATION_SELECT}`,
@@ -257,6 +286,13 @@ export async function createMedication(
         input.startDate ?? null,
         input.endDate ?? null,
         input.instructions ?? null,
+        input.presentation ?? null,
+        input.doseAmount ?? null,
+        input.doseUnit ?? null,
+        input.purpose ?? null,
+        input.weekdays ?? null,
+        input.mealRelation ?? null,
+        input.reminderEnabled !== false,
       ]
     );
 
@@ -351,6 +387,13 @@ export async function updateMedication(
          start_date = CASE WHEN $11::boolean THEN $12::date ELSE start_date END,
          end_date = CASE WHEN $13::boolean THEN $14::date ELSE end_date END,
          instructions = CASE WHEN $15::boolean THEN $16 ELSE instructions END,
+         presentation = CASE WHEN $17::boolean THEN $18 ELSE presentation END,
+         dose_amount = CASE WHEN $19::boolean THEN $20 ELSE dose_amount END,
+         dose_unit = CASE WHEN $21::boolean THEN $22 ELSE dose_unit END,
+         purpose = CASE WHEN $23::boolean THEN $24 ELSE purpose END,
+         weekdays = CASE WHEN $25::boolean THEN $26::text[] ELSE weekdays END,
+         meal_relation = CASE WHEN $27::boolean THEN $28 ELSE meal_relation END,
+         reminder_enabled = CASE WHEN $29::boolean THEN $30 ELSE reminder_enabled END,
          updated_at = NOW()
        WHERE id = $1
          AND user_id = $2
@@ -373,6 +416,20 @@ export async function updateMedication(
         input.endDate ?? null,
         input.instructions !== undefined,
         input.instructions ?? null,
+        input.presentation !== undefined,
+        input.presentation ?? null,
+        input.doseAmount !== undefined,
+        input.doseAmount ?? null,
+        input.doseUnit !== undefined,
+        input.doseUnit ?? null,
+        input.purpose !== undefined,
+        input.purpose ?? null,
+        input.weekdays !== undefined,
+        input.weekdays ?? null,
+        input.mealRelation !== undefined,
+        input.mealRelation ?? null,
+        input.reminderEnabled !== undefined,
+        input.reminderEnabled ?? true,
       ]
     );
 

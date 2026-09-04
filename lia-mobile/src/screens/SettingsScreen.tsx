@@ -32,7 +32,6 @@ export default function SettingsScreen({ navigation }: Props) {
     mode,
     isSeniorMode,
     toggleSeniorMode,
-    scaleFont,
     scaleSpacing,
     minTouch,
     voiceEnabled,
@@ -40,7 +39,7 @@ export default function SettingsScreen({ navigation }: Props) {
   } = useAccessibility();
   const { isDemo } = useAuth();
   const { medications } = useMedications();
-  const { colors, isHighContrast, isDark, appearance, setAppearance } = useTheme();
+  const { colors, isHighContrast, isDark, setHighContrast } = useTheme();
   const { contentMaxWidth } = useResponsive();
 
   const [notifications, setNotifications] = useState(false);
@@ -72,11 +71,7 @@ export default function SettingsScreen({ navigation }: Props) {
   };
 
   const handleHighContrast = (enabled: boolean) => {
-    if (enabled) {
-      void setAppearance('highContrast');
-    } else {
-      void setAppearance('light');
-    }
+    void setHighContrast(enabled);
   };
 
   const handleNotifications = (value: boolean) => {
@@ -183,9 +178,9 @@ export default function SettingsScreen({ navigation }: Props) {
 
         <View style={[styles.cardList, cardStyle]}>
           <Pressable
-            onPress={() => handleHighContrast(appearance !== 'highContrast')}
+            onPress={() => handleHighContrast(!isHighContrast)}
             accessibilityRole="switch"
-            accessibilityState={{ checked: appearance === 'highContrast' }}
+            accessibilityState={{ checked: isHighContrast }}
             accessibilityLabel="Alto contraste"
             style={[
               styles.row,
@@ -205,7 +200,7 @@ export default function SettingsScreen({ navigation }: Props) {
               </AppText>
             </View>
             <Switch
-              value={appearance === 'highContrast'}
+              value={isHighContrast}
               onValueChange={handleHighContrast}
               trackColor={switchTrack}
               thumbColor={BrandColors.white}

@@ -9,47 +9,77 @@ import React, {
 } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import * as SecureStore from 'expo-secure-store';
-import { Appearance, ColorPalette, getShadows, palettes } from '../theme/themes';
+import { ColorPalette, ColorScheme, getShadows, resolvePalette } from '../theme/themes';
 import { ViewStyle } from 'react-native';
 
 interface ThemeContextType {
-  appearance: Appearance;
-  setAppearance: (next: Appearance) => void;
+  appearance: ColorScheme;
+  setAppearance: (next: ColorScheme) => void;
   colors: ColorPalette;
   shadows: Record<'none' | 'sm' | 'md' | 'lg', ViewStyle>;
   isDark: boolean;
   isHighContrast: boolean;
+  setHighContrast: (enabled: boolean) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 const APPEARANCE_KEY = 'lia_appearance';
+const HIGH_CONTRAST_KEY = 'lia_high_contrast';
+
+function parseScheme(value: string | null): ColorScheme | 'legacy-hc' | null {
+  if (value === 'light' || value === 'dark') return value;
+  if (value === 'highContrast') return 'legacy-hc';
+  return null;
+}
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [appearance, setAppearanceState] = useState<Appearance>('light');
+  const [appearance, setAppearanceState] = useState<ColorScheme>('light');
+  const [highContrast, setHighContrastState] = useState(false);
 
   useEffect(() => {
-    SecureStore.getItemAsync(APPEARANCE_KEY).then((stored) => {
-      if (stored === 'light' || stored === 'dark' || stored === 'highContrast') {
-        setAppearanceState(stored);
+    void (async () => {
+      const storedScheme = parseScheme(await SecureStore.getItemAsync(APPEARANCE_KEY));
+      const storedHc = await SecureStore.getItemAsync(HIGH_CONTRAST_KEY);
+
+      if (storedScheme === 'legacy-hc') {
+        setAppearanceState('light');
+        setHighContrastState(true);
+        await SecureStore.setItemAsync(APPEARANCE_KEY, 'light');
+        await SecureStore.setItemAsync(HIGH_CONTRAST_KEY, '1');
+        return;
       }
-    });
+
+      if (storedScheme === 'light' || storedScheme === 'dark') {
+        setAppearanceState(storedScheme);
+      }
+
+      if (storedHc === '1' || storedHc === 'true') {
+        setHighContrastState(true);
+      }
+    })();
   }, []);
 
-  const setAppearance = useCallback(async (next: Appearance) => {
+  const setAppearance = useCallback(async (next: ColorScheme) => {
     setAppearanceState(next);
     await SecureStore.setItemAsync(APPEARANCE_KEY, next);
+  }, []);
+
+  const setHighContrast = useCallback(async (enabled: boolean) => {
+    setHighContrastState(enabled);
+    await SecureStore.setItemAsync(HIGH_CONTRAST_KEY, enabled ? '1' : '0');
   }, []);
 
   const value = useMemo<ThemeContextType>(
     () => ({
       appearance,
       setAppearance,
-      colors: palettes[appearance],
-      shadows: getShadows(appearance),
-      isDark: appearance !== 'light',
-      isHighContrast: appearance === 'highContrast',
+      colors: resolvePalette(appearance, highContrast),
+      shadows: getShadows(appearance, highContrast),
+      isDark: appearance === 'dark',
+      isHighContrast: highContrast,
+      setHighContrast,
     }),
-    [appearance, setAppearance]
+    [appearance, highContrast, setAppearance, setHighContrast]
   );
 
   return (

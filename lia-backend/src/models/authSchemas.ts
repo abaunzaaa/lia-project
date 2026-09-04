@@ -94,6 +94,38 @@ export const loginSchema = z.object({
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 
+function normalizeStoredEmergencyPhone(raw: string): string | null {
+  const colombian = normalizeColombianPhone(raw);
+  if (colombian) return colombian;
+  const stripped = raw.replace(/[\s\-().]/g, '');
+  if (!stripped) return null;
+  const plus = stripped.startsWith('+');
+  const digits = plus ? stripped.slice(1) : stripped;
+  if (!/^\d+$/.test(digits)) return null;
+  if (digits.length < 8 || digits.length > 15) return null;
+  return plus ? `+${digits}` : digits;
+}
+
+export const updateEmergencyContactSchema = z.object({
+  emergencyContact: z
+    .string({ error: 'Ingresa un número de teléfono válido.' })
+    .trim()
+    .min(1, 'Ingresa un número de contacto.')
+    .transform((value, ctx) => {
+      const normalized = normalizeStoredEmergencyPhone(value);
+      if (!normalized) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Ingresa un número de teléfono válido.',
+        });
+        return z.NEVER;
+      }
+      return normalized;
+    }),
+});
+
+export type UpdateEmergencyContactInput = z.infer<typeof updateEmergencyContactSchema>;
+
 export function formatZodError(error: z.ZodError): string {
   const unique = [...new Set(error.issues.map((issue) => issue.message))];
   return unique.join(' ');

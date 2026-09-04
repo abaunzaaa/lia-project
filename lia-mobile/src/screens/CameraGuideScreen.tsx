@@ -1,14 +1,21 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Image,
+  ImageSourcePropType,
+  ActivityIndicator,
+  AccessibilityInfo,
+  Pressable,
+} from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../types';
 import {
   AppText,
   Button,
-  EditorialText,
-  Header,
   Screen,
   SpeakButton,
   SurfaceCard,
@@ -19,8 +26,8 @@ import { useTheme } from '../context/ThemeContext';
 import { useMedications } from '../context/MedicationContext';
 import { useCameraRecognition } from '../context/CameraRecognitionContext';
 import { useResponsive } from '../hooks/useResponsive';
-import { BrandColors } from '../theme/brand';
-import { Space } from '../theme/tokens';
+import { BrandColors, liaCardBorder } from '../theme/brand';
+import { Radius, Space } from '../theme/tokens';
 import { SPEECH_CAMERA_GUIDE } from '../utils/speechPhrases';
 import { normalizeMedicationName } from '../utils/helpers';
 import {
@@ -35,7 +42,7 @@ type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'CameraGuide'>;
 };
 
-type GuidePhase = 'step1' | 'step2' | 'step3' | 'waiting' | 'result' | 'expired' | 'error';
+type GuidePhase = 'step1' | 'step2' | 'waiting' | 'capturing' | 'result' | 'expired' | 'error';
 
 type RecognizedView = {
   name: string;
@@ -50,13 +57,23 @@ const WAIT_TIMEOUT_MS = 90_000;
 const TIMEOUT_MESSAGE =
   'No recibimos una respuesta todavía. Puedes intentarlo nuevamente.';
 
+/** Soft surface used on Recordatorios pending cards. */
+const SOFT_BLUE = '#EAF3F7';
+
+const STEP_IMAGES = {
+  position: require('../assets/images/camera-step-position.png'),
+  medication: require('../assets/images/camera-step-medication.png'),
+  button: require('../assets/images/camera-step-button.png'),
+} as const;
+
 export default function CameraGuideScreen({ navigation }: Props) {
   const { scaleSpacing, scaleFont, minTouch, voiceEnabled } = useAccessibility();
   const { colors, isHighContrast, isDark } = useTheme();
   const lightChrome = !isDark && !isHighContrast;
-  const { compact } = useResponsive();
+  const { width, horizontalPadding } = useResponsive();
   const { medications } = useMedications();
   const { setPendingResult, clearPendingResult } = useCameraRecognition();
+  const insets = useSafeAreaInsets();
 
   const [phase, setPhase] = useState<GuidePhase>('step1');
   const [result, setResult] = useState<RecognizedView | null>(null);
@@ -72,6 +89,15 @@ export default function CameraGuideScreen({ navigation }: Props) {
   const creationInProgressRef = useRef(false);
   const attemptActiveRef = useRef(false);
   const attemptGenerationRef = useRef(0);
+
+  const pageBg = lightChrome ? BrandColors.white : colors.background;
+  const ink = lightChrome ? BrandColors.navy : colors.textPrimary;
+  const muted = lightChrome ? BrandColors.teal : colors.textSecondary;
+  const teal = lightChrome ? BrandColors.teal : colors.primary;
+  const cardBorder = liaCardBorder(lightChrome, colors.border);
+  const lineColor = lightChrome ? BrandColors.skyBlue : colors.border;
+  const nodeSize = 18;
+  const artSize = Math.round(Math.min(118, Math.max(92, width * 0.28)));
 
   const stopPolling = useCallback(() => {
     if (pollTimerRef.current) {
@@ -104,6 +130,14 @@ export default function CameraGuideScreen({ navigation }: Props) {
   );
 
   useEffect(() => () => stopPolling(), [stopPolling]);
+
+  const currentStep = phase === 'step1' ? 1 : phase === 'step2' ? 2 : 3;
+
+  useEffect(() => {
+    if (phase === 'step1' || phase === 'step2' || phase === 'waiting' || phase === 'capturing') {
+      AccessibilityInfo.announceForAccessibility(`Paso ${currentStep} de 3`);
+    }
+  }, [phase, currentStep]);
 
   const startSessionAndPoll = useCallback(async () => {
     if (creationInProgressRef.current || attemptActiveRef.current || sessionIdRef.current) {
@@ -165,6 +199,11 @@ export default function CameraGuideScreen({ navigation }: Props) {
 
           if (__DEV__) {
             console.log(`[camera-mobile] poll id=${sessionId} status=${current.status}`);
+          }
+
+          if (current.status === 'processing') {
+            setPhase('capturing');
+            return;
           }
 
           if (current.status === 'recognized' && 'result' in current) {
@@ -295,14 +334,43 @@ export default function CameraGuideScreen({ navigation }: Props) {
         .join('. ')
     : '';
 
-  const cardBg = isHighContrast
-    ? colors.surface
-    : isDark
-      ? colors.surfaceElevated
-      : BrandColors.white;
+  const showGuide =
+    phase === 'step1' || phase === 'step2' || phase === 'waiting' || phase === 'capturing';
+
+  const steps: {
+    id: 1 | 2 | 3;
+    label: string;
+    title: string;
+    body: string;
+    hint?: string;
+    image: ImageSourcePropType;
+  }[] = [
+    {
+      id: 1,
+      label: 'Paso 1',
+      title: 'Ubica la cámara',
+      body: 'Déjala firme sobre una superficie estable.',
+      image: STEP_IMAGES.position,
+    },
+    {
+      id: 2,
+      label: 'Paso 2',
+      title: 'Coloca el medicamento',
+      body: 'Pon la caja de frente, dentro del área marcada.',
+      image: STEP_IMAGES.medication,
+    },
+    {
+      id: 3,
+      label: 'Paso 3',
+      title: 'Presiona el pulsador',
+      body: 'Pulsa una vez el botón físico de la cámara.',
+      hint: 'Mantén la caja quieta.',
+      image: STEP_IMAGES.button,
+    },
+  ];
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
+    <View style={[styles.root, { backgroundColor: pageBg }]}>
       {flashOn ? (
         <View
           pointerEvents="none"
@@ -310,30 +378,70 @@ export default function CameraGuideScreen({ navigation }: Props) {
         />
       ) : null}
 
-      <Header title="Identificar" showBack onBack={() => navigation.goBack()} editorial />
-
-      <Screen scroll padded contentStyle={{ paddingBottom: scaleSpacing(Space[40]) }}>
-        <EditorialText
-          variant="headline"
-          accessibilityRole="header"
-          style={{
-            fontSize: scaleFont(compact ? 28 : 32),
-            lineHeight: scaleFont(compact ? 34 : 38),
-            marginBottom: scaleSpacing(Space[8]),
-          }}
+      <Screen
+        scroll
+        transparent
+        padded={false}
+        contentStyle={{
+          paddingTop: insets.top + scaleSpacing(Space[4]),
+          paddingHorizontal: horizontalPadding,
+          paddingBottom: scaleSpacing(Space[32]),
+        }}
+      >
+        <Pressable
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+          style={({ pressed }) => [
+            styles.backBtn,
+            {
+              minWidth: minTouch,
+              minHeight: minTouch,
+              opacity: pressed ? 0.75 : 1,
+            },
+          ]}
         >
-          Usa la cámara LIA
-        </EditorialText>
+          <Ionicons name="chevron-back" size={26} color={ink} />
+        </Pressable>
 
         <AppText
-          variant="body"
+          variant="label"
           tone="secondary"
-          style={{ marginBottom: scaleSpacing(Space[20]), maxWidth: 420, flexShrink: 1 }}
+          style={{ marginTop: scaleSpacing(Space[4]) }}
         >
-          Te guiamos paso a paso. No hay botón de foto en la app: usa el botón rojo de la cámara.
+          Identificar con cámara
         </AppText>
 
-        {phase === 'step1' || phase === 'step2' || phase === 'step3' ? (
+        {showGuide ? (
+          <View style={{ marginBottom: scaleSpacing(Space[20]) }}>
+            <AppText
+              variant="h1"
+              accessibilityRole="header"
+              style={{
+                color: ink,
+                fontSize: scaleFont(26),
+                lineHeight: scaleFont(32),
+                letterSpacing: -0.2,
+                fontWeight: '600',
+                marginTop: scaleSpacing(Space[8]),
+                marginBottom: scaleSpacing(Space[8]),
+              }}
+            >
+              Prepara la cámara de LÍA
+            </AppText>
+            <AppText
+              variant="body"
+              style={{
+                color: muted,
+                flexShrink: 1,
+              }}
+            >
+              Sigue estos pasos para identificar tu medicamento.
+            </AppText>
+          </View>
+        ) : null}
+
+        {showGuide && voiceEnabled ? (
           <SpeakButton
             id="camera-guide"
             label="Escuchar instrucciones"
@@ -343,123 +451,181 @@ export default function CameraGuideScreen({ navigation }: Props) {
           />
         ) : null}
 
-        {phase === 'step1' ? (
-          <SurfaceCard variant="default" style={{ backgroundColor: cardBg }}>
-            <View style={styles.stepNumRow}>
-              <View
-                style={[
-                  styles.stepNum,
-                  {
-                    backgroundColor: isHighContrast ? colors.textPrimary : BrandColors.navy,
-                    minWidth: Math.max(40, minTouch * 0.75),
-                    minHeight: Math.max(40, minTouch * 0.75),
-                  },
-                ]}
-              >
-                <AppText
-                  variant="h3"
-                  style={{ color: isHighContrast ? colors.background : BrandColors.white }}
-                >
-                  1
-                </AppText>
-              </View>
-              <AppText variant="medicationName" style={{ flex: 1, flexShrink: 1 }}>
-                Ubica la cámara
-              </AppText>
-            </View>
-            <AppText variant="body" tone="secondary" style={{ marginTop: scaleSpacing(Space[12]) }}>
-              Pon la cámara sobre una superficie firme y bien apoyada.
-            </AppText>
-            <Button
-              title="Siguiente"
-              onPress={() => setPhase('step2')}
-              style={{ marginTop: scaleSpacing(Space[20]) }}
-            />
-          </SurfaceCard>
-        ) : null}
+        {showGuide ? (
+          <View style={styles.timeline}>
+            {steps.map((step) => {
+              const active = currentStep === step.id;
+              const done = currentStep > step.id;
+              const identifying = step.id === 3 && active && phase === 'capturing';
+              const nodeLabel = done
+                ? `${step.label}, completado`
+                : active
+                  ? identifying
+                    ? `${step.label}, identificando medicamento`
+                    : `${step.label}, actual`
+                  : `${step.label}, pendiente`;
 
-        {phase === 'step2' ? (
-          <SurfaceCard variant="default" style={{ backgroundColor: cardBg }}>
-            <View style={styles.stepNumRow}>
-              <View
-                style={[
-                  styles.stepNum,
-                  {
-                    backgroundColor: isHighContrast ? colors.textPrimary : BrandColors.navy,
-                    minWidth: Math.max(40, minTouch * 0.75),
-                    minHeight: Math.max(40, minTouch * 0.75),
-                  },
-                ]}
-              >
-                <AppText
-                  variant="h3"
-                  style={{ color: isHighContrast ? colors.background : BrandColors.white }}
+              return (
+                <View
+                  key={step.id}
+                  style={[styles.stepRow, { marginBottom: scaleSpacing(Space[12]) }]}
                 >
-                  2
-                </AppText>
-              </View>
-              <AppText variant="medicationName" style={{ flex: 1, flexShrink: 1 }}>
-                Coloca el medicamento
-              </AppText>
-            </View>
-            <AppText variant="body" tone="secondary" style={{ marginTop: scaleSpacing(Space[12]) }}>
-              Pon la caja o el frasco frente a la cámara, a unos 15–20 cm, con el nombre visible.
-            </AppText>
-            <Button
-              title="Siguiente"
-              onPress={() => void startSessionAndPoll()}
-              style={{ marginTop: scaleSpacing(Space[20]) }}
-              accessibilityLabel="Siguiente"
-              accessibilityHint="Pasa a esperar la identificación con el pulsador físico de LIA"
-            />
-          </SurfaceCard>
-        ) : null}
+                  <View style={[styles.nodeCol, { width: nodeSize }]}>
+                    <View
+                      accessible
+                      accessibilityRole="image"
+                      accessibilityLabel={nodeLabel}
+                      style={[
+                        styles.node,
+                        {
+                          width: nodeSize,
+                          height: nodeSize,
+                          borderRadius: nodeSize / 2,
+                          backgroundColor: done
+                            ? ink
+                            : active
+                              ? BrandColors.white
+                              : lightChrome
+                                ? BrandColors.white
+                                : colors.surface,
+                          borderWidth: done ? 0 : active ? 2 : 1.5,
+                          borderColor: done ? ink : active ? teal : lineColor,
+                        },
+                      ]}
+                    >
+                      {done ? (
+                        <Ionicons name="checkmark" size={11} color={BrandColors.white} />
+                      ) : active ? (
+                        <View
+                          style={{
+                            width: 7,
+                            height: 7,
+                            borderRadius: 4,
+                            backgroundColor: ink,
+                          }}
+                        />
+                      ) : null}
+                    </View>
+                    {step.id < 3 ? (
+                      <View
+                        style={[
+                          styles.nodeStem,
+                          { backgroundColor: lineColor, marginTop: 6 },
+                        ]}
+                      />
+                    ) : null}
+                  </View>
 
-        {phase === 'waiting' ? (
-          <View
-            style={styles.waitingWrap}
-            accessibilityLabel="Presiona el pulsador físico de LIA. LIA está identificando tu medicamento"
-          >
-            <View style={[styles.stepNumRow, { marginBottom: scaleSpacing(Space[16]) }]}>
-              <View
-                style={[
-                  styles.stepNum,
-                  {
-                    backgroundColor: isHighContrast ? colors.textPrimary : BrandColors.navy,
-                    minWidth: Math.max(40, minTouch * 0.75),
-                    minHeight: Math.max(40, minTouch * 0.75),
-                  },
-                ]}
-              >
-                <AppText
-                  variant="h3"
-                  style={{ color: isHighContrast ? colors.background : BrandColors.white }}
-                >
-                  3
-                </AppText>
-              </View>
-              <AppText variant="medicationName" style={{ flex: 1, flexShrink: 1 }}>
-                Presiona el pulsador físico de LIA
-              </AppText>
-            </View>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <AppText
-              variant="body"
-              style={{ marginTop: scaleSpacing(Space[16]), textAlign: 'center', flexShrink: 1 }}
-            >
-              LIA está identificando tu medicamento…
-            </AppText>
-            <AppText
-              variant="caption"
-              tone="secondary"
-              style={{
-                marginTop: scaleSpacing(Space[8]),
-                textAlign: 'center',
-                flexShrink: 1,
-              }}
-            >
-              Usa el pulsador físico de la cámara. No hay captura desde la app.
-            </AppText>
+                  <View
+                    style={[
+                      styles.stepCard,
+                      {
+                        backgroundColor: active
+                          ? lightChrome
+                            ? SOFT_BLUE
+                            : colors.surfaceElevated
+                          : lightChrome
+                            ? BrandColors.white
+                            : colors.surface,
+                        borderColor: active ? teal : isHighContrast ? colors.border : cardBorder,
+                        borderWidth: isHighContrast ? 2 : active ? 1.5 : 1,
+                        minHeight: identifying ? 176 : 150,
+                        paddingVertical: scaleSpacing(Space[12]),
+                        paddingHorizontal: scaleSpacing(Space[16]),
+                        shadowOpacity: lightChrome ? (active ? 0.08 : 0.05) : 0,
+                        elevation: lightChrome ? (active ? 2 : 1) : 0,
+                      },
+                    ]}
+                  >
+                    <View style={styles.cardRow}>
+                      <View style={styles.cardCopy}>
+                        <AppText
+                          variant="body"
+                          style={{
+                            color: muted,
+                            fontSize: scaleFont(18),
+                            fontWeight: '600',
+                            letterSpacing: -0.3,
+                            marginBottom: 4,
+                          }}
+                        >
+                          {step.label}
+                        </AppText>
+                        <AppText
+                          variant="h3"
+                          style={{
+                            color: ink,
+                            flexShrink: 1,
+                            fontWeight: '600',
+                          }}
+                        >
+                          {identifying ? 'Identificando medicamento' : step.title}
+                        </AppText>
+                        <AppText
+                          variant="body"
+                          style={{ color: muted, marginTop: 8, flexShrink: 1 }}
+                        >
+                          {identifying
+                            ? 'Espera un momento mientras LÍA analiza la imagen.'
+                            : step.body}
+                        </AppText>
+                        {active && step.hint && !identifying ? (
+                          <AppText
+                            variant="body"
+                            style={{ color: muted, marginTop: 6, flexShrink: 1 }}
+                          >
+                            {step.hint}
+                          </AppText>
+                        ) : null}
+                        {identifying ? (
+                          <View
+                            style={styles.identifyingRow}
+                            accessibilityRole="progressbar"
+                            accessibilityLabel="Identificando medicamento"
+                          >
+                            <ActivityIndicator size="small" color={teal} />
+                          </View>
+                        ) : null}
+                      </View>
+
+                      <View
+                        style={[styles.cardArt, { width: artSize, minHeight: artSize }]}
+                        accessibilityElementsHidden
+                      >
+                        <Image
+                          source={step.image}
+                          style={{ width: artSize, height: artSize }}
+                          resizeMode="contain"
+                          accessibilityIgnoresInvertColors
+                        />
+                      </View>
+                    </View>
+
+                    {step.id === 1 && active ? (
+                      <Button
+                        title="Cámara ubicada"
+                        size="md"
+                        onPress={() => setPhase('step2')}
+                        style={{ marginTop: scaleSpacing(Space[12]), minHeight: minTouch }}
+                        accessibilityLabel="Cámara ubicada"
+                        accessibilityHint="Continúa al paso 2"
+                      />
+                    ) : null}
+
+                    {step.id === 2 && active ? (
+                      <Button
+                        title="Medicamento listo"
+                        size="md"
+                        onPress={() => void startSessionAndPoll()}
+                        style={{ marginTop: scaleSpacing(Space[12]), minHeight: minTouch }}
+                        accessibilityLabel="Medicamento listo"
+                        accessibilityHint="Pasa a esperar el pulsador físico de la cámara"
+                      />
+                    ) : null}
+                  </View>
+                </View>
+              );
+            })}
           </View>
         ) : null}
 
@@ -591,33 +757,62 @@ function EmptyLike({ message }: { message: string }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  stepNumRow: {
+  backBtn: {
+    alignSelf: 'flex-start',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  timeline: {
+    width: '100%',
+  },
+  stepRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
     gap: 12,
     width: '100%',
   },
-  stepNum: {
-    borderRadius: 999,
+  nodeCol: {
+    alignItems: 'center',
+    paddingTop: 16,
+    flexShrink: 0,
+  },
+  node: {
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
-  redHint: {
+  nodeStem: {
+    width: 1,
+    flex: 1,
+    minHeight: 12,
+    borderRadius: 1,
+  },
+  stepCard: {
+    flex: 1,
+    minWidth: 0,
+    borderRadius: Radius.xl,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 8,
+  },
+  cardRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginTop: Space[16],
+    gap: 8,
   },
-  redDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#C45C5C',
+  cardCopy: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 4,
+  },
+  cardArt: {
     flexShrink: 0,
-  },
-  waitingWrap: {
-    paddingVertical: 48,
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  identifyingRow: {
+    marginTop: 10,
+    alignItems: 'flex-start',
   },
 });

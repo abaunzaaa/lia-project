@@ -127,6 +127,26 @@ export async function getUserById(id: string): Promise<PublicUser> {
   return toPublicUser(row);
 }
 
+export async function updateEmergencyContact(
+  userId: string,
+  emergencyContact: string
+): Promise<PublicUser> {
+  const result = await pool.query<Omit<UserRow, 'password_hash'>>(
+    `UPDATE public.users
+     SET emergency_contact = $2, updated_at = NOW()
+     WHERE id = $1
+     RETURNING ${USER_PUBLIC_COLUMNS}`,
+    [userId, emergencyContact]
+  );
+
+  const row = result.rows[0];
+  if (!row) {
+    throw new AuthServiceError(404, 'Usuario no encontrado.');
+  }
+
+  return toPublicUser(row);
+}
+
 function isUniqueViolation(error: unknown): boolean {
   return (
     typeof error === 'object' &&

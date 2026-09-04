@@ -15,7 +15,7 @@ import { MainTabParamList } from '../types';
 import HomeScreen from '../screens/HomeScreen';
 import MedicationsScreen from '../screens/MedicationsScreen';
 import RemindersScreen from '../screens/RemindersScreen';
-import HistoryScreen from '../screens/HistoryScreen';
+import HistoryStackNavigator from './HistoryStackNavigator';
 import ProfileScreen from '../screens/ProfileScreen';
 
 import { useAccessibility } from '../context/AccessibilityContext';
@@ -283,7 +283,7 @@ export default function MainTabNavigator() {
 
       <Tab.Screen
         name="History"
-        component={HistoryScreen}
+        component={HistoryStackNavigator}
       />
 
 

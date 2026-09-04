@@ -40,6 +40,10 @@ type Props = {
   minimumYmd?: string;
   /** `icon` = solo el icono (p. ej. tarjeta de Recordatorios). */
   variant?: 'field' | 'icon';
+  /** Oculta la etiqueta duplicada cuando el padre ya muestra el título. */
+  hideLabel?: boolean;
+  /** Quita el margen inferior (tarjetas del formulario). */
+  compact?: boolean;
 };
 
 function pad2(n: number): string {
@@ -84,6 +88,8 @@ export default function DateFieldPicker({
   onChange,
   minimumYmd,
   variant = 'field',
+  hideLabel = false,
+  compact = false,
 }: Props) {
   const insets = useSafeAreaInsets();
   const { colors, isHighContrast, isDark } = useTheme();
@@ -162,7 +168,16 @@ export default function DateFieldPicker({
   const iconOnly = variant === 'icon';
 
   return (
-    <View style={iconOnly ? styles.iconWrap : { marginBottom: scaleSpacing(Space[16]), width: '100%' }}>
+    <View
+      style={
+        iconOnly
+          ? styles.iconWrap
+          : {
+              marginBottom: compact ? 0 : scaleSpacing(Space[16]),
+              width: '100%',
+            }
+      }
+    >
       {iconOnly ? (
         <Pressable
           onPress={openCalendar}
@@ -186,9 +201,11 @@ export default function DateFieldPicker({
         </Pressable>
       ) : (
         <>
-          <AppText variant="label" style={{ marginBottom: scaleSpacing(Space[8]) }}>
-            {label}
-          </AppText>
+          {!hideLabel ? (
+            <AppText variant="label" style={{ marginBottom: scaleSpacing(Space[8]) }}>
+              {label}
+            </AppText>
+          ) : null}
           <Pressable
             onPress={openCalendar}
             accessibilityRole="button"

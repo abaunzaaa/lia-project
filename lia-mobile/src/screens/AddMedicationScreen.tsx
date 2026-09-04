@@ -33,18 +33,23 @@ export default function AddMedicationScreen({ navigation, route }: Props) {
       await addMedication(data);
       setToast({
         visible: true,
-        message: 'Medicamento guardado',
+        message: 'Medicamento guardado correctamente.',
         type: 'success',
       });
       if (voiceEnabled) {
         void speakText(SPEECH_MED_ADDED_OK, { id: 'med-added' });
       }
-      setTimeout(() => navigation.navigate('Main', { screen: 'Medications' }), 900);
+      setTimeout(() => {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Main', params: { screen: 'Medications' } }],
+        });
+      }, 900);
     } catch (e) {
       const message =
         e instanceof MedicationApiError
           ? e.message
-          : 'No pudimos guardar el medicamento. Revisa tu conexión e inténtalo nuevamente.';
+          : 'No pudimos guardar el medicamento. Inténtalo nuevamente.';
       setToast({ visible: true, message, type: 'error' });
     } finally {
       setLoading(false);

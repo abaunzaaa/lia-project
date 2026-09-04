@@ -291,3 +291,273 @@ export function summarizeSchedules(times: string[]): string {
 }
 
 export const MINUTE_PRESETS = [0, 15, 30, 45] as const;
+
+export type MedicationPresentation =
+  | 'tablet'
+  | 'capsule'
+  | 'liquid'
+  | 'drops'
+  | 'sachet';
+
+export type MealRelation = 'before_meal' | 'after_meal' | 'with_meal';
+
+export type Weekday =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday';
+
+export const FORM_DOSE_UNITS = [
+  'mg',
+  'g',
+  'mcg',
+  'ml',
+  'gotas',
+  'unidades',
+  'tabletas',
+  'cápsulas',
+  'otra',
+] as const;
+
+export type FormDoseUnit = (typeof FORM_DOSE_UNITS)[number];
+
+export const PRESENTATION_OPTIONS: {
+  id: MedicationPresentation;
+  label: string;
+}[] = [
+  { id: 'tablet', label: 'Tableta' },
+  { id: 'capsule', label: 'Cápsula' },
+  { id: 'liquid', label: 'Líquido' },
+  { id: 'drops', label: 'Gotas' },
+  { id: 'sachet', label: 'Sobre' },
+];
+
+/** Unidades típicas de esa presentación. Tabletas/cápsulas también se recetan en mg o g. */
+export function unitsForPresentation(presentation: MedicationPresentation | null): FormDoseUnit[] {
+  switch (presentation) {
+    case 'tablet':
+      return ['mg', 'g', 'mcg', 'tabletas', 'otra'];
+    case 'capsule':
+      return ['mg', 'g', 'mcg', 'cápsulas', 'otra'];
+    case 'liquid':
+      return ['ml', 'otra'];
+    case 'drops':
+      return ['gotas', 'ml', 'otra'];
+    case 'sachet':
+      return ['g', 'mg', 'unidades', 'otra'];
+    default:
+      return [...FORM_DOSE_UNITS];
+  }
+}
+
+export function doseUnitForPresentation(presentation: MedicationPresentation): FormDoseUnit {
+  switch (presentation) {
+    case 'tablet':
+    case 'capsule':
+      return 'mg';
+    case 'liquid':
+      return 'ml';
+    case 'drops':
+      return 'gotas';
+    case 'sachet':
+      return 'unidades';
+    default:
+      return 'mg';
+  }
+}
+
+export function formDoseUnitLabel(unit: FormDoseUnit): string {
+  switch (unit) {
+    case 'mg':
+      return 'miligramos (mg)';
+    case 'g':
+      return 'gramos (g)';
+    case 'mcg':
+      return 'microgramos (mcg)';
+    case 'ml':
+      return 'mililitros (ml)';
+    case 'gotas':
+      return 'gotas';
+    case 'unidades':
+      return 'unidades';
+    case 'tabletas':
+      return 'tabletas';
+    case 'cápsulas':
+      return 'cápsulas';
+    case 'otra':
+      return 'otra';
+    default:
+      return unit;
+  }
+}
+
+export function formDoseUnitShort(unit: FormDoseUnit, customUnit?: string): string {
+  if (unit === 'otra') return customUnit?.trim() || 'otra';
+  return unit;
+}
+
+/** Cuántas unidades hay en casa, según la presentación (no la dosis en mg). */
+export function stockUnitForPresentation(presentation: MedicationPresentation | null): string {
+  switch (presentation) {
+    case 'tablet':
+      return 'tabletas';
+    case 'capsule':
+      return 'cápsulas';
+    case 'liquid':
+      return 'ml';
+    case 'drops':
+      return 'gotas';
+    case 'sachet':
+      return 'sobres';
+    default:
+      return 'unidades';
+  }
+}
+
+export const MEAL_OPTIONS: { id: MealRelation; label: string }[] = [
+  { id: 'before_meal', label: 'Antes de comer' },
+  { id: 'after_meal', label: 'Después de comer' },
+  { id: 'with_meal', label: 'Con la comida' },
+];
+
+export const WEEKDAYS: Weekday[] = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+];
+
+export const WEEKDAY_LETTER: Record<Weekday, string> = {
+  monday: 'L',
+  tuesday: 'M',
+  wednesday: 'M',
+  thursday: 'J',
+  friday: 'V',
+  saturday: 'S',
+  sunday: 'D',
+};
+
+export const WEEKDAY_LABEL: Record<Weekday, string> = {
+  monday: 'Lunes',
+  tuesday: 'Martes',
+  wednesday: 'Miércoles',
+  thursday: 'Jueves',
+  friday: 'Viernes',
+  saturday: 'Sábado',
+  sunday: 'Domingo',
+};
+
+export const ALL_WEEKDAYS: Weekday[] = [...WEEKDAYS];
+
+export function presentationLabel(value?: MedicationPresentation | null): string {
+  if (!value) return '';
+  return PRESENTATION_OPTIONS.find((item) => item.id === value)?.label ?? '';
+}
+
+export function mealLabel(value?: MealRelation | null): string {
+  if (!value) return '';
+  return MEAL_OPTIONS.find((item) => item.id === value)?.label ?? '';
+}
+
+export function weekdayFromYmd(ymd: string): Weekday {
+  const [y, m, d] = ymd.split('-').map((n) => parseInt(n, 10));
+  const jsDay = new Date(y, m - 1, d).getDay();
+  const map: Weekday[] = [
+    'sunday',
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday',
+    'saturday',
+  ];
+  return map[jsDay] ?? 'monday';
+}
+
+export function formatWeekdaysPhrase(days: Weekday[]): string {
+  const ordered = WEEKDAYS.filter((day) => days.includes(day));
+  if (ordered.length === 0) return '';
+  if (ordered.length === 7) return 'Todos los días';
+  const weekdaySet = new Set(ordered);
+  if (
+    ordered.length === 5 &&
+    weekdaySet.has('monday') &&
+    weekdaySet.has('tuesday') &&
+    weekdaySet.has('wednesday') &&
+    weekdaySet.has('thursday') &&
+    weekdaySet.has('friday')
+  ) {
+    return 'Lunes a viernes';
+  }
+  const labels = ordered.map((day) => WEEKDAY_LABEL[day]);
+  if (labels.length === 1) return labels[0];
+  if (labels.length === 2) return `${labels[0]} y ${labels[1]}`;
+  return `${labels.slice(0, -1).join(', ')} y ${labels[labels.length - 1]}`;
+}
+
+export function formatTimesPhrase(times: string[]): string {
+  const labels = times.map((time) => formatTime(time));
+  if (labels.length === 0) return '';
+  if (labels.length === 1) return labels[0];
+  if (labels.length === 2) return `${labels[0]} y ${labels[1]}`;
+  return `${labels.slice(0, -1).join(', ')} y ${labels[labels.length - 1]}`;
+}
+
+export function formatScheduleSummary(params: {
+  weekdays: Weekday[];
+  times: string[];
+  mealRelation?: MealRelation | null;
+}): string {
+  const parts = [
+    formatWeekdaysPhrase(params.weekdays),
+    formatTimesPhrase(params.times),
+    mealLabel(params.mealRelation),
+  ].filter(Boolean);
+  return parts.join(' · ');
+}
+
+export function parseDoseAmount(raw: string): number | null {
+  const normalized = raw.trim().replace(',', '.');
+  if (!normalized) return null;
+  if (!/^\d+(\.\d+)?$/.test(normalized)) return null;
+  const value = Number(normalized);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return value;
+}
+
+export function toFormDoseUnit(unit: DoseUnitOption | string): FormDoseUnit {
+  const lower = unit.toLowerCase();
+  if (lower === 'ml' || lower === 'ml') return 'ml';
+  if (lower === 'mcg' || lower === 'ug' || lower === 'µg') return 'mcg';
+  if (lower === 'tableta' || lower === 'tabletas') return 'tabletas';
+  if (lower === 'cápsula' || lower === 'capsula' || lower === 'cápsulas' || lower === 'capsulas') {
+    return 'cápsulas';
+  }
+  if (lower === 'mg' || lower === 'g' || lower === 'gotas' || lower === 'unidades') {
+    return lower as FormDoseUnit;
+  }
+  if (lower === 'otro' || lower === 'otra' || lower === 'sobre') return 'otra';
+  return 'mg';
+}
+
+export function nextAvailableTime(existing: string[]): string {
+  const candidates = ['08:00', '12:00', '14:00', '18:00', '20:00', '22:00', '09:00', '16:00'];
+  const pick = candidates.find((time) => !existing.includes(time));
+  if (pick) return pick;
+  for (let hour = 7; hour <= 22; hour += 1) {
+    const time = `${String(hour).padStart(2, '0')}:00`;
+    if (!existing.includes(time)) return time;
+  }
+  return '08:30';
+}
+
+export const MAX_SCHEDULE_TIMES = 8;
+export const MAX_MEDICATION_NAME = 160;
+export const MAX_PURPOSE = 240;
+export const MAX_INSTRUCTIONS = 2000;

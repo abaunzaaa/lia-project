@@ -16,6 +16,24 @@ export interface MedicationSchedule {
   time: string;
 }
 
+export type MedicationPresentation =
+  | 'tablet'
+  | 'capsule'
+  | 'liquid'
+  | 'drops'
+  | 'sachet';
+
+export type MealRelation = 'before_meal' | 'after_meal' | 'with_meal';
+
+export type Weekday =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday';
+
 /**
  * Modelo UI de medicamento.
  * quantity ↔ amount (stock), unitsPerIntake ↔ unidades por toma, description ↔ instructions.
@@ -35,6 +53,13 @@ export interface Medication {
   startDate: string;
   endDate?: string;
   description?: string;
+  presentation?: MedicationPresentation | null;
+  doseAmount?: number | null;
+  doseUnit?: string | null;
+  purpose?: string;
+  weekdays?: Weekday[] | null;
+  mealRelation?: MealRelation | null;
+  reminderEnabled?: boolean;
   /** URL de imagen del medicamento (backend/API). */
   imageUrl?: string;
   createdAt: string;
@@ -54,6 +79,13 @@ export type MedicationFormData = {
   endDate?: string;
   description?: string;
   imageUrl?: string;
+  presentation?: MedicationPresentation | null;
+  doseAmount?: number;
+  doseUnit?: string;
+  purpose?: string;
+  weekdays?: Weekday[];
+  mealRelation?: MealRelation | null;
+  reminderEnabled?: boolean;
 };
 
 export type DoseStatus = 'pending' | 'taken' | 'skipped' | 'missed';
@@ -87,6 +119,8 @@ export interface HistoryEntry {
   scheduledFor: string;
   status: DoseStatus;
   actionAt: string | null;
+  /** ID de `medication_intakes` cuando la toma ya fue tomada u omitida. */
+  intakeId: string | null;
 }
 
 /** @deprecated Prefer HistoryEntry — alias de compatibilidad. */
@@ -219,6 +253,12 @@ export type MainTabParamList = {
   Profile: undefined;
 };
 
+export type HistoryStackParamList = {
+  HistoryHome: undefined;
+  HistoryCalendar: undefined;
+  HistoryAnalysis: undefined;
+};
+
 export type RootStackParamList = {
   Onboarding: undefined;
   Login: undefined;
@@ -233,6 +273,11 @@ export type RootStackParamList = {
   ScanMedication: undefined;
   CameraGuide: undefined;
   DrugSearch: { fresh?: boolean } | undefined;
+  DrugMatches: {
+    query: string;
+    results: DrugSearchResult[];
+    error?: string;
+  };
   DrugInfo: { rxcui: string; displayName?: string };
   RecognitionResult: { result: RecognitionResult; imageUri?: string };
   AddMedication: { prefilled?: Partial<Medication> };
@@ -245,4 +290,5 @@ export type RootStackParamList = {
     registeredDose?: string;
   };
   Settings: undefined;
+  EmergencyContact: undefined;
 };

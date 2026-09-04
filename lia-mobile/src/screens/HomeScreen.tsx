@@ -24,7 +24,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useResponsive } from '../hooks/useResponsive';
 import { BrandColors, brandAccent, liaCardBorder } from '../theme/brand';
 import { FontFamily, FontWeight, Radius, Space } from '../theme/tokens';
-import { getMedicationImageScale, MEDICATION_IMAGE_SLOT } from '../config/medicationImages';
+import { getMedicationImageScale, getMedicationImageSource, MEDICATION_IMAGE_SLOT } from '../config/medicationImages';
 import { getGreeting, normalizeMedicationName } from '../utils/helpers';
 import { formatTimeForDisplay } from '../utils/dateTime';
 import { buildNextDoseSpeech, buildReminderSpeech } from '../utils/speechPhrases';
@@ -59,12 +59,6 @@ export default function HomeScreen({ navigation }: Props) {
   const hasMeds = medications.length > 0;
   const lightChrome = !isDark && !isHighContrast;
   const greeting = getGreeting();
-
-  React.useEffect(() => {
-    medications.forEach((medication) => {
-      console.log('MEDICATION IMAGE:', medication.name, medication.imageUrl);
-    });
-  }, [medications]);
 
   useFocusEffect(
     useCallback(() => {
@@ -214,9 +208,9 @@ export default function HomeScreen({ navigation }: Props) {
             style={({ pressed }) => [
               styles.avatar,
               {
-                backgroundColor: isHighContrast ? colors.surface : BrandColors.navy,
+                backgroundColor: colors.primary,
                 borderWidth: isHighContrast ? 2 : 1,
-                borderColor: liaCardBorder(lightChrome, colors.border),
+                borderColor: isHighContrast ? colors.border : liaCardBorder(lightChrome, colors.border),
                 width: Math.max(56, minTouch),
                 height: Math.max(56, minTouch),
                 minWidth: Math.max(56, minTouch),
@@ -234,7 +228,7 @@ export default function HomeScreen({ navigation }: Props) {
                 onError={() => setProfileImage(null)}
               />
             ) : (
-              <AppText variant="h3" style={{ color: isHighContrast ? colors.textPrimary : BrandColors.white }}>
+              <AppText variant="h3" style={{ color: colors.onPrimary }}>
                 {firstName.charAt(0).toUpperCase()}
               </AppText>
             )}
@@ -292,7 +286,7 @@ export default function HomeScreen({ navigation }: Props) {
                 style={{
                   borderRadius: Radius.lg,
                   minHeight: Math.max(minTouch, 56),
-                  backgroundColor: lightChrome ? BrandColors.navy : colors.primary,
+                  backgroundColor: colors.primary,
                 }}
               />
               <Button
@@ -511,7 +505,11 @@ function HomeActionCard({
       style={({ pressed }) => [
         styles.actionCard,
         {
-          backgroundColor: lightChrome ? tint : colors.surface,
+          backgroundColor: lightChrome
+            ? tint
+            : isHighContrast && !isDark
+              ? colors.surfaceElevated
+              : colors.surface,
           borderColor: liaCardBorder(lightChrome, colors.border),
           borderWidth: isHighContrast ? 2 : 1,
           minHeight: Math.max(124, minTouch + 64),
@@ -544,11 +542,11 @@ function HomeActionCard({
           style={[
             styles.actionChip,
             {
-              minHeight: Math.min(minTouch, 40),
-              backgroundColor: lightChrome ? BrandColors.navy : colors.primary,
+              minHeight: Math.max(40, Math.min(minTouch, 48)),
+              backgroundColor: colors.primary,
               borderRadius: Radius.lg,
               borderWidth: isHighContrast ? 2 : 0,
-              borderColor: colors.border,
+              borderColor: isHighContrast ? colors.border : 'transparent',
             },
           ]}
         >
@@ -556,7 +554,7 @@ function HomeActionCard({
             variant="button"
             numberOfLines={1}
             style={{
-              color: BrandColors.white,
+              color: colors.onPrimary,
               fontFamily: FontFamily.semiBold,
               fontWeight: FontWeight.semiBold,
               textAlign: 'center',
@@ -691,24 +689,20 @@ function HomeMedicationCard({
         </View>
 
         <View style={styles.medArt} pointerEvents="none">
-          {showImage ? (
-            <Image
-              source={{ uri: imageUrl }}
-              style={[
-                styles.medArtImage,
-                { transform: [{ scale: getMedicationImageScale(name) }] },
-              ]}
-              resizeMode="contain"
-              accessibilityIgnoresInvertColors
-              onError={() => setImageFailed(true)}
-            />
-          ) : (
-            <Ionicons
-              name="medkit-outline"
-              size={36}
-              color={lightChrome ? BrandColors.navy : colors.textPrimary}
-            />
-          )}
+          <Image
+            source={
+              showImage && imageUrl
+                ? { uri: imageUrl }
+                : getMedicationImageSource(name)
+            }
+            style={[
+              styles.medArtImage,
+              { transform: [{ scale: getMedicationImageScale(name) }], backgroundColor: 'transparent' },
+            ]}
+            resizeMode="contain"
+            accessibilityIgnoresInvertColors
+            onError={() => setImageFailed(true)}
+          />
         </View>
       </View>
 
@@ -729,10 +723,10 @@ function HomeMedicationCard({
           style={[
             styles.medReview,
             {
-              minHeight: Math.min(minTouch, 40),
-              ...(lightChrome
-                ? { backgroundColor: '#E8ECEF', borderColor: '#E8ECEF' }
-                : null),
+              minHeight: Math.max(48, Math.min(minTouch, 52)),
+              backgroundColor: lightChrome ? colors.primaryLight : colors.surface,
+              borderWidth: isHighContrast ? 2 : 1,
+              borderColor: lightChrome && !isHighContrast ? colors.primaryLight : colors.border,
             },
           ]}
         />
@@ -749,10 +743,12 @@ function HomeMedicationCard({
           style={({ pressed }) => [
             styles.medReview,
             {
-              minHeight: Math.min(minTouch, 40),
+              minHeight: Math.max(48, Math.min(minTouch, 52)),
               borderRadius: Radius.lg,
-              backgroundColor: lightChrome ? BrandColors.navy : colors.primary,
+              backgroundColor: colors.primary,
               opacity: pressed ? 0.88 : 1,
+              borderWidth: isHighContrast ? 2 : 0,
+              borderColor: isHighContrast ? colors.border : 'transparent',
             },
           ]}
         >
@@ -760,7 +756,7 @@ function HomeMedicationCard({
             variant="button"
             numberOfLines={1}
             style={{
-              color: BrandColors.white,
+              color: colors.onPrimary,
               fontFamily: FontFamily.semiBold,
               fontWeight: FontWeight.semiBold,
               textAlign: 'center',

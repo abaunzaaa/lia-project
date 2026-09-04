@@ -1,6 +1,6 @@
 import { API_BASE_URL } from '../config/api';
 import { getAuthToken, clearAuthToken } from './authApi';
-import { Medication, MedicationSchedule } from '../types';
+import { Medication, MedicationPresentation, MedicationSchedule, MealRelation, Weekday } from '../types';
 
 /** Respuesta de medicamento del backend (camelCase). */
 export type ApiMedication = {
@@ -14,6 +14,13 @@ export type ApiMedication = {
   startDate: string | null;
   endDate: string | null;
   instructions: string | null;
+  presentation?: string | null;
+  doseAmount?: number | null;
+  doseUnit?: string | null;
+  purpose?: string | null;
+  weekdays?: string[] | null;
+  mealRelation?: string | null;
+  reminderEnabled?: boolean;
   imageUrl?: string | null;
   schedules: MedicationSchedule[];
   createdAt: string;
@@ -29,6 +36,13 @@ export type CreateMedicationPayload = {
   startDate?: string | null;
   endDate?: string | null;
   instructions?: string | null;
+  presentation?: string | null;
+  doseAmount?: number | null;
+  doseUnit?: string | null;
+  purpose?: string | null;
+  weekdays?: string[] | null;
+  mealRelation?: string | null;
+  reminderEnabled?: boolean;
   schedules?: string[];
 };
 
@@ -41,6 +55,13 @@ export type UpdateMedicationPayload = {
   startDate?: string | null;
   endDate?: string | null;
   instructions?: string | null;
+  presentation?: string | null;
+  doseAmount?: number | null;
+  doseUnit?: string | null;
+  purpose?: string | null;
+  weekdays?: string[] | null;
+  mealRelation?: string | null;
+  reminderEnabled?: boolean;
   schedules?: string[];
 };
 
@@ -166,6 +187,13 @@ export function mapApiMedicationToLocal(api: ApiMedication, userId = ''): Medica
     startDate: api.startDate || '',
     endDate: api.endDate || undefined,
     description: api.instructions || undefined,
+    presentation: (api.presentation as MedicationPresentation | null) ?? null,
+    doseAmount: api.doseAmount ?? null,
+    doseUnit: api.doseUnit ?? null,
+    purpose: api.purpose || undefined,
+    weekdays: (api.weekdays as Weekday[] | null) ?? null,
+    mealRelation: (api.mealRelation as MealRelation | null) ?? null,
+    reminderEnabled: api.reminderEnabled !== false,
     imageUrl: api.imageUrl || undefined,
     createdAt: api.createdAt,
     updatedAt: api.updatedAt || undefined,

@@ -29,7 +29,7 @@ export default function EditMedicationScreen({ navigation, route }: Props) {
       await updateMedication(medication.id, data);
       setToast({
         visible: true,
-        message: 'Medicamento guardado',
+        message: 'Medicamento guardado correctamente.',
         type: 'success',
       });
       setTimeout(() => navigation.goBack(), 900);
@@ -37,7 +37,7 @@ export default function EditMedicationScreen({ navigation, route }: Props) {
       const message =
         e instanceof MedicationApiError
           ? e.message
-          : 'No pudimos guardar el medicamento. Revisa tu conexión e inténtalo nuevamente.';
+          : 'No pudimos guardar el medicamento. Inténtalo nuevamente.';
       setToast({ visible: true, message, type: 'error' });
     } finally {
       setLoading(false);

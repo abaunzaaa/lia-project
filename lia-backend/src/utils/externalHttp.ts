@@ -93,6 +93,8 @@ export function foldAccents(value: string): string {
 export function titleCaseName(value: string): string {
   return value
     .trim()
+    .replace(/\[([^[\]]+)\]/g, '$1')
+    .replace(/\s+/g, ' ')
     .split(/\s+/)
     .map((part) => {
       if (!part) return part;

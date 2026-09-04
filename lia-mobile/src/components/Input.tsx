@@ -15,6 +15,8 @@ interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
   icon?: React.ReactNode;
+  /** Control a la derecha (p. ej. borrar). */
+  right?: React.ReactNode;
   /** Control visible “Mostrar / Ocultar” para contraseñas. */
   secureToggle?: boolean;
   /** Campos blancos con borde gris claro (identidad Perfil / Home). */
@@ -22,7 +24,7 @@ interface InputProps extends TextInputProps {
 }
 
 const Input = React.forwardRef<TextInput, InputProps>(function Input(
-  { label, error, icon, style, secureToggle, secureTextEntry, accessibilityHint, chrome = 'default', ...props },
+  { label, error, icon, right, style, secureToggle, secureTextEntry, accessibilityHint, chrome = 'default', ...props },
   ref
 ) {
   const { colors, isHighContrast, isDark } = useTheme();
@@ -31,6 +33,7 @@ const Input = React.forwardRef<TextInput, InputProps>(function Input(
   const [hidden, setHidden] = useState(true);
   const isSecure = secureToggle ? hidden : !!secureTextEntry;
   const whiteChrome = !isDark && !isHighContrast;
+  void chrome;
 
   return (
     <View style={[styles.container, { marginBottom: scaleSpacing(Space[16]) }]}>
@@ -90,6 +93,7 @@ const Input = React.forwardRef<TextInput, InputProps>(function Input(
           secureTextEntry={isSecure}
           {...props}
         />
+        {right ? <View style={styles.right}>{right}</View> : null}
         {secureToggle ? (
           <Pressable
             onPress={() => setHidden((v) => !v)}
@@ -132,6 +136,11 @@ const styles = StyleSheet.create({
   toggle: {
     justifyContent: 'center',
     alignItems: 'flex-end',
+    paddingLeft: 8,
+  },
+  right: {
+    justifyContent: 'center',
+    alignItems: 'center',
     paddingLeft: 8,
   },
 });

@@ -283,3 +283,50 @@ export async function fetchMe(token: string): Promise<User> {
 
   return mapBackendUser(successBody.data.user);
 }
+
+/**
+ * PATCH /auth/me → { user }
+ */
+export async function updateEmergencyContactWithApi(emergencyContact: string): Promise<User> {
+  const token = await getAuthToken();
+  if (!token) {
+    throw new AuthApiError('Tu sesión expiró. Vuelve a iniciar sesión.', 401);
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/auth/me`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ emergencyContact }),
+    });
+  } catch {
+    throw new AuthApiError(
+      'No pudimos conectarnos con LIA. Revisa tu conexión.',
+      undefined,
+      'network'
+    );
+  }
+
+  if (!response.ok) {
+    const err = await readErrorBody(response);
+    throw new AuthApiError(
+      err.message && !looksTechnical(err.message)
+        ? err.message
+        : 'No pudimos guardar el contacto. Inténtalo nuevamente.',
+      response.status,
+      err.code
+    );
+  }
+
+  const successBody = (await response.json()) as MeSuccessBody;
+  if (!successBody.data?.user) {
+    throw new AuthApiError('No pudimos guardar el contacto. Inténtalo nuevamente.');
+  }
+
+  return mapBackendUser(successBody.data.user);
+}

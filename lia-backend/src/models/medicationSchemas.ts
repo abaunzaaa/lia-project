@@ -3,6 +3,43 @@ import { z } from 'zod';
 const timeHmRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
 const dateYmdRegex = /^\d{4}-\d{2}-\d{2}$/;
 
+export const PRESENTATION_VALUES = [
+  'tablet',
+  'capsule',
+  'liquid',
+  'drops',
+  'sachet',
+] as const;
+
+export const MEAL_RELATION_VALUES = ['before_meal', 'after_meal', 'with_meal'] as const;
+
+export const WEEKDAY_VALUES = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+] as const;
+
+const presentationSchema = z.enum(PRESENTATION_VALUES).nullable().optional();
+const mealRelationSchema = z.enum(MEAL_RELATION_VALUES).nullable().optional();
+const weekdaysSchema = z
+  .array(z.enum(WEEKDAY_VALUES))
+  .max(7)
+  .nullable()
+  .optional()
+  .superRefine((days, ctx) => {
+    if (!days || days.length === 0) return;
+    if (new Set(days).size !== days.length) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'No se permiten días duplicados.',
+      });
+    }
+  });
+
 const scheduleTimeSchema = z
   .string()
   .trim()
@@ -112,7 +149,7 @@ export const createMedicationSchema = z
     frequency: z
       .string()
       .trim()
-      .max(100, 'La frecuencia no puede superar 100 caracteres.')
+      .max(240, 'La frecuencia no puede superar 240 caracteres.')
       .nullable()
       .optional(),
     amount: z
@@ -131,6 +168,28 @@ export const createMedicationSchema = z
       .nullable()
       .optional(),
     schedules: z.array(scheduleTimeSchema).optional().default([]),
+    presentation: presentationSchema,
+    doseAmount: z
+      .number({ error: 'La dosis debe ser un número.' })
+      .positive('Ingresa una dosis válida.')
+      .max(100000, 'La dosis es demasiado alta.')
+      .nullable()
+      .optional(),
+    doseUnit: z
+      .string()
+      .trim()
+      .max(40, 'La unidad no puede superar 40 caracteres.')
+      .nullable()
+      .optional(),
+    purpose: z
+      .string()
+      .trim()
+      .max(240, 'El motivo no puede superar 240 caracteres.')
+      .nullable()
+      .optional(),
+    weekdays: weekdaysSchema,
+    mealRelation: mealRelationSchema,
+    reminderEnabled: z.boolean().optional().default(true),
     userId: z.unknown().optional(),
   })
   .strict()
@@ -178,7 +237,7 @@ export const updateMedicationSchema = z
     frequency: z
       .string()
       .trim()
-      .max(100, 'La frecuencia no puede superar 100 caracteres.')
+      .max(240, 'La frecuencia no puede superar 240 caracteres.')
       .nullable()
       .optional(),
     amount: z
@@ -197,6 +256,28 @@ export const updateMedicationSchema = z
       .nullable()
       .optional(),
     schedules: z.array(scheduleTimeSchema).optional(),
+    presentation: presentationSchema,
+    doseAmount: z
+      .number({ error: 'La dosis debe ser un número.' })
+      .positive('Ingresa una dosis válida.')
+      .max(100000, 'La dosis es demasiado alta.')
+      .nullable()
+      .optional(),
+    doseUnit: z
+      .string()
+      .trim()
+      .max(40, 'La unidad no puede superar 40 caracteres.')
+      .nullable()
+      .optional(),
+    purpose: z
+      .string()
+      .trim()
+      .max(240, 'El motivo no puede superar 240 caracteres.')
+      .nullable()
+      .optional(),
+    weekdays: weekdaysSchema,
+    mealRelation: mealRelationSchema,
+    reminderEnabled: z.boolean().optional(),
     userId: z.unknown().optional(),
   })
   .strict()
@@ -218,7 +299,14 @@ export const updateMedicationSchema = z
       data.startDate !== undefined ||
       data.endDate !== undefined ||
       data.instructions !== undefined ||
-      data.schedules !== undefined;
+      data.schedules !== undefined ||
+      data.presentation !== undefined ||
+      data.doseAmount !== undefined ||
+      data.doseUnit !== undefined ||
+      data.purpose !== undefined ||
+      data.weekdays !== undefined ||
+      data.mealRelation !== undefined ||
+      data.reminderEnabled !== undefined;
 
     if (!hasAnyField) {
       ctx.addIssue({

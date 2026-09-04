@@ -1,26 +1,39 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, Image, StyleSheet, ScrollView, Pressable, Text, useWindowDimensions } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../types';
 import {
   Header,
-  Button,
   AppText,
   EditorialText,
-  SurfaceCard,
   SpeakButton,
 } from '../components';
+import MedicationHeroCard from '../components/medication-detail/MedicationHeroCard';
+import MedicationScheduleCard from '../components/medication-detail/MedicationScheduleCard';
+import MedicationInformationCard, {
+  MedicationInfoRow,
+} from '../components/medication-detail/MedicationInformationCard';
+import {
+  DETAIL_BUTTON_RADIUS,
+  DETAIL_SCHEDULE_OVERLAP,
+  DETAIL_STOCK_FILL,
+  DETAIL_STOCK_RADIUS,
+  LIA_QUESTION_BUBBLE_SOURCE,
+  MEDICATION_CLOCK_SOURCE,
+  MEDICATION_STOCK_IMAGE_SOURCE,
+  MEDICATION_TABLET_BASE_SOURCE,
+} from '../components/medication-detail/medicationDetailAssets';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useTheme } from '../context/ThemeContext';
 import { useMedications } from '../context/MedicationContext';
 import { useResponsive } from '../hooks/useResponsive';
-import { BrandColors } from '../theme/brand';
-import { Space } from '../theme/tokens';
+import { brandInk } from '../theme/brand';
+import { FontFamily, FontWeight, Space } from '../theme/tokens';
 import { formatScheduleTimes, formatTime } from '../utils/helpers';
 import { buildMedicationDetailsSpeech } from '../utils/speechPhrases';
-import { parseDoseString, unitSingularLabel, isCountDoseUnit } from '../utils/medicationFormHelpers';
+import { parseDoseString, unitSingularLabel, isCountDoseUnit, presentationLabel, formatWeekdaysPhrase, mealLabel, formatShortDate } from '../utils/medicationFormHelpers';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'MedicationDetail'>;
@@ -41,10 +54,12 @@ export default function MedicationDetailScreen({ navigation, route }: Props) {
   const { medications } = useMedications();
   const medication = medications.find((m) => m.id === initial.id) || initial;
 
-  const { scaleFont, scaleSpacing } = useAccessibility();
-  const { colors, isHighContrast, isDark } = useTheme();
+  const { scaleFont, scaleSpacing, minTouch, buttonScale } = useAccessibility();
+  const { colors, shadows, isHighContrast, isDark } = useTheme();
   const lightChrome = !isDark && !isHighContrast;
   const { horizontalPadding, contentMaxWidth } = useResponsive();
+  const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   const openDrugChat = () => {
     navigation.navigate('DrugChat', {
@@ -72,143 +87,240 @@ export default function MedicationDetailScreen({ navigation, route }: Props) {
         : `Cantidad disponible: ${medication.quantity}`
       : null;
 
+  const usefulHeight = Math.max(height - insets.top - insets.bottom, 1);
+  const heroMinHeight = Math.round(usefulHeight * 0.23);
+  const ink = brandInk(isDark, isHighContrast, colors.textPrimary);
+  const bubbleSize = Math.min(44, Math.max(38, scaleSpacing(40)));
+  const stockFill = lightChrome ? DETAIL_STOCK_FILL : isDark ? colors.surfaceElevated : colors.surface;
+
+  const infoRows: MedicationInfoRow[] = [];
+  if (medication.presentation) {
+    infoRows.push({
+      key: 'presentation',
+      label: 'Presentación',
+      value: presentationLabel(medication.presentation),
+      icon: 'cube-outline',
+    });
+  }
+  if (medication.purpose) {
+    infoRows.push({
+      key: 'purpose',
+      label: 'Para qué lo tomas',
+      value: medication.purpose,
+      icon: 'heart-outline',
+    });
+  }
+  if (medication.weekdays && medication.weekdays.length > 0) {
+    infoRows.push({
+      key: 'days',
+      label: 'Días',
+      value: formatWeekdaysPhrase(medication.weekdays),
+      icon: 'calendar-outline',
+    });
+  } else if (frequency) {
+    infoRows.push({
+      key: 'frequency',
+      label: 'Frecuencia',
+      value: frequency,
+      icon: 'sync-outline',
+    });
+  }
+  if (medication.mealRelation) {
+    infoRows.push({
+      key: 'meal',
+      label: 'Con la comida',
+      value: mealLabel(medication.mealRelation),
+      icon: 'restaurant-outline',
+    });
+  }
+  if (medication.startDate) {
+    infoRows.push({
+      key: 'start',
+      label: 'Inicio',
+      value: formatShortDate(medication.startDate),
+      icon: 'calendar-outline',
+    });
+  }
+  infoRows.push({
+    key: 'end',
+    label: 'Fin',
+    value: medication.endDate ? formatShortDate(medication.endDate) : 'Sin fecha de finalización',
+    icon: 'infinite-outline',
+  });
+  if (medication.description) {
+    infoRows.push({
+      key: 'notes',
+      label: 'Indicaciones',
+      value: medication.description,
+      icon: 'document-text-outline',
+    });
+  }
+  if (medication.reminderEnabled === false) {
+    infoRows.push({
+      key: 'reminder',
+      label: 'Recordatorio',
+      value: 'Desactivado en el teléfono',
+      icon: 'notifications-off-outline',
+    });
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Header title="Detalle" showBack onBack={() => navigation.goBack()} />
 
       <ScrollView
+        style={styles.scroll}
         contentContainerStyle={{
           paddingHorizontal: horizontalPadding,
-          paddingBottom: scaleSpacing(Space[40]),
+          paddingBottom: scaleSpacing(Space[40]) + insets.bottom,
           maxWidth: contentMaxWidth,
           width: '100%',
           alignSelf: 'center',
         }}
         showsVerticalScrollIndicator={false}
       >
-        {!isHighContrast ? (
-          <View
-            pointerEvents="none"
-            style={[
-              styles.halo,
-              {
-                backgroundColor: isDark ? 'rgba(200,217,230,0.12)' : BrandColors.skyBlue,
-                opacity: isDark ? 1 : 0.45,
-              },
-            ]}
+        <View style={{ marginBottom: scaleSpacing(Space[16]) }}>
+          <MedicationHeroCard
+            name={medication.name}
+            dosage={medication.dose}
+            minHeight={heroMinHeight}
+            artSource={MEDICATION_TABLET_BASE_SOURCE}
+            overlapFooter={Boolean(scheduleLabel)}
           />
-        ) : null}
-
-        <View style={{ marginBottom: scaleSpacing(Space[24]), alignItems: 'flex-start' }}>
-          <EditorialText
-            variant="subhead"
-            style={{
-              fontSize: scaleFont(28),
-              lineHeight: scaleFont(34),
-              marginBottom: scaleSpacing(Space[8]),
-            }}
-          >
-            {medication.name}
-          </EditorialText>
-          <AppText variant="bodyLarge" tone="secondary">
-            {medication.dose}
-          </AppText>
+          {scheduleLabel ? (
+            <View style={{ marginTop: -DETAIL_SCHEDULE_OVERLAP, zIndex: 2 }}>
+              <MedicationScheduleCard
+                scheduleLabel={scheduleLabel}
+                clockSource={MEDICATION_CLOCK_SOURCE}
+              />
+            </View>
+          ) : null}
         </View>
-
-        {scheduleLabel ? (
-          <SurfaceCard
-            variant="emphasis"
-            style={{
-              marginBottom: scaleSpacing(Space[20]),
-              borderTopWidth: isHighContrast ? 2 : 3,
-              borderTopColor: isHighContrast ? colors.border : isDark ? colors.primary : BrandColors.teal,
-            }}
-          >
-            <AppText
-              variant="overline"
-              style={{
-                color: isHighContrast ? colors.textSecondary : isDark ? colors.primary : BrandColors.teal,
-                marginBottom: scaleSpacing(Space[8]),
-              }}
-            >
-              Horarios
-            </AppText>
-            <AppText
-              variant="h2"
-              style={{ color: isHighContrast ? colors.textPrimary : isDark ? colors.textPrimary : BrandColors.navy }}
-            >
-              {scheduleLabel}
-            </AppText>
-          </SurfaceCard>
-        ) : null}
 
         {stockLabel ? (
           <View
             style={[
               styles.stockRow,
               {
-                backgroundColor: isHighContrast
-                  ? colors.surface
-                  : isDark
+                backgroundColor: lightChrome
+                  ? '#E8ECEF'
+                  : isHighContrast && !isDark
                     ? colors.surfaceElevated
-                    : BrandColors.white,
-                borderColor: lightChrome ? BrandColors.skyBlue : colors.border,
-                borderWidth: isHighContrast ? 2 : 1,
-                padding: scaleSpacing(Space[16]),
+                    : colors.surface,
+                borderColor: isHighContrast ? colors.border : stockFill,
+                borderWidth: isHighContrast ? 2 : 0,
+                minHeight: Math.max(minTouch, 62),
+                paddingHorizontal: scaleSpacing(Space[16]),
                 marginBottom: scaleSpacing(Space[20]),
+                gap: scaleSpacing(Space[12]),
               },
             ]}
+            accessibilityRole="text"
             accessibilityLabel={stockLabel}
           >
-            <Ionicons
-              name="file-tray-full-outline"
-              size={scaleFont(28)}
-              color={isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.teal}
+            <Image
+              source={MEDICATION_STOCK_IMAGE_SOURCE}
+              style={styles.stockImage}
+              resizeMode="contain"
+              accessible={false}
+              accessibilityIgnoresInvertColors
             />
-            <AppText variant="body" style={{ flex: 1, flexShrink: 1, fontWeight: '600' }}>
+            <AppText
+              variant="body"
+              style={{
+                flex: 1,
+                flexShrink: 1,
+                color: ink,
+                fontFamily: FontFamily.semiBold,
+                fontWeight: FontWeight.semiBold,
+              }}
+            >
               {stockLabel}
             </AppText>
           </View>
         ) : null}
 
-        <AppText variant="label" style={{ marginBottom: scaleSpacing(Space[12]) }}>
+        <EditorialText
+          variant="subhead"
+          accessibilityRole="header"
+          style={{
+            color: ink,
+            fontSize: scaleFont(22),
+            lineHeight: scaleFont(28),
+            marginBottom: scaleSpacing(Space[12]),
+          }}
+        >
           Información
-        </AppText>
+        </EditorialText>
 
-        <View style={{ marginBottom: scaleSpacing(Space[24]), gap: scaleSpacing(Space[16]) }}>
-          {frequency ? <InfoBlock label="Frecuencia" value={frequency} colors={colors} /> : null}
-          {medication.startDate ? (
-            <InfoBlock label="Inicio" value={medication.startDate} colors={colors} />
-          ) : null}
-          {medication.endDate ? (
-            <InfoBlock label="Fin" value={medication.endDate} colors={colors} />
-          ) : null}
-          {medication.description ? (
-            <InfoBlock label="Indicaciones" value={medication.description} colors={colors} />
-          ) : null}
+        <View style={{ marginBottom: scaleSpacing(Space[24]) }}>
+          <MedicationInformationCard rows={infoRows} />
         </View>
 
         <View style={{ gap: scaleSpacing(Space[12]), marginBottom: scaleSpacing(Space[20]) }}>
-          <Button
-            title="Preguntar a LIA"
-            variant="secondary"
+          <Pressable
             onPress={openDrugChat}
-            accessibilityLabel="Preguntar a LIA"
+            accessibilityRole="button"
+            accessibilityLabel="Preguntar a LÍA"
             accessibilityHint="Abre el chat para preguntar sobre este medicamento"
-            icon={
-              <Ionicons
-                name="chatbubble-ellipses"
-                size={scaleFont(20)}
-                color={colors.onPrimary}
-              />
-            }
-          />
+            style={({ pressed }) => [
+              styles.askButton,
+              {
+                minHeight: Math.max(minTouch, 60 * buttonScale),
+                backgroundColor: colors.primary,
+                borderWidth: isHighContrast ? 2 : 0,
+                borderColor: colors.border,
+                opacity: pressed ? 0.82 : 1,
+              },
+              !isHighContrast ? shadows.sm : null,
+            ]}
+          >
+            <View
+              style={[styles.askButtonContent, { gap: 10 }]}
+              pointerEvents="none"
+            >
+              <View
+                style={[styles.askIconSlot, { width: bubbleSize, height: bubbleSize }]}
+                accessible={false}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              >
+                <Image
+                  source={LIA_QUESTION_BUBBLE_SOURCE}
+                  style={{ width: bubbleSize, height: bubbleSize, backgroundColor: 'transparent' }}
+                  resizeMode="contain"
+                  accessible={false}
+                  accessibilityIgnoresInvertColors
+                />
+              </View>
+              <Text
+                numberOfLines={2}
+                textBreakStrategy="simple"
+                style={[
+                  styles.askButtonText,
+                  {
+                    fontSize: scaleFont(17),
+                    lineHeight: scaleFont(22),
+                    color: colors.onPrimary,
+                  },
+                ]}
+              >
+                Preguntar a LÍA
+              </Text>
+            </View>
+          </Pressable>
           <SpeakButton
             id={`med-detail-${medication.id}`}
             label="Escuchar información"
             stopLabel="Detener lectura"
             text={() => buildMedicationDetailsSpeech(medication)}
-            style={{ alignSelf: 'stretch', justifyContent: 'center' }}
+            style={{
+              alignSelf: 'stretch',
+              justifyContent: 'center',
+              minHeight: Math.max(minTouch, 56 * buttonScale),
+              borderRadius: DETAIL_BUTTON_RADIUS,
+              paddingVertical: scaleSpacing(Space[12]),
+            }}
           />
         </View>
       </ScrollView>
@@ -216,48 +328,45 @@ export default function MedicationDetailScreen({ navigation, route }: Props) {
   );
 }
 
-function InfoBlock({
-  label,
-  value,
-  colors,
-}: {
-  label: string;
-  value: string;
-  colors: { textSecondary: string; textPrimary: string; border: string };
-}) {
-  return (
-    <View
-      style={{
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: colors.border,
-        paddingBottom: 12,
-      }}
-    >
-      <AppText variant="caption" tone="secondary" style={{ marginBottom: 4 }}>
-        {label}
-      </AppText>
-      <AppText variant="body" style={{ fontWeight: '600' }}>
-        {value}
-      </AppText>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  halo: {
-    position: 'absolute',
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    top: -40,
-    right: -50,
-  },
+  scroll: { flex: 1 },
   stockRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    borderRadius: 16,
+    borderRadius: DETAIL_STOCK_RADIUS,
     width: '100%',
+  },
+  askButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'stretch',
+    borderRadius: DETAIL_BUTTON_RADIUS,
+    paddingHorizontal: 14,
+    overflow: 'visible',
+  },
+  askButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  askIconSlot: {
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  askButtonText: {
+    flexShrink: 1,
+    textAlign: 'center',
+    fontFamily: FontFamily.semiBold,
+    fontWeight: FontWeight.semiBold,
+  },
+  stockImage: {
+    width: 36,
+    height: 36,
+    flexShrink: 0,
+    backgroundColor: 'transparent',
   },
 });

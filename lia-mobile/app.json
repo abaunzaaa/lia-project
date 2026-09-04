@@ -3,20 +3,27 @@
     "name": "LIA",
     "slug": "lia-mobile",
     "version": "1.0.0",
-    "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
+    "icon": "./assets/icon.png",
     "backgroundColor": "#6FA8DC",
-    "assetBundlePatterns": ["**/*"],
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#173B59"
+    },
+    "assetBundlePatterns": ["assets/**/*", "src/assets/**/*"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.lia.medications"
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#6FA8DC"
       },
       "package": "com.lia.medications",
+      "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",

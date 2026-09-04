@@ -9,6 +9,7 @@ import {
   logoutUser,
   resetPassword,
   getUserProfile,
+  updateUserProfile,
 } from '../services/firebaseService';
 import {
   clearAuthToken,
@@ -17,6 +18,7 @@ import {
   loginWithApi,
   registerWithApi,
   saveAuthToken,
+  updateEmergencyContactWithApi,
 } from '../services/authApi';
 import { cancelLiaMedicationNotifications } from '../services/notificationService';
 import { stopSpeaking } from '../services/speechService';
@@ -40,6 +42,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
+  updateEmergencyContact: (emergencyContact: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -222,6 +225,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [firebaseUser]);
 
+  const updateEmergencyContact = useCallback(
+    async (emergencyContact: string) => {
+      if (isDemo) {
+        setUser((current) => (current ? { ...current, emergencyContact } : current));
+        return;
+      }
+
+      if (FIREBASE_ENABLED && firebaseUser) {
+        await updateUserProfile(firebaseUser.uid, { emergencyContact });
+        setUser((current) => (current ? { ...current, emergencyContact } : current));
+        return;
+      }
+
+      const profile = await updateEmergencyContactWithApi(emergencyContact);
+      setUser(profile);
+    },
+    [isDemo, firebaseUser]
+  );
+
   return (
     <AuthContext.Provider
       value={{
@@ -235,6 +257,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         forgotPassword,
         refreshProfile,
+        updateEmergencyContact,
       }}
     >
       {children}

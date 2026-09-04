@@ -122,6 +122,28 @@ export function isValidColombianPhone(raw: string): boolean {
   return normalizeColombianPhone(raw) !== null;
 }
 
+/**
+ * Teléfono de emergencia: colombiano (10 dígitos / +57) o internacional (8–15 dígitos, + opcional).
+ */
+export function normalizeEmergencyPhone(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const colombian = normalizeColombianPhone(trimmed);
+  if (colombian) return colombian;
+
+  const stripped = trimmed.replace(/[\s\-().]/g, '');
+  if (!stripped) return null;
+  const plus = stripped.startsWith('+');
+  const digits = plus ? stripped.slice(1) : stripped;
+  if (!/^\d+$/.test(digits)) return null;
+  if (digits.length < 8 || digits.length > 15) return null;
+  return plus ? `+${digits}` : digits;
+}
+
+export function isValidEmergencyPhone(raw: string): boolean {
+  return normalizeEmergencyPhone(raw) !== null;
+}
+
 /** Requisitos de contraseña alineados con registro (min 8, mayúscula, especial). */
 export function passwordRequirements(password: string): {
   minLength: boolean;

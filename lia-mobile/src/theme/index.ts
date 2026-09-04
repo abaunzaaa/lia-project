@@ -8,6 +8,6 @@ export {
   TypeSizes,
 } from './tokens';
 export type { TypeRoleName } from './tokens';
-export { light, dark, highContrast, palettes, getShadows } from './themes';
+export { light, dark, highContrast, palettes, getShadows, resolvePalette } from './themes';
 export { BrandColors } from './brand';
-export type { Appearance, ColorPalette } from './themes';
+export type { Appearance, ColorScheme, ColorPalette } from './themes';

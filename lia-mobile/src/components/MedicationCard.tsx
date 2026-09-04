@@ -7,7 +7,7 @@ import { useAccessibility } from '../context/AccessibilityContext';
 import { BrandColors, liaCardBorder } from '../theme/brand';
 import { formatScheduleTimes, formatTime } from '../utils/helpers';
 import { parseDoseString, unitSingularLabel, isCountDoseUnit } from '../utils/medicationFormHelpers';
-import { getMedicationImageScale, MEDICATION_IMAGE_SLOT } from '../config/medicationImages';
+import { getMedicationImageScale, getMedicationImageSource, MEDICATION_IMAGE_SLOT } from '../config/medicationImages';
 import { Medication } from '../types';
 import AppText from './AppText';
 
@@ -163,20 +163,20 @@ export default function MedicationCard({
         </View>
 
         <View style={styles.art} pointerEvents="none">
-          {showImage ? (
-            <Image
-              source={{ uri: medication.imageUrl }}
-              style={[
-                styles.artImage,
-                { transform: [{ scale: getMedicationImageScale(medication.name) }] },
-              ]}
-              resizeMode="contain"
-              accessibilityIgnoresInvertColors
-              onError={() => setImageFailed(true)}
-            />
-          ) : (
-            <Ionicons name="medkit-outline" size={36} color={ink} />
-          )}
+          <Image
+            source={
+              showImage && medication.imageUrl
+                ? { uri: medication.imageUrl }
+                : getMedicationImageSource(medication.name)
+            }
+            style={[
+              styles.artImage,
+              { transform: [{ scale: getMedicationImageScale(medication.name) }], backgroundColor: 'transparent' },
+            ]}
+            resizeMode="contain"
+            accessibilityIgnoresInvertColors
+            onError={() => setImageFailed(true)}
+          />
         </View>
       </View>
 
