@@ -202,7 +202,11 @@ export default function MedicationDetailScreen({ navigation, route }: Props) {
             style={[
               styles.stockRow,
               {
-                backgroundColor: stockFill,
+                backgroundColor: lightChrome
+                  ? '#E8ECEF'
+                  : isHighContrast && !isDark
+                    ? colors.surfaceElevated
+                    : colors.surface,
                 borderColor: isHighContrast ? colors.border : stockFill,
                 borderWidth: isHighContrast ? 2 : 0,
                 minHeight: Math.max(minTouch, 62),

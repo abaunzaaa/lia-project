@@ -402,7 +402,11 @@ export default function DrugChatScreen({ navigation, route }: Props) {
             style={[
               styles.notice,
               {
-                backgroundColor: lightChrome ? CHAT_BEIGE : colors.surfaceElevated,
+                backgroundColor: lightChrome
+                  ? '#E8ECEF'
+                  : isHighContrast && !isDark
+                    ? colors.surfaceElevated
+                    : colors.surface,
                 borderColor: lightChrome ? CHAT_BEIGE : colors.border,
                 borderWidth: isHighContrast ? 2 : 0,
                 paddingVertical: scaleSpacing(12),
