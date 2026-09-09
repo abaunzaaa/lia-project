@@ -7,15 +7,14 @@
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
     "backgroundColor": "#6FA8DC",
-    "splash": {
-      "image": "./assets/icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#173B59"
-    },
-    "assetBundlePatterns": ["assets/**/*", "src/assets/**/*"],
+    "assetBundlePatterns": [
+      "assets/**/*",
+      "src/assets/**/*"
+    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.lia.medications"
+      "bundleIdentifier": "com.lia.medications",
+      "icon": "./assets/icon-square.png"
     },
     "android": {
       "adaptiveIcon": {
@@ -42,6 +41,23 @@
         "expo-notifications",
         {
           "color": "#6FA8DC"
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-status-bar",
+        {
+          "hidden": false,
+          "style": "dark"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#173B59",
+          "imageWidth": 200
         }
       ]
     ],
