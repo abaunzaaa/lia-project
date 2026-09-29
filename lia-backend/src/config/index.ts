@@ -11,7 +11,11 @@ function getDatabaseUrl(): string {
     );
   }
 
-  return databaseUrl;
+  // sslmode en la URL pisa Pool.ssl y en Vercel falla con "self-signed certificate".
+  return databaseUrl
+    .replace(/[?&]sslmode=[^&]*/gi, '')
+    .replace(/\?&/, '?')
+    .replace(/[?&]$/, '');
 }
 
 function getJwtSecret(): string {

@@ -13,14 +13,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../types';
-import {
-  AppText,
-  Button,
-  Screen,
-  SpeakButton,
-  SurfaceCard,
-  Toast,
-} from '../components';
+import { AppText, Button, EditorialText, Screen, SpeakButton, Toast } from '../components';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useTheme } from '../context/ThemeContext';
 import { useMedications } from '../context/MedicationContext';
@@ -28,6 +21,8 @@ import { useCameraRecognition } from '../context/CameraRecognitionContext';
 import { useResponsive } from '../hooks/useResponsive';
 import { BrandColors, liaCardBorder } from '../theme/brand';
 import { Radius, Space } from '../theme/tokens';
+import IdentificationResultCard from '../components/identification-result/IdentificationResultCard';
+import IdentificationResultWave from '../components/identification-result/IdentificationResultWave';
 import { SPEECH_CAMERA_GUIDE } from '../utils/speechPhrases';
 import { normalizeMedicationName } from '../utils/helpers';
 import {
@@ -378,6 +373,10 @@ export default function CameraGuideScreen({ navigation }: Props) {
         />
       ) : null}
 
+      {phase === 'result' ? (
+        <IdentificationResultWave topOffset={insets.top + scaleSpacing(Space[8])} />
+      ) : null}
+
       <Screen
         scroll
         transparent
@@ -386,6 +385,7 @@ export default function CameraGuideScreen({ navigation }: Props) {
           paddingTop: insets.top + scaleSpacing(Space[4]),
           paddingHorizontal: horizontalPadding,
           paddingBottom: scaleSpacing(Space[32]),
+          zIndex: 1,
         }}
       >
         <Pressable
@@ -402,15 +402,22 @@ export default function CameraGuideScreen({ navigation }: Props) {
           ]}
         >
           <Ionicons name="chevron-back" size={26} color={ink} />
+          {phase === 'result' ? (
+            <AppText variant="body" style={{ color: ink, fontWeight: '600' }}>
+              Identificar
+            </AppText>
+          ) : null}
         </Pressable>
 
-        <AppText
-          variant="label"
-          tone="secondary"
-          style={{ marginTop: scaleSpacing(Space[4]) }}
-        >
-          Identificar con cámara
-        </AppText>
+        {phase !== 'result' ? (
+          <AppText
+            variant="label"
+            tone="secondary"
+            style={{ marginTop: scaleSpacing(Space[4]) }}
+          >
+            Identificar con cámara
+          </AppText>
+        ) : null}
 
         {showGuide ? (
           <View style={{ marginBottom: scaleSpacing(Space[20]) }}>
@@ -652,76 +659,56 @@ export default function CameraGuideScreen({ navigation }: Props) {
         ) : null}
 
         {phase === 'result' && result ? (
-          <SurfaceCard
-            variant="emphasis"
-            style={{
-              backgroundColor: isHighContrast
-                ? colors.surface
-                : isDark
-                  ? colors.surfaceElevated
-                  : BrandColors.white,
-              borderColor: lightChrome ? BrandColors.skyBlue : colors.border,
-              borderWidth: isHighContrast ? 2 : 1,
-            }}
-          >
-            <AppText
-              variant="overline"
+          <View style={{ marginTop: scaleSpacing(Space[8]) }}>
+            <EditorialText
+              variant="headline"
+              accessibilityRole="header"
               style={{
-                color: isHighContrast ? colors.textSecondary : isDark ? colors.primary : BrandColors.teal,
+                fontSize: scaleFont(32),
+                lineHeight: scaleFont(38),
                 marginBottom: scaleSpacing(Space[8]),
+                flexShrink: 1,
               }}
             >
-              Medicamento identificado
+              Usa la cámara LÍA
+            </EditorialText>
+            <AppText
+              variant="body"
+              style={{
+                color: muted,
+                flexShrink: 1,
+                marginBottom: scaleSpacing(Space[24]),
+              }}
+            >
+              Te guiamos paso a paso. No hay botón de foto en la app: usa el botón rojo de la cámara.
             </AppText>
-            <AppText variant="medicationName" style={{ flexShrink: 1 }}>
-              {result.name.trim() ? result.name : 'Medicamento identificado'}
-            </AppText>
-            {result.activeIngredient ? (
-              <AppText variant="body" tone="secondary" style={{ marginTop: 4, flexShrink: 1 }}>
-                {`Principio activo: ${result.activeIngredient}`}
-              </AppText>
-            ) : null}
-            {result.purpose ? (
-              <View style={{ marginTop: scaleSpacing(Space[12]) }}>
-                <AppText variant="label" style={{ marginBottom: scaleSpacing(Space[8]) }}>
-                  ¿Para qué se utiliza?
-                </AppText>
-                <AppText variant="body" style={{ flexShrink: 1 }}>
-                  {result.purpose}
-                </AppText>
-              </View>
-            ) : null}
-            {result.importantPoints.length > 0 ? (
-              <View style={{ marginTop: scaleSpacing(Space[12]), gap: scaleSpacing(Space[8]) }}>
-                <AppText variant="label">Puntos importantes</AppText>
-                {result.importantPoints.slice(0, 4).map((p, i) => (
-                  <AppText key={`${i}-${p.slice(0, 12)}`} variant="body" style={{ flexShrink: 1 }}>
-                    {`· ${p}`}
-                  </AppText>
-                ))}
-              </View>
-            ) : null}
-            {result.source ? (
-              <AppText variant="caption" tone="muted" style={{ marginTop: scaleSpacing(Space[12]) }}>
-                {result.source}
-              </AppText>
-            ) : null}
 
-            {voiceEnabled && speakText ? (
-              <SpeakButton
-                id={`camera-result-${result.name}`}
-                label="Escuchar"
-                stopLabel="Detener"
-                text={speakText}
-                style={{ marginTop: scaleSpacing(Space[16]) }}
+            <IdentificationResultCard
+              name={result.name}
+              purpose={result.purpose}
+              activeIngredient={result.activeIngredient}
+              importantPoints={result.importantPoints}
+              source={result.source}
+              speakId={`camera-result-${result.name}`}
+              speakText={speakText}
+            />
+
+            <View style={{ gap: scaleSpacing(Space[8]), marginTop: scaleSpacing(Space[20]) }}>
+              <Button
+                title="Agregar medicamento"
+                onPress={handleAdd}
+                accessibilityLabel="Agregar medicamento identificado"
+                style={{ minHeight: Math.max(56, minTouch), borderRadius: Radius.lg }}
               />
-            ) : null}
-
-            <View style={{ gap: scaleSpacing(Space[8]), marginTop: scaleSpacing(Space[16]) }}>
-              <Button title="Agregar medicamento" onPress={handleAdd} />
-              <Button title="Ahora no" variant="outline" onPress={handleDismiss} />
+              <Button
+                title="Ahora no"
+                variant="outline"
+                onPress={handleDismiss}
+                accessibilityLabel="Ahora no agregar el medicamento"
+                style={{ minHeight: Math.max(54, minTouch), borderRadius: Radius.lg }}
+              />
             </View>
-          </SurfaceCard>
+          </View>
         ) : null}
       </Screen>
 
@@ -759,8 +746,10 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   backBtn: {
     alignSelf: 'flex-start',
-    alignItems: 'flex-start',
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    justifyContent: 'flex-start',
   },
   timeline: {
     width: '100%',

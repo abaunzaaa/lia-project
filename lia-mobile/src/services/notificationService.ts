@@ -1,5 +1,4 @@
 import * as Notifications from 'expo-notifications';
-import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { Medication, Weekday } from '../types';
 import { weekdayFromYmd } from '../utils/medicationFormHelpers';
@@ -9,6 +8,7 @@ import {
   getUpcomingLocalDates,
   localDateTimeFrom,
 } from '../utils/dateTime';
+import { getPersistentItem, setPersistentItem } from '../utils/persistentStore';
 
 /** Identifica notificaciones locales de LIA (no push). */
 export const MEDICATION_REMINDER_TYPE = 'medication-reminder' as const;
@@ -86,7 +86,7 @@ export async function canScheduleNotifications(): Promise<boolean> {
 /** Preferencia del usuario (SecureStore). Ausente → false (no asumir activo). */
 export async function getPhoneRemindersPreference(): Promise<boolean> {
   try {
-    const value = await SecureStore.getItemAsync(PREF_KEY);
+    const value = await getPersistentItem(PREF_KEY);
     return value === 'true';
   } catch {
     return false;
@@ -94,7 +94,7 @@ export async function getPhoneRemindersPreference(): Promise<boolean> {
 }
 
 export async function setPhoneRemindersPreference(enabled: boolean): Promise<void> {
-  await SecureStore.setItemAsync(PREF_KEY, enabled ? 'true' : 'false');
+  await setPersistentItem(PREF_KEY, enabled ? 'true' : 'false');
 }
 
 /**

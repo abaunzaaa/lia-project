@@ -1,6 +1,10 @@
-import * as SecureStore from 'expo-secure-store';
 import { API_BASE_URL } from '../config/api';
 import { User } from '../types';
+import {
+  deletePersistentItem,
+  getPersistentItem,
+  setPersistentItem,
+} from '../utils/persistentStore';
 
 const AUTH_TOKEN_KEY = 'lia_auth_token';
 
@@ -69,18 +73,18 @@ export function mapBackendUser(apiUser: BackendUser): User {
 
 export async function getAuthToken(): Promise<string | null> {
   try {
-    return await SecureStore.getItemAsync(AUTH_TOKEN_KEY);
+    return await getPersistentItem(AUTH_TOKEN_KEY);
   } catch {
     return null;
   }
 }
 
 export async function saveAuthToken(token: string): Promise<void> {
-  await SecureStore.setItemAsync(AUTH_TOKEN_KEY, token);
+  await setPersistentItem(AUTH_TOKEN_KEY, token);
 }
 
 export async function clearAuthToken(): Promise<void> {
-  await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY);
+  await deletePersistentItem(AUTH_TOKEN_KEY);
 }
 
 function looksTechnical(message: string): boolean {

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, ViewStyle, StyleProp } from 'react-native';
+import { Image, Pressable, StyleSheet, View, ViewStyle, StyleProp } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useTheme } from '../context/ThemeContext';
@@ -8,6 +8,7 @@ import { FontFamily, FontWeight, Radius, Space } from '../theme/tokens';
 import { useSpeech } from '../hooks/useSpeech';
 import AppText from './AppText';
 import Toast from './Toast';
+import { listenSpeakerAsset } from './identification-result/identificationResultAssets';
 
 interface SpeakButtonProps {
   /** Texto a leer, o función diferida. */
@@ -22,6 +23,8 @@ interface SpeakButtonProps {
   textVariant?: 'body' | 'label' | 'button';
   /** Más compacto visualmente; la zona de toque se conserva con hitSlop. */
   compact?: boolean;
+  /** Solo cambia el aspecto. La reproducción usa el mismo TTS. */
+  layout?: 'default' | 'identification';
 }
 
 /**
@@ -37,6 +40,7 @@ export default function SpeakButton({
   visible = true,
   textVariant = 'body',
   compact = false,
+  layout = 'default',
 }: SpeakButtonProps) {
   const { voiceEnabled, minTouch, scaleSpacing, scaleFont } = useAccessibility();
   const { colors, isHighContrast, isDark } = useTheme();
@@ -45,6 +49,7 @@ export default function SpeakButton({
 
   const isThis = speaking && activeId === id;
   const title = isThis ? stopLabel : label;
+  const identification = layout === 'identification';
 
   const resolvedText = useMemo(() => {
     return typeof text === 'function' ? text : () => text;
@@ -69,61 +74,140 @@ export default function SpeakButton({
     }
   };
 
+  const a11yLabel = identification
+    ? isThis
+      ? stopLabel
+      : 'Escuchar explicación del medicamento'
+    : title;
+
   return (
     <>
       <Pressable
         onPress={onPress}
         accessibilityRole="button"
-        accessibilityLabel={title}
+        accessibilityLabel={a11yLabel}
         accessibilityHint={
           isThis
             ? 'Detiene la lectura en voz alta'
             : 'Lee esta información en voz alta'
         }
-        accessibilityState={{ busy: isThis }}
+        accessibilityState={{ busy: isThis, selected: isThis }}
         hitSlop={
-          compact
+          compact && !identification
             ? { top: 8, bottom: 8, left: 6, right: 6 }
             : undefined
         }
-        style={({ pressed }) => [
-          styles.btn,
-          {
-            minHeight: compact ? 36 : minTouch,
-            paddingHorizontal: scaleSpacing(compact ? Space[8] : Space[12]),
-            paddingVertical: scaleSpacing(compact ? Space[4] : Space[8]),
-            gap: scaleSpacing(compact ? Space[4] : Space[8]),
-            backgroundColor: isHighContrast
-              ? colors.surface
-              : isDark
-                ? 'rgba(200, 217, 230, 0.16)'
-                : BrandColors.skyBlue,
-            borderWidth: isHighContrast ? 2 : 1,
-            borderColor: isHighContrast ? colors.border : colors.border,
-            opacity: pressed ? 0.85 : 1,
-          },
-          style,
-        ]}
+        style={({ pressed }) =>
+          identification
+            ? [
+                styles.identificationRow,
+                {
+                  minHeight: Math.max(56, minTouch),
+                  paddingHorizontal: scaleSpacing(Space[12]),
+                  paddingVertical: scaleSpacing(Space[8]),
+                  backgroundColor: isHighContrast
+                    ? colors.surface
+                    : isDark
+                      ? colors.surfaceElevated
+                      : colors.primaryLight,
+                  borderWidth: isHighContrast ? 2 : 0,
+                  borderColor: colors.border,
+                  opacity: pressed ? 0.88 : 1,
+                },
+                style,
+              ]
+            : [
+                styles.btn,
+                {
+                  minHeight: compact ? 36 : minTouch,
+                  paddingHorizontal: scaleSpacing(compact ? Space[8] : Space[12]),
+                  paddingVertical: scaleSpacing(compact ? Space[4] : Space[8]),
+                  gap: scaleSpacing(compact ? Space[4] : Space[8]),
+                  backgroundColor: isHighContrast
+                    ? colors.surface
+                    : isDark
+                      ? 'rgba(200, 217, 230, 0.16)'
+                      : BrandColors.skyBlue,
+                  borderWidth: isHighContrast ? 2 : 1,
+                  borderColor: isHighContrast ? colors.border : colors.border,
+                  opacity: pressed ? 0.85 : 1,
+                },
+                style,
+              ]
+        }
       >
-        <Ionicons
-          name={isThis ? 'stop-circle-outline' : 'volume-high-outline'}
-          size={scaleFont(textVariant === 'body' ? 20 : 16)}
-          color={brandInk(isDark, isHighContrast, colors.textPrimary)}
-        />
-          <AppText
-            variant={textVariant}
-            style={{
-              fontFamily: FontFamily.semiBold,
-              fontWeight: FontWeight.semiBold,
-              textAlign: 'center',
-              color: brandInk(isDark, isHighContrast, colors.textPrimary),
-              flexShrink: 1,
-              minWidth: 0,
-            }}
-            numberOfLines={1}
-          >
-          {title}
-        </AppText>
+        {identification ? (
+          <>
+            <Image
+              source={listenSpeakerAsset}
+              style={styles.speaker}
+              resizeMode="contain"
+              accessibilityIgnoresInvertColors
+              accessible={false}
+            />
+            <View style={styles.identificationCopy}>
+              <AppText
+                variant="body"
+                style={{
+                  fontFamily: FontFamily.semiBold,
+                  fontWeight: FontWeight.semiBold,
+                  color: brandInk(isDark, isHighContrast, colors.textPrimary),
+                  flexShrink: 1,
+                }}
+              >
+                {title}
+              </AppText>
+              <AppText
+                variant="caption"
+                style={{
+                  color: isHighContrast ? colors.textSecondary : isDark ? colors.textSecondary : BrandColors.teal,
+                  marginTop: 2,
+                  flexShrink: 1,
+                }}
+              >
+                Oír la explicación
+              </AppText>
+            </View>
+            <View
+              style={[
+                styles.play,
+                {
+                  width: Math.max(44, minTouch * 0.85),
+                  height: Math.max(44, minTouch * 0.85),
+                  backgroundColor: isHighContrast ? colors.primary : colors.primary,
+                },
+              ]}
+            >
+              <Ionicons
+                name={isThis ? 'stop' : 'play'}
+                size={scaleFont(18)}
+                color={colors.onPrimary}
+              />
+            </View>
+          </>
+        ) : (
+          <>
+            <Ionicons
+              name={isThis ? 'stop-circle-outline' : 'volume-high-outline'}
+              size={scaleFont(textVariant === 'body' ? 20 : 16)}
+              color={brandInk(isDark, isHighContrast, colors.textPrimary)}
+            />
+            <AppText
+              variant={textVariant}
+              style={{
+                fontFamily: FontFamily.semiBold,
+                fontWeight: FontWeight.semiBold,
+                textAlign: 'center',
+                color: brandInk(isDark, isHighContrast, colors.textPrimary),
+                flexShrink: 1,
+                minWidth: 0,
+              }}
+              numberOfLines={1}
+            >
+              {title}
+            </AppText>
+          </>
+        )}
       </Pressable>
       <Toast
         visible={toast.visible}
@@ -143,5 +227,28 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     borderRadius: Radius.lg,
     maxWidth: '100%',
+  },
+  identificationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    borderRadius: Radius.lg,
+    gap: 10,
+    maxWidth: '100%',
+  },
+  speaker: {
+    width: 40,
+    height: 40,
+    backgroundColor: 'transparent',
+  },
+  identificationCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  play: {
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
 });

@@ -17,8 +17,8 @@ node_modules/
 # =========================
 # EXPO / REACT NATIVE
 # =========================
-.expo/
-.expo-shared/
+.vercel/
+**/.vercel/
 dist/
 build/
 web-build/
