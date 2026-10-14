@@ -30,6 +30,7 @@ import { BrandColors, liaCardBorder } from '../theme/brand';
 import { Radius, Space } from '../theme/tokens';
 import { SPEECH_CAMERA_GUIDE } from '../utils/speechPhrases';
 import { normalizeMedicationName } from '../utils/helpers';
+import { resolveMediaUrl } from '../utils/mediaUrl';
 import {
   createCameraSession,
   getCameraSession,
@@ -50,6 +51,7 @@ type RecognizedView = {
   purpose: string | null;
   importantPoints: string[];
   source: string | null;
+  imageUrl: string | null;
 };
 
 const POLL_MS = 2000;
@@ -80,6 +82,7 @@ export default function CameraGuideScreen({ navigation }: Props) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'error' as const });
   const [flashOn, setFlashOn] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
 
   const sessionIdRef = useRef<string | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -117,6 +120,7 @@ export default function CameraGuideScreen({ navigation }: Props) {
     attemptActiveRef.current = false;
     attemptGenerationRef.current += 1;
     networkFailRef.current = 0;
+    setPhotoUrl(null);
   }, [stopPolling]);
 
   useFocusEffect(
@@ -157,6 +161,7 @@ export default function CameraGuideScreen({ navigation }: Props) {
 
     setErrorMsg(null);
     setResult(null);
+    setPhotoUrl(null);
     setPhase('waiting');
     setFlashOn(true);
     setTimeout(() => setFlashOn(false), 450);
@@ -201,8 +206,15 @@ export default function CameraGuideScreen({ navigation }: Props) {
             console.log(`[camera-mobile] poll id=${sessionId} status=${current.status}`);
           }
 
-          if (current.status === 'processing') {
-            setPhase('capturing');
+          if (current.status === 'processing' || current.status === 'waiting') {
+            const incoming =
+              'imageUrl' in current && typeof current.imageUrl === 'string'
+                ? current.imageUrl.trim()
+                : '';
+            if (incoming) {
+              setPhotoUrl(incoming);
+              setPhase('capturing');
+            }
             return;
           }
 
@@ -219,12 +231,16 @@ export default function CameraGuideScreen({ navigation }: Props) {
               return;
             }
             setResult(normalized);
+            if (normalized.imageUrl) {
+              setPhotoUrl(normalized.imageUrl);
+            }
             setPendingResult({
               name: normalized.name,
               activeIngredient: normalized.activeIngredient,
               purpose: normalized.purpose,
               importantPoints: normalized.importantPoints,
               source: normalized.source,
+              imageUrl: normalized.imageUrl,
             });
             setPhase('result');
             if (__DEV__) {
@@ -312,7 +328,9 @@ export default function CameraGuideScreen({ navigation }: Props) {
     }
     clearPendingResult();
     navigation.navigate('AddMedication', {
-      prefilled: prefilledName ? { name: prefilledName } : {},
+      prefilled: prefilledName
+        ? { name: prefilledName, imageUrl: result?.imageUrl || photoUrl || undefined }
+        : { imageUrl: result?.imageUrl || photoUrl || undefined },
     });
   };
 
@@ -593,9 +611,16 @@ export default function CameraGuideScreen({ navigation }: Props) {
                         accessibilityElementsHidden
                       >
                         <Image
-                          source={step.image}
-                          style={{ width: artSize, height: artSize }}
-                          resizeMode="contain"
+                          source={
+                            step.id === 3 && photoUrl
+                              ? { uri: resolveMediaUrl(photoUrl) }
+                              : step.image
+                          }
+                          style={[
+                            { width: artSize, height: artSize },
+                            step.id === 3 && photoUrl ? styles.livePhoto : null,
+                          ]}
+                          resizeMode={step.id === 3 && photoUrl ? 'cover' : 'contain'}
                           accessibilityIgnoresInvertColors
                         />
                       </View>
@@ -673,6 +698,15 @@ export default function CameraGuideScreen({ navigation }: Props) {
             >
               Medicamento identificado
             </AppText>
+            {photoUrl || result.imageUrl ? (
+              <Image
+                source={{ uri: resolveMediaUrl(result.imageUrl || photoUrl) }}
+                style={styles.resultPhoto}
+                resizeMode="cover"
+                accessibilityLabel="Foto tomada por la cámara LIA"
+                accessibilityIgnoresInvertColors
+              />
+            ) : null}
             <AppText variant="medicationName" style={{ flexShrink: 1 }}>
               {result.name.trim() ? result.name : 'Medicamento identificado'}
             </AppText>
@@ -810,6 +844,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
+    overflow: 'hidden',
+    borderRadius: Radius.md,
+  },
+  livePhoto: {
+    borderRadius: Radius.md,
+    backgroundColor: '#EAF3F7',
+  },
+  resultPhoto: {
+    width: '100%',
+    height: 180,
+    borderRadius: Radius.lg,
+    marginBottom: Space[12],
+    backgroundColor: '#EAF3F7',
   },
   identifyingRow: {
     marginTop: 10,

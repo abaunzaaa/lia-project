@@ -88,6 +88,7 @@ function formToApiPayload(data: MedicationFormData | Partial<MedicationFormData>
     weekdays: data.weekdays !== undefined ? data.weekdays : undefined,
     mealRelation: data.mealRelation !== undefined ? data.mealRelation : undefined,
     reminderEnabled: data.reminderEnabled,
+    imageUrl: data.imageUrl,
     schedules,
   };
 }
@@ -237,6 +238,7 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
           weekdays: payload.weekdays ?? null,
           mealRelation: payload.mealRelation ?? null,
           reminderEnabled: payload.reminderEnabled !== false,
+          imageUrl: payload.imageUrl ?? null,
           schedules: payload.schedules ?? [],
         })
       );
@@ -295,7 +297,10 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
                 data.mealRelation !== undefined ? data.mealRelation : m.mealRelation,
               reminderEnabled:
                 data.reminderEnabled !== undefined ? data.reminderEnabled : m.reminderEnabled,
-              imageUrl: getMedicationImage(data.name?.trim() ?? m.name),
+              imageUrl:
+                data.imageUrl !== undefined
+                  ? data.imageUrl || getMedicationImage(data.name?.trim() ?? m.name)
+                  : m.imageUrl || getMedicationImage(data.name?.trim() ?? m.name),
             };
             result = next;
             return next;
@@ -329,6 +334,7 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
           ...(data.reminderEnabled !== undefined
             ? { reminderEnabled: payload.reminderEnabled }
             : {}),
+          ...(data.imageUrl !== undefined ? { imageUrl: payload.imageUrl ?? null } : {}),
           ...(data.schedules !== undefined ? { schedules: payload.schedules } : {}),
         })
       );

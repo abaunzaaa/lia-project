@@ -37,6 +37,7 @@ import {
 } from '../services/notificationService';
 import { Radius, Space } from '../theme/tokens';
 import { normalizeMedicationName, normalizeScheduleTimes } from '../utils/helpers';
+import { resolveMediaUrl } from '../utils/mediaUrl';
 import {
   scheduleBellAsset,
   scheduleClockAddAsset,
@@ -432,6 +433,7 @@ export default function MedicationForm({
         startDate,
         endDate: hasEndDate ? endDate : undefined,
         description: instructions.trim() || undefined,
+        imageUrl: initial?.imageUrl,
       });
     } catch {
       // El toast de error lo muestra la pantalla padre.
@@ -514,6 +516,22 @@ export default function MedicationForm({
                 ) : null
               }
             />
+
+            {initial?.imageUrl ? (
+              <Image
+                source={{ uri: resolveMediaUrl(initial.imageUrl) }}
+                style={{
+                  width: '100%',
+                  height: 140,
+                  borderRadius: Radius.lg,
+                  marginTop: scaleSpacing(Space[12]),
+                  backgroundColor: palette.ice,
+                }}
+                resizeMode="cover"
+                accessibilityLabel="Foto del medicamento"
+                accessibilityIgnoresInvertColors
+              />
+            ) : null}
 
             {sectionLabel('Presentación')}
             <ScrollView

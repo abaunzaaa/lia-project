@@ -3,7 +3,8 @@ import { aiService, AiProviderError } from '../services/aiService';
 import { findMedication } from '../models/medicationDatabase';
 import { getDrugInfo, DrugReferenceError } from '../services/drugReferenceService';
 import { PatientDrugInfo } from '../models/drugReferenceTypes';
-import { markLatestWaitingSessionRecognized } from '../services/cameraSessionService';
+import { markLatestWaitingSessionRecognized, attachImageToLatestWaitingSession } from '../services/cameraSessionService';
+import { CameraImageError, saveCameraJpeg } from '../services/cameraImageService';
 import { RecognitionResult } from '../models/types';
 
 function buildVoiceText(name: string, patient: PatientDrugInfo | null): string {
@@ -45,6 +46,28 @@ export async function recognizeMedication(req: Request, res: Response) {
     if (process.env.NODE_ENV !== 'production') {
       console.log(
         `[camera-recognition] deviceId=${deviceId ?? '(missing)'} bytes=${req.file.buffer.length}`
+      );
+    }
+
+    let capturedImageUrl: string | null = null;
+    try {
+      capturedImageUrl = await saveCameraJpeg(req.file.buffer);
+      if (deviceId) {
+        await attachImageToLatestWaitingSession({
+          deviceId,
+          imageUrl: capturedImageUrl,
+        });
+      }
+    } catch (error) {
+      if (error instanceof CameraImageError) {
+        return res.status(error.statusCode).json({
+          error: 'Imagen inválida',
+          message: error.message,
+        });
+      }
+      console.error(
+        '[camera-recognition:save-image]',
+        error instanceof Error ? error.message : 'error'
       );
     }
 

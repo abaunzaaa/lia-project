@@ -8,6 +8,7 @@ import { BrandColors, liaCardBorder } from '../theme/brand';
 import { formatScheduleTimes, formatTime } from '../utils/helpers';
 import { parseDoseString, unitSingularLabel, isCountDoseUnit } from '../utils/medicationFormHelpers';
 import { getMedicationImageScale, getMedicationImageSource, MEDICATION_IMAGE_SLOT } from '../config/medicationImages';
+import { isCapturedMedicationPhoto } from '../utils/mediaUrl';
 import { Medication } from '../types';
 import AppText from './AppText';
 
@@ -162,7 +163,13 @@ export default function MedicationCard({
           </View>
         </View>
 
-        <View style={styles.art} pointerEvents="none">
+        <View
+          style={[
+            styles.art,
+            isCapturedMedicationPhoto(medication.imageUrl) ? styles.artPhoto : null,
+          ]}
+          pointerEvents="none"
+        >
           <Image
             source={
               showImage && medication.imageUrl
@@ -171,9 +178,18 @@ export default function MedicationCard({
             }
             style={[
               styles.artImage,
-              { transform: [{ scale: getMedicationImageScale(medication.name) }], backgroundColor: 'transparent' },
+              {
+                transform: [
+                  {
+                    scale: isCapturedMedicationPhoto(medication.imageUrl)
+                      ? 1
+                      : getMedicationImageScale(medication.name),
+                  },
+                ],
+                backgroundColor: 'transparent',
+              },
             ]}
-            resizeMode="contain"
+            resizeMode={isCapturedMedicationPhoto(medication.imageUrl) ? 'cover' : 'contain'}
             accessibilityIgnoresInvertColors
             onError={() => setImageFailed(true)}
           />
@@ -289,6 +305,10 @@ const styles = StyleSheet.create({
   artImage: {
     width: MEDICATION_IMAGE_SLOT.width,
     height: MEDICATION_IMAGE_SLOT.height,
+  },
+  artPhoto: {
+    borderRadius: Radius.md,
+    backgroundColor: '#EAF3F7',
   },
   status: {
     flexDirection: 'row',

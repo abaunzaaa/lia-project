@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
 import routes from './routes';
 import { errorHandler } from './middleware';
 import { initFirebaseAdmin } from './config/firebase';
@@ -14,6 +15,14 @@ initFirebaseAdmin();
 app.use(cors({ origin: '*', methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+app.use(
+  '/uploads',
+  express.static(path.resolve(process.cwd(), 'uploads'), {
+    maxAge: '1d',
+    fallthrough: true,
+  })
+);
 
 // Rutas API
 app.use('/api', routes);

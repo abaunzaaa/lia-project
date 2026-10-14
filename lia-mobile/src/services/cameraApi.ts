@@ -14,9 +14,10 @@ export type CameraSessionCreated = {
   deviceId: string;
 };
 
-export type CameraPollWaiting = { status: 'waiting' };
+export type CameraPollWaiting = { status: 'waiting'; imageUrl?: string | null };
 export type CameraPollExpired = { status: 'expired'; message?: string };
 export type CameraPollFailed = { status: 'failed'; message?: string };
+export type CameraPollProcessing = { status: 'processing'; imageUrl?: string | null };
 export type CameraPollRecognized = {
   status: 'recognized';
   result: {
@@ -24,6 +25,7 @@ export type CameraPollRecognized = {
     rxcui?: string | null;
     patientInfo?: PatientDrugInfo | null;
     voiceText?: string | null;
+    imageUrl?: string | null;
   };
 };
 
@@ -31,6 +33,7 @@ export type CameraSessionPoll =
   | CameraPollWaiting
   | CameraPollExpired
   | CameraPollFailed
+  | CameraPollProcessing
   | CameraPollRecognized
   | CameraSessionCreated;
 
@@ -163,6 +166,7 @@ export function normalizeCameraResult(
   purpose: string | null;
   importantPoints: string[];
   source: string | null;
+  imageUrl: string | null;
 } | null {
   const info = poll.result?.patientInfo;
   const voiceFallback =
@@ -184,6 +188,7 @@ export function normalizeCameraResult(
       ? info.importantInformation.filter((p) => typeof p === 'string' && p.trim())
       : [],
     source,
+    imageUrl: poll.result?.imageUrl?.trim() || null,
   };
 }
 

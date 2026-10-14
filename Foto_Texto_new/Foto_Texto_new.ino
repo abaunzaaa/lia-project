@@ -162,7 +162,7 @@ void setup() {
 
   delay(500);
 
-  Serial.end();
+   Serial.end();
 
   digitalWrite(FLASH_PIN, LOW);
 
@@ -193,7 +193,7 @@ void loop() {
 
     delay(500);
 
-    Serial.end();
+     Serial.end();
 
     digitalWrite(FLASH_PIN, LOW);
 
@@ -707,7 +707,7 @@ String SendStillToGeminiVision(
   // ======================================================
 
   client_tcp.println(
-    "POST /v1beta/models/gemini-3.6-flash:generateContent HTTP/1.1"
+    "POST /v1beta/models/gemini-3.5-flash-lite:generateContent HTTP/1.1"
   );
 
   client_tcp.println(
@@ -817,9 +817,9 @@ String SendStillToGeminiVision(
     "\n========== JSON RECIBIDO =========="
   );
 
-  Serial.println(
-    responseBody
-  );
+  // Serial.println(
+  //  responseBody
+  //);
 
   Serial.println(
     "===================================\n"
@@ -837,6 +837,19 @@ String SendStillToGeminiVision(
   // PARSEAR JSON
   // ======================================================
 
+  // Limpiar caracteres adicionales antes y despues del JSON
+  responseBody.trim();
+
+  int inicioJSON = responseBody.indexOf('{');
+  int finJSON = responseBody.lastIndexOf('}');
+
+  if (inicioJSON >= 0 && finJSON > inicioJSON) {
+    responseBody = responseBody.substring(inicioJSON, finJSON + 1);
+    Serial.println("JSON preparado para interpretar.");
+  } else {
+    Serial.println("No se encontro un JSON completo.");
+    return "Error: respuesta JSON incompleta.";
+  }
   JsonDocument doc;
 
   DeserializationError error =

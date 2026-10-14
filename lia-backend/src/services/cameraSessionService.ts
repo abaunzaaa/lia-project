@@ -22,6 +22,12 @@ export interface CameraSessionCreated {
 
 export interface CameraSessionPollWaiting {
   status: 'waiting';
+  imageUrl?: string | null;
+}
+
+export interface CameraSessionPollProcessing {
+  status: 'processing';
+  imageUrl?: string | null;
 }
 
 export interface CameraSessionPollRecognized {
@@ -31,6 +37,7 @@ export interface CameraSessionPollRecognized {
     rxcui: string | null;
     patientInfo: PatientDrugInfo | null;
     voiceText?: string | null;
+    imageUrl?: string | null;
   };
 }
 
@@ -40,6 +47,7 @@ export interface CameraSessionPollExpired {
 
 export type CameraSessionPollResult =
   | CameraSessionPollWaiting
+  | CameraSessionPollProcessing
   | CameraSessionPollRecognized
   | CameraSessionPollExpired;
 
@@ -52,6 +60,7 @@ interface SessionRow {
   rxcui: string | null;
   patient_info: PatientDrugInfo | null;
   voice_text: string | null;
+  image_url: string | null;
   expires_at: Date;
 }
 
@@ -88,6 +97,7 @@ export async function createWaitingSession(params: {
       rxcui,
       patient_info,
       voice_text,
+      image_url,
       expires_at
     `,
     [params.userId, deviceId, expiresAt]
@@ -121,6 +131,7 @@ export async function getSessionForUser(params: {
       rxcui,
       patient_info,
       voice_text,
+      image_url,
       expires_at
     FROM public.camera_recognition_sessions
     WHERE id = $1
@@ -156,6 +167,9 @@ export async function getSessionForUser(params: {
   }
 
   if (row.status === 'waiting') {
+    if (row.image_url) {
+      return { status: 'processing', imageUrl: row.image_url };
+    }
     return { status: 'waiting' };
   }
 
@@ -166,6 +180,7 @@ export async function getSessionForUser(params: {
       rxcui: row.rxcui,
       patientInfo: row.patient_info,
       voiceText: row.voice_text,
+      imageUrl: row.image_url,
     },
   };
 }
@@ -208,6 +223,37 @@ export async function markLatestWaitingSessionRecognized(params: {
       params.patientInfo ? JSON.stringify(params.patientInfo) : null,
       params.voiceText,
     ]
+  );
+
+  return result.rows[0]?.id ?? null;
+}
+
+export async function attachImageToLatestWaitingSession(params: {
+  deviceId: string;
+  imageUrl: string;
+}): Promise<string | null> {
+  const deviceId = params.deviceId.trim();
+  const imageUrl = params.imageUrl.trim();
+  if (!deviceId || !imageUrl) return null;
+
+  const result = await pool.query<{ id: string }>(
+    `
+    UPDATE public.camera_recognition_sessions
+    SET
+      image_url = $2,
+      updated_at = NOW()
+    WHERE id = (
+      SELECT id
+      FROM public.camera_recognition_sessions
+      WHERE device_id = $1
+        AND status = 'waiting'
+        AND expires_at > NOW()
+      ORDER BY created_at DESC
+      LIMIT 1
+    )
+    RETURNING id
+    `,
+    [deviceId, imageUrl]
   );
 
   return result.rows[0]?.id ?? null;

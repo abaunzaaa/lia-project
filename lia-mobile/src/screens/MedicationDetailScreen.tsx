@@ -34,6 +34,7 @@ import { FontFamily, FontWeight, Space } from '../theme/tokens';
 import { formatScheduleTimes, formatTime } from '../utils/helpers';
 import { buildMedicationDetailsSpeech } from '../utils/speechPhrases';
 import { parseDoseString, unitSingularLabel, isCountDoseUnit, presentationLabel, formatWeekdaysPhrase, mealLabel, formatShortDate } from '../utils/medicationFormHelpers';
+import { isCapturedMedicationPhoto, resolveMediaUrl } from '../utils/mediaUrl';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'MedicationDetail'>;
@@ -78,6 +79,9 @@ export default function MedicationDetailScreen({ navigation, route }: Props) {
   const frequency = medication.frequency
     ? FREQUENCY_LABELS[medication.frequency] || medication.frequency
     : '';
+  const capturedPhotoUri = isCapturedMedicationPhoto(medication.imageUrl)
+    ? resolveMediaUrl(medication.imageUrl)
+    : undefined;
 
   const parsed = parseDoseString(medication.dose || '');
   const stockLabel =
@@ -184,7 +188,9 @@ export default function MedicationDetailScreen({ navigation, route }: Props) {
             name={medication.name}
             dosage={medication.dose}
             minHeight={heroMinHeight}
-            artSource={MEDICATION_TABLET_BASE_SOURCE}
+            artSource={
+              capturedPhotoUri ? { uri: capturedPhotoUri } : MEDICATION_TABLET_BASE_SOURCE
+            }
             overlapFooter={Boolean(scheduleLabel)}
           />
           {scheduleLabel ? (

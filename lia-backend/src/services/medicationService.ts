@@ -8,6 +8,7 @@ import {
   UpdateMedicationInput,
 } from '../models/medicationTypes';
 import { stockVsEndDateError } from '../models/medicationSchemas';
+import { normalizeCameraImageUrl } from './cameraImageService';
 
 export class MedicationServiceError extends Error {
   constructor(
@@ -36,6 +37,7 @@ interface MedicationRow {
   weekdays: string[] | null;
   meal_relation: string | null;
   reminder_enabled: boolean;
+  image_url: string | null;
   created_at: Date;
   updated_at: Date | null;
 }
@@ -63,6 +65,7 @@ const MEDICATION_SELECT = `
   weekdays,
   meal_relation,
   reminder_enabled,
+  image_url,
   created_at,
   updated_at
 `;
@@ -99,6 +102,7 @@ function mapMedication(
     weekdays: (row.weekdays as MedicationResponse['weekdays']) ?? null,
     mealRelation: (row.meal_relation as MedicationResponse['mealRelation']) ?? null,
     reminderEnabled: row.reminder_enabled !== false,
+    imageUrl: row.image_url,
     schedules,
     createdAt: toIso(row.created_at) ?? new Date().toISOString(),
     updatedAt: toIso(row.updated_at),
@@ -267,11 +271,13 @@ export async function createMedication(
          id, user_id, name, dose, frequency, amount, units_per_intake,
          start_date, end_date, instructions,
          presentation, dose_amount, dose_unit, purpose, weekdays, meal_relation, reminder_enabled,
+         image_url,
          is_active, archived_at, created_at, updated_at
        ) VALUES (
          $1, $2, $3, $4, $5, $6, $7,
          $8::date, $9::date, $10,
          $11, $12, $13, $14, $15::text[], $16, $17,
+         $18,
          true, NULL, NOW(), NOW()
        )
        RETURNING ${MEDICATION_SELECT}`,
@@ -293,6 +299,7 @@ export async function createMedication(
         input.weekdays ?? null,
         input.mealRelation ?? null,
         input.reminderEnabled !== false,
+        normalizeCameraImageUrl(input.imageUrl),
       ]
     );
 
@@ -394,6 +401,7 @@ export async function updateMedication(
          weekdays = CASE WHEN $25::boolean THEN $26::text[] ELSE weekdays END,
          meal_relation = CASE WHEN $27::boolean THEN $28 ELSE meal_relation END,
          reminder_enabled = CASE WHEN $29::boolean THEN $30 ELSE reminder_enabled END,
+         image_url = CASE WHEN $31::boolean THEN $32 ELSE image_url END,
          updated_at = NOW()
        WHERE id = $1
          AND user_id = $2
@@ -430,6 +438,8 @@ export async function updateMedication(
         input.mealRelation ?? null,
         input.reminderEnabled !== undefined,
         input.reminderEnabled ?? true,
+        input.imageUrl !== undefined,
+        input.imageUrl === null ? null : normalizeCameraImageUrl(input.imageUrl),
       ]
     );
 

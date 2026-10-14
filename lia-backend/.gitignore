@@ -7,3 +7,5 @@ dist/
 build/
 .DS_Store
 *.log
+uploads/camera/*
+!uploads/camera/.gitkeep
