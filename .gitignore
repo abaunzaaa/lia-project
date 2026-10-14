@@ -53,3 +53,5 @@ yarn-error.log*
 **/*serviceAccountKey*.json
 **/firebase-adminsdk*.json
 
+
+/lia-backend/uploads/
