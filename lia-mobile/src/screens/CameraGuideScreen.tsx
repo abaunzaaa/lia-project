@@ -13,7 +13,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../types';
-import { AppText, Button, EditorialText, Screen, SpeakButton, Toast } from '../components';
+import { AppText, Button, EditorialText, Screen, SpeakButton, SurfaceCard, Toast } from '../components';
+import { shouldShowOnlineCameraNotice } from '../config/app';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useTheme } from '../context/ThemeContext';
 import { useMedications } from '../context/MedicationContext';
@@ -417,6 +418,60 @@ export default function CameraGuideScreen({ navigation }: Props) {
           >
             Identificar con cámara
           </AppText>
+        ) : null}
+
+        {shouldShowOnlineCameraNotice() && phase !== 'result' ? (
+          <SurfaceCard
+            variant="quiet"
+            style={{
+              marginTop: scaleSpacing(Space[16]),
+              marginBottom: scaleSpacing(Space[8]),
+              borderWidth: isHighContrast ? 2 : 1,
+              borderColor: cardBorder,
+            }}
+          >
+            <View
+              accessible
+              accessibilityRole="text"
+              accessibilityLabel="Cámara no disponible en esta versión. La función de cámara requiere la conexión con el dispositivo físico de LÍA. Por el momento, no está disponible en esta versión en línea."
+              style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}
+            >
+              <View
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: lightChrome ? BrandColors.white : colors.surface,
+                  borderWidth: 1,
+                  borderColor: cardBorder,
+                }}
+              >
+                <Ionicons
+                  name="information-circle-outline"
+                  size={26}
+                  color={teal}
+                />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <AppText
+                  variant="h3"
+                  style={{
+                    color: ink,
+                    fontWeight: '600',
+                    fontSize: scaleFont(18),
+                    marginBottom: 6,
+                  }}
+                >
+                  Cámara no disponible en esta versión
+                </AppText>
+                <AppText variant="body" style={{ color: muted, flexShrink: 1 }}>
+                  La función de cámara requiere la conexión con el dispositivo físico de LÍA. Por el momento, no está disponible en esta versión en línea.
+                </AppText>
+              </View>
+            </View>
+          </SurfaceCard>
         ) : null}
 
         {showGuide ? (

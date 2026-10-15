@@ -106,6 +106,10 @@ function friendlyMessage(status: number | undefined, raw: string | undefined, ne
   if (status === 404) {
     return 'Este medicamento ya no está disponible.';
   }
+  if (status === 409) {
+    if (raw && !looksTechnical(raw)) return raw;
+    return 'Este medicamento ya está registrado.';
+  }
   if (status === 400) {
     if (raw && !looksTechnical(raw)) return raw;
     return 'Revisa los datos e inténtalo nuevamente.';

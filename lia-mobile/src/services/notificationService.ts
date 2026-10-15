@@ -46,6 +46,7 @@ export type SyncResult = {
  * Handler único global — mostrar alerta también en foreground.
  */
 export function configureNotificationHandler(): void {
+  if (Platform.OS === 'web') return;
   if (handlerConfigured) return;
   handlerConfigured = true;
 
@@ -61,8 +62,13 @@ export function configureNotificationHandler(): void {
 }
 
 export async function getNotificationPermissionStatus(): Promise<Notifications.PermissionStatus> {
-  const { status } = await Notifications.getPermissionsAsync();
-  return status;
+  if (Platform.OS === 'web') return 'denied';
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    return status;
+  } catch {
+    return 'denied';
+  }
 }
 
 /**
@@ -70,12 +76,17 @@ export async function getNotificationPermissionStatus(): Promise<Notifications.P
  * Si ya fue denegado, no vuelve a pedir (iOS no lo permite de forma útil).
  */
 export async function requestNotificationPermission(): Promise<boolean> {
-  const current = await Notifications.getPermissionsAsync();
-  if (current.status === 'granted') return true;
-  if (current.status === 'denied' && !current.canAskAgain) return false;
+  if (Platform.OS === 'web') return false;
+  try {
+    const current = await Notifications.getPermissionsAsync();
+    if (current.status === 'granted') return true;
+    if (current.status === 'denied' && !current.canAskAgain) return false;
 
-  const requested = await Notifications.requestPermissionsAsync();
-  return requested.status === 'granted';
+    const requested = await Notifications.requestPermissionsAsync();
+    return requested.status === 'granted';
+  } catch {
+    return false;
+  }
 }
 
 export async function canScheduleNotifications(): Promise<boolean> {
@@ -245,6 +256,9 @@ export async function syncMedicationNotifications(
   medications: Medication[],
   options?: { isDemo?: boolean; force?: boolean }
 ): Promise<SyncResult> {
+  if (Platform.OS === 'web') {
+    return { scheduled: 0, cancelled: 0, skippedReason: 'web' };
+  }
   configureNotificationHandler();
 
   const run = async (): Promise<SyncResult> => {

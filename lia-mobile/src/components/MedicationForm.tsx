@@ -115,6 +115,7 @@ export default function MedicationForm({
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
   const nameRef = useRef<TextInput>(null);
+  const savingRef = useRef(false);
 
   const parsedDose = parseDoseString(initial?.dose || '');
   const initialTimes =
@@ -164,6 +165,7 @@ export default function MedicationForm({
   const [instructions, setInstructions] = useState(initial?.description || '');
   const [confirmed, setConfirmed] = useState(false);
   const [exitOpen, setExitOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [toast, setToast] = useState<{
     visible: boolean;
@@ -369,8 +371,14 @@ export default function MedicationForm({
 
   const handleSave = async () => {
     Keyboard.dismiss();
-    if (!validateStep(1) || !validateStep(2) || !validateStep(3)) return;
+    if (loading || saving || savingRef.current) return;
+    savingRef.current = true;
+    if (!validateStep(1) || !validateStep(2) || !validateStep(3)) {
+      savingRef.current = false;
+      return;
+    }
     if (!confirmed) {
+      savingRef.current = false;
       setToast({
         visible: true,
         message: 'Marca que la información está correcta para guardar.',
@@ -385,6 +393,7 @@ export default function MedicationForm({
       return normalizeMedicationName(item.name) === nameNorm;
     });
     if (duplicate) {
+      savingRef.current = false;
       setToast({
         visible: true,
         message: 'Este medicamento ya está registrado.',
@@ -397,6 +406,7 @@ export default function MedicationForm({
     try {
       schedules = normalizeScheduleTimes(times);
     } catch (error) {
+      savingRef.current = false;
       setToast({
         visible: true,
         message: error instanceof Error ? error.message : 'Revisa los horarios.',
@@ -405,16 +415,21 @@ export default function MedicationForm({
       return;
     }
 
-    if (reminderEnabled) {
-      const granted = await requestNotificationPermission();
-      if (granted) {
-        await setPhoneRemindersPreference(true);
-      }
-    }
-
-    const amount = parseDoseAmount(doseAmount);
-    const countUnits = doseUnit === 'tabletas' || doseUnit === 'cápsulas' || doseUnit === 'unidades';
+    setSaving(true);
     try {
+      if (reminderEnabled) {
+        try {
+          const granted = await requestNotificationPermission();
+          if (granted) {
+            await setPhoneRemindersPreference(true);
+          }
+        } catch {
+          /* En web o sin notificaciones nativas el guardado sigue. */
+        }
+      }
+
+      const amount = parseDoseAmount(doseAmount);
+      const countUnits = doseUnit === 'tabletas' || doseUnit === 'cápsulas' || doseUnit === 'unidades';
       await onSubmit({
         name: name.trim(),
         dose: dosePreview,
@@ -435,6 +450,9 @@ export default function MedicationForm({
       });
     } catch {
       // El toast de error lo muestra la pantalla padre.
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
     }
   };
 
@@ -1049,7 +1067,7 @@ export default function MedicationForm({
               secondaryTitle={step === 1 ? 'Cancelar' : 'Atrás'}
               onPrimary={step === 3 ? () => void handleSave() : goNext}
               onSecondary={step === 1 ? requestExit : handleBack}
-              loading={loading}
+              loading={loading || saving}
               primaryDisabled={step === 3 && !confirmed}
             />
           </View>
