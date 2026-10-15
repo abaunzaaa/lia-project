@@ -6,6 +6,7 @@ import { BrandColors, liaCardBorder } from '../../theme/brand';
 import { FontFamily, FontWeight, Radius, Space } from '../../theme/tokens';
 import AppText from '../AppText';
 import SpeakButton from '../SpeakButton';
+import { resolveMediaUrl } from '../../utils/mediaUrl';
 import {
   identifiedCheckAsset,
   identifiedMedicineAsset,
@@ -17,6 +18,7 @@ type Props = {
   activeIngredient: string | null;
   importantPoints: string[];
   source: string | null;
+  imageUrl?: string | null;
   speakId: string;
   speakText: string;
 };
@@ -27,6 +29,7 @@ export default function IdentificationResultCard({
   activeIngredient,
   importantPoints,
   source,
+  imageUrl,
   speakId,
   speakText,
 }: Props) {
@@ -37,6 +40,7 @@ export default function IdentificationResultCard({
   const muted = lightChrome ? BrandColors.teal : colors.textSecondary;
   const teal = lightChrome ? BrandColors.teal : colors.secondary;
   const displayName = name.trim() ? name : 'Medicamento identificado';
+  const capturedUri = resolveMediaUrl(imageUrl);
 
   return (
     <View
@@ -55,6 +59,19 @@ export default function IdentificationResultCard({
         },
       ]}
     >
+      {capturedUri ? (
+        <Image
+          source={{ uri: capturedUri }}
+          style={[
+            styles.capturedPhoto,
+            { marginBottom: scaleSpacing(Space[12]), borderRadius: Radius.lg },
+          ]}
+          resizeMode="cover"
+          accessibilityLabel="Foto tomada por la cámara LÍA"
+          accessibilityIgnoresInvertColors
+        />
+      ) : null}
+
       <View style={styles.header}>
         <View style={styles.headerCopy}>
           <View style={styles.badgeRow}>
@@ -102,13 +119,15 @@ export default function IdentificationResultCard({
           ) : null}
         </View>
 
-        <Image
-          source={identifiedMedicineAsset}
-          style={styles.art}
-          resizeMode="contain"
-          accessibilityIgnoresInvertColors
-          accessible={false}
-        />
+        {capturedUri ? null : (
+          <Image
+            source={identifiedMedicineAsset}
+            style={styles.art}
+            resizeMode="contain"
+            accessibilityIgnoresInvertColors
+            accessible={false}
+          />
+        )}
       </View>
 
       <View
@@ -223,5 +242,10 @@ const styles = StyleSheet.create({
   divider: {
     height: StyleSheet.hairlineWidth,
     width: '100%',
+  },
+  capturedPhoto: {
+    width: '100%',
+    height: 180,
+    backgroundColor: '#EAF3F7',
   },
 });

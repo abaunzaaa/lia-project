@@ -9,3 +9,5 @@ build/
 *.log
 .vercel
 .env*
+uploads/camera/*
+!uploads/camera/.gitkeep

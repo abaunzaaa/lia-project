@@ -15,8 +15,10 @@ node_modules/
 **/node_modules/
 
 # =========================
-# EXPO / REACT NATIVE
+# EXPO / REACT NATIVE / VERCEL
 # =========================
+.expo/
+.expo-shared/
 .vercel/
 **/.vercel/
 dist/
@@ -28,8 +30,13 @@ web-build/
 # =========================
 secrets.h
 **/secrets.h
+secrets.hpp
+**/secrets.hpp
 secrets.json
 **/secrets.json
+**/*service-account*.json
+**/*serviceAccountKey*.json
+**/firebase-adminsdk*.json
 
 # =========================
 # SISTEMA / EDITORES
@@ -46,3 +53,6 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Imágenes subidas por la ESP32-CAM (no versionar)
+/lia-backend/uploads/

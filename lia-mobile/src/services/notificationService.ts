@@ -62,12 +62,12 @@ export function configureNotificationHandler(): void {
 }
 
 export async function getNotificationPermissionStatus(): Promise<Notifications.PermissionStatus> {
-  if (Platform.OS === 'web') return 'denied';
+  if (Platform.OS === 'web') return Notifications.PermissionStatus.DENIED;
   try {
     const { status } = await Notifications.getPermissionsAsync();
     return status;
   } catch {
-    return 'denied';
+    return Notifications.PermissionStatus.DENIED;
   }
 }
 

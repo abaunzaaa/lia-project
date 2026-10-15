@@ -28,6 +28,7 @@ import { getMedicationImageScale, getMedicationImageSource, MEDICATION_IMAGE_SLO
 import { getGreeting, normalizeMedicationName } from '../utils/helpers';
 import { formatTimeForDisplay } from '../utils/dateTime';
 import { buildNextDoseSpeech, buildReminderSpeech } from '../utils/speechPhrases';
+import { isCapturedMedicationPhoto, resolveMediaUrl } from '../utils/mediaUrl';
 
 type HomeNavProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Home'>,
@@ -154,8 +155,9 @@ export default function HomeScreen({ navigation }: Props) {
       return;
     }
     const name = pendingResult.name;
+    const imageUrl = pendingResult.imageUrl || undefined;
     clearPendingResult();
-    navigation.navigate('AddMedication', { prefilled: { name } });
+    navigation.navigate('AddMedication', { prefilled: { name, imageUrl } });
   };
 
   return (
@@ -263,6 +265,15 @@ export default function HomeScreen({ navigation }: Props) {
             <AppText variant="medicationName" style={{ flexShrink: 1 }}>
               {pendingResult.name}
             </AppText>
+            {pendingResult.imageUrl ? (
+              <Image
+                source={{ uri: resolveMediaUrl(pendingResult.imageUrl) }}
+                style={styles.pendingPhoto}
+                resizeMode="cover"
+                accessibilityLabel="Foto tomada por la cámara LIA"
+                accessibilityIgnoresInvertColors
+              />
+            ) : null}
             {pendingResult.activeIngredient ? (
               <AppText variant="body" tone="secondary" style={{ marginTop: 4, flexShrink: 1 }}>
                 {pendingResult.activeIngredient}
@@ -688,7 +699,13 @@ function HomeMedicationCard({
           </View>
         </View>
 
-        <View style={styles.medArt} pointerEvents="none">
+        <View
+          style={[
+            styles.medArt,
+            isCapturedMedicationPhoto(imageUrl) ? styles.medArtPhoto : null,
+          ]}
+          pointerEvents="none"
+        >
           <Image
             source={
               showImage && imageUrl
@@ -697,9 +714,18 @@ function HomeMedicationCard({
             }
             style={[
               styles.medArtImage,
-              { transform: [{ scale: getMedicationImageScale(name) }], backgroundColor: 'transparent' },
+              {
+                transform: [
+                  {
+                    scale: isCapturedMedicationPhoto(imageUrl)
+                      ? 1
+                      : getMedicationImageScale(name),
+                  },
+                ],
+                backgroundColor: 'transparent',
+              },
             ]}
-            resizeMode="contain"
+            resizeMode={isCapturedMedicationPhoto(imageUrl) ? 'cover' : 'contain'}
             accessibilityIgnoresInvertColors
             onError={() => setImageFailed(true)}
           />
@@ -789,6 +815,13 @@ const styles = StyleSheet.create({
   avatarImage: {
     width: '100%',
     height: '100%',
+  },
+  pendingPhoto: {
+    width: '100%',
+    height: 160,
+    borderRadius: 16,
+    marginTop: 12,
+    backgroundColor: '#EAF3F7',
   },
   actionCard: {
     flexDirection: 'row',
@@ -907,6 +940,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
     backgroundColor: 'transparent',
+  },
+  medArtPhoto: {
+    borderRadius: 16,
+    backgroundColor: '#EAF3F7',
   },
   medArtImage: {
     width: MEDICATION_IMAGE_SLOT.width,

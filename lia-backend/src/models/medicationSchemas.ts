@@ -190,6 +190,12 @@ export const createMedicationSchema = z
     weekdays: weekdaysSchema,
     mealRelation: mealRelationSchema,
     reminderEnabled: z.boolean().optional().default(true),
+    imageUrl: z
+      .string()
+      .trim()
+      .max(500, 'La imagen no es válida.')
+      .nullable()
+      .optional(),
     userId: z.unknown().optional(),
   })
   .strict()
@@ -278,6 +284,12 @@ export const updateMedicationSchema = z
     weekdays: weekdaysSchema,
     mealRelation: mealRelationSchema,
     reminderEnabled: z.boolean().optional(),
+    imageUrl: z
+      .string()
+      .trim()
+      .max(500, 'La imagen no es válida.')
+      .nullable()
+      .optional(),
     userId: z.unknown().optional(),
   })
   .strict()
@@ -306,7 +318,8 @@ export const updateMedicationSchema = z
       data.purpose !== undefined ||
       data.weekdays !== undefined ||
       data.mealRelation !== undefined ||
-      data.reminderEnabled !== undefined;
+      data.reminderEnabled !== undefined ||
+      data.imageUrl !== undefined;
 
     if (!hasAnyField) {
       ctx.addIssue({

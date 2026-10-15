@@ -1,6 +1,7 @@
 import { API_BASE_URL } from '../config/api';
 import { getAuthToken, clearAuthToken } from './authApi';
 import { Medication, MedicationPresentation, MedicationSchedule, MealRelation, Weekday } from '../types';
+import { resolveMediaUrl } from '../utils/mediaUrl';
 
 /** Respuesta de medicamento del backend (camelCase). */
 export type ApiMedication = {
@@ -43,6 +44,7 @@ export type CreateMedicationPayload = {
   weekdays?: string[] | null;
   mealRelation?: string | null;
   reminderEnabled?: boolean;
+  imageUrl?: string | null;
   schedules?: string[];
 };
 
@@ -62,6 +64,7 @@ export type UpdateMedicationPayload = {
   weekdays?: string[] | null;
   mealRelation?: string | null;
   reminderEnabled?: boolean;
+  imageUrl?: string | null;
   schedules?: string[];
 };
 
@@ -198,7 +201,7 @@ export function mapApiMedicationToLocal(api: ApiMedication, userId = ''): Medica
     weekdays: (api.weekdays as Weekday[] | null) ?? null,
     mealRelation: (api.mealRelation as MealRelation | null) ?? null,
     reminderEnabled: api.reminderEnabled !== false,
-    imageUrl: api.imageUrl || undefined,
+    imageUrl: resolveMediaUrl(api.imageUrl) || undefined,
     createdAt: api.createdAt,
     updatedAt: api.updatedAt || undefined,
   };

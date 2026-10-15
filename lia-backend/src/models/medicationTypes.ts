@@ -63,11 +63,12 @@ export interface MedicationResponse {
   doseUnit: string | null;
   purpose: string | null;
   weekdays: Weekday[] | null;
-  mealRelation: MealRelation | null;
-  reminderEnabled: boolean;
-  schedules: MedicationSchedule[];
-  createdAt: string;
-  updatedAt: string | null;
+    mealRelation: MealRelation | null;
+    reminderEnabled: boolean;
+    imageUrl: string | null;
+    schedules: MedicationSchedule[];
+    createdAt: string;
+    updatedAt: string | null;
 }
 
 export interface CreateMedicationInput {
@@ -86,6 +87,7 @@ export interface CreateMedicationInput {
   weekdays?: Weekday[] | null;
   mealRelation?: MealRelation | null;
   reminderEnabled?: boolean;
+  imageUrl?: string | null;
   schedules?: string[];
 }
 
@@ -105,6 +107,7 @@ export interface UpdateMedicationInput {
   weekdays?: Weekday[] | null;
   mealRelation?: MealRelation | null;
   reminderEnabled?: boolean;
+  imageUrl?: string | null;
   schedules?: string[];
 }
 

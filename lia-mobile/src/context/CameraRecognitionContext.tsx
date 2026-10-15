@@ -14,6 +14,7 @@ export type CameraPendingResult = {
   purpose?: string | null;
   importantPoints?: string[];
   source?: string | null;
+  imageUrl?: string | null;
 };
 
 interface CameraRecognitionContextType {

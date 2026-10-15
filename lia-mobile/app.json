@@ -12,7 +12,10 @@
       "resizeMode": "contain",
       "backgroundColor": "#173B59"
     },
-    "assetBundlePatterns": ["assets/**/*", "src/assets/**/*"],
+    "assetBundlePatterns": [
+      "assets/**/*",
+      "src/assets/**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.lia.medications"
@@ -43,7 +46,9 @@
         {
           "color": "#6FA8DC"
         }
-      ]
+      ],
+      "expo-secure-store",
+      "expo-status-bar"
     ],
     "web": {
       "bundler": "metro",
