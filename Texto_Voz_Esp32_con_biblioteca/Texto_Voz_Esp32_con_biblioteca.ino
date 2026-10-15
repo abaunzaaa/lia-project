@@ -63,7 +63,21 @@ bool enviarResultadoALIA(const String& texto) {
   http.addHeader("X-Device-Id", LIA_DEVICE_ID);
   http.addHeader("X-Device-Token", LIA_DEVICE_TOKEN);
 
+  
   const int code = http.POST(payload);
+
+  // Mostrar la respuesta del backend
+  Serial.print("LIA: codigo HTTP = ");
+  Serial.println(code);
+
+  if (code < 0) {
+    Serial.print("LIA: error de conexion = ");
+    Serial.println(http.errorToString(code));
+  } else if (code != 200) {
+    Serial.print("LIA: respuesta del servidor = ");
+    Serial.println(http.getString());
+  }
+
   http.end();
 
   if (code == 200) {
@@ -71,7 +85,7 @@ bool enviarResultadoALIA(const String& texto) {
     return true;
   }
 
-  Serial.println("LIA: backend no disponible; el audio continúa.");
+  Serial.println("LIA: backend no disponible; el audio continua.");
   return false;
 }
 
