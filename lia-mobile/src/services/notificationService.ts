@@ -1,5 +1,4 @@
 import * as Notifications from 'expo-notifications';
-import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { Medication, Weekday } from '../types';
 import { weekdayFromYmd } from '../utils/medicationFormHelpers';
@@ -9,6 +8,7 @@ import {
   getUpcomingLocalDates,
   localDateTimeFrom,
 } from '../utils/dateTime';
+import { getPersistentItem, setPersistentItem } from '../utils/persistentStore';
 
 /** Identifica notificaciones locales de LIA (no push). */
 export const MEDICATION_REMINDER_TYPE = 'medication-reminder' as const;
@@ -46,6 +46,7 @@ export type SyncResult = {
  * Handler único global — mostrar alerta también en foreground.
  */
 export function configureNotificationHandler(): void {
+  if (Platform.OS === 'web') return;
   if (handlerConfigured) return;
   handlerConfigured = true;
 
@@ -61,8 +62,13 @@ export function configureNotificationHandler(): void {
 }
 
 export async function getNotificationPermissionStatus(): Promise<Notifications.PermissionStatus> {
-  const { status } = await Notifications.getPermissionsAsync();
-  return status;
+  if (Platform.OS === 'web') return Notifications.PermissionStatus.DENIED;
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    return status;
+  } catch {
+    return Notifications.PermissionStatus.DENIED;
+  }
 }
 
 /**
@@ -70,12 +76,17 @@ export async function getNotificationPermissionStatus(): Promise<Notifications.P
  * Si ya fue denegado, no vuelve a pedir (iOS no lo permite de forma útil).
  */
 export async function requestNotificationPermission(): Promise<boolean> {
-  const current = await Notifications.getPermissionsAsync();
-  if (current.status === 'granted') return true;
-  if (current.status === 'denied' && !current.canAskAgain) return false;
+  if (Platform.OS === 'web') return false;
+  try {
+    const current = await Notifications.getPermissionsAsync();
+    if (current.status === 'granted') return true;
+    if (current.status === 'denied' && !current.canAskAgain) return false;
 
-  const requested = await Notifications.requestPermissionsAsync();
-  return requested.status === 'granted';
+    const requested = await Notifications.requestPermissionsAsync();
+    return requested.status === 'granted';
+  } catch {
+    return false;
+  }
 }
 
 export async function canScheduleNotifications(): Promise<boolean> {
@@ -86,7 +97,7 @@ export async function canScheduleNotifications(): Promise<boolean> {
 /** Preferencia del usuario (SecureStore). Ausente → false (no asumir activo). */
 export async function getPhoneRemindersPreference(): Promise<boolean> {
   try {
-    const value = await SecureStore.getItemAsync(PREF_KEY);
+    const value = await getPersistentItem(PREF_KEY);
     return value === 'true';
   } catch {
     return false;
@@ -94,7 +105,7 @@ export async function getPhoneRemindersPreference(): Promise<boolean> {
 }
 
 export async function setPhoneRemindersPreference(enabled: boolean): Promise<void> {
-  await SecureStore.setItemAsync(PREF_KEY, enabled ? 'true' : 'false');
+  await setPersistentItem(PREF_KEY, enabled ? 'true' : 'false');
 }
 
 /**
@@ -245,6 +256,9 @@ export async function syncMedicationNotifications(
   medications: Medication[],
   options?: { isDemo?: boolean; force?: boolean }
 ): Promise<SyncResult> {
+  if (Platform.OS === 'web') {
+    return { scheduled: 0, cancelled: 0, skippedReason: 'web' };
+  }
   configureNotificationHandler();
 
   const run = async (): Promise<SyncResult> => {

@@ -246,7 +246,7 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
       setMedications((prev) => [saved, ...prev]);
       void syncMedicationNotifications([saved, ...medications.filter((m) => m.id !== saved.id)], {
         isDemo: false,
-      });
+      }).catch(() => undefined);
       return saved;
     },
     [user, isDemo, medications]
@@ -343,7 +343,7 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
       void syncMedicationNotifications(
         medications.map((m) => (m.id === id ? saved : m)),
         { isDemo: false }
-      );
+      ).catch(() => undefined);
       return saved;
     },
     [user, isDemo, medications]
@@ -363,7 +363,7 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
       await apiDeleteMedication(id);
       const next = medications.filter((m) => m.id !== id);
       setMedications(next);
-      void syncMedicationNotifications(next, { isDemo: false });
+      void syncMedicationNotifications(next, { isDemo: false }).catch(() => undefined);
     },
     [user, isDemo, medications]
   );

@@ -50,6 +50,11 @@
       "expo-secure-store",
       "expo-status-bar"
     ],
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/icon.png"
+    },
     "extra": {
       "apiUrl": "http://localhost:3000/api"
     }

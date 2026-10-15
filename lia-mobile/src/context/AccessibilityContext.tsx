@@ -7,7 +7,10 @@ import React, {
   useState,
   ReactNode,
 } from 'react';
-import * as SecureStore from 'expo-secure-store';
+import {
+  getPersistentItem,
+  setPersistentItem,
+} from '../utils/persistentStore';
 import { stopSpeaking } from '../services/speechService';
 
 export type AccessibilityMode = 'normal' | 'senior';
@@ -53,9 +56,9 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     Promise.all([
-      SecureStore.getItemAsync(MODE_KEY),
-      SecureStore.getItemAsync(TEXT_SIZE_KEY),
-      SecureStore.getItemAsync(VOICE_KEY),
+      getPersistentItem(MODE_KEY),
+      getPersistentItem(TEXT_SIZE_KEY),
+      getPersistentItem(VOICE_KEY),
     ]).then(([storedMode, storedSize, storedVoice]) => {
       if (storedMode === 'senior') setMode('senior');
       if (storedSize === 'sm' || storedSize === 'md' || storedSize === 'lg') {
@@ -68,7 +71,7 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
   const setSeniorMode = useCallback(async (enabled: boolean) => {
     const next: AccessibilityMode = enabled ? 'senior' : 'normal';
     setMode(next);
-    await SecureStore.setItemAsync(MODE_KEY, next);
+    await setPersistentItem(MODE_KEY, next);
   }, []);
 
   const toggleSeniorMode = useCallback(() => {
@@ -77,7 +80,7 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
 
   const setTextSize = useCallback(async (size: TextSize) => {
     setTextSizeState(size);
-    await SecureStore.setItemAsync(TEXT_SIZE_KEY, size);
+    await setPersistentItem(TEXT_SIZE_KEY, size);
   }, []);
 
   const setVoiceEnabled = useCallback(async (enabled: boolean) => {
@@ -85,7 +88,7 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
       await stopSpeaking();
     }
     setVoiceState(enabled);
-    await SecureStore.setItemAsync(VOICE_KEY, enabled ? 'true' : 'false');
+    await setPersistentItem(VOICE_KEY, enabled ? 'true' : 'false');
   }, []);
 
   const value = useMemo<AccessibilityContextType>(() => {

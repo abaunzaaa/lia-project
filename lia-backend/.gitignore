@@ -7,5 +7,7 @@ dist/
 build/
 .DS_Store
 *.log
+.vercel
+.env*
 uploads/camera/*
 !uploads/camera/.gitkeep

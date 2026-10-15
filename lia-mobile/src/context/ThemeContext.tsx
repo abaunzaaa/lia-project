@@ -8,7 +8,10 @@ import React, {
   ReactNode,
 } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import * as SecureStore from 'expo-secure-store';
+import {
+  getPersistentItem,
+  setPersistentItem,
+} from '../utils/persistentStore';
 import { ColorPalette, ColorScheme, getShadows, resolvePalette } from '../theme/themes';
 import { ViewStyle } from 'react-native';
 
@@ -38,14 +41,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void (async () => {
-      const storedScheme = parseScheme(await SecureStore.getItemAsync(APPEARANCE_KEY));
-      const storedHc = await SecureStore.getItemAsync(HIGH_CONTRAST_KEY);
+      const storedScheme = parseScheme(await getPersistentItem(APPEARANCE_KEY));
+      const storedHc = await getPersistentItem(HIGH_CONTRAST_KEY);
 
       if (storedScheme === 'legacy-hc') {
         setAppearanceState('light');
         setHighContrastState(true);
-        await SecureStore.setItemAsync(APPEARANCE_KEY, 'light');
-        await SecureStore.setItemAsync(HIGH_CONTRAST_KEY, '1');
+        await setPersistentItem(APPEARANCE_KEY, 'light');
+        await setPersistentItem(HIGH_CONTRAST_KEY, '1');
         return;
       }
 
@@ -61,12 +64,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const setAppearance = useCallback(async (next: ColorScheme) => {
     setAppearanceState(next);
-    await SecureStore.setItemAsync(APPEARANCE_KEY, next);
+    await setPersistentItem(APPEARANCE_KEY, next);
   }, []);
 
   const setHighContrast = useCallback(async (enabled: boolean) => {
     setHighContrastState(enabled);
-    await SecureStore.setItemAsync(HIGH_CONTRAST_KEY, enabled ? '1' : '0');
+    await setPersistentItem(HIGH_CONTRAST_KEY, enabled ? '1' : '0');
   }, []);
 
   const value = useMemo<ThemeContextType>(

@@ -50,8 +50,9 @@ app.get('/', (_req, res) => {
 // Error handler
 app.use(errorHandler);
 
-app.listen(config.port, () => {
-  console.log(`
+if (!process.env.VERCEL) {
+  app.listen(config.port, '0.0.0.0', () => {
+    console.log(`
   💙 LIA Backend API
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   🚀 Servidor: http://localhost:${config.port}
@@ -60,6 +61,7 @@ app.listen(config.port, () => {
   📷 ESP32:    POST /api/medications/recognize
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   `);
-});
+  });
+}
 
 export default app;

@@ -13,14 +13,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../types';
-import {
-  AppText,
-  Button,
-  Screen,
-  SpeakButton,
-  SurfaceCard,
-  Toast,
-} from '../components';
+import { AppText, Button, EditorialText, Screen, SpeakButton, SurfaceCard, Toast } from '../components';
+import { shouldShowOnlineCameraNotice } from '../config/app';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useTheme } from '../context/ThemeContext';
 import { useMedications } from '../context/MedicationContext';
@@ -28,6 +22,8 @@ import { useCameraRecognition } from '../context/CameraRecognitionContext';
 import { useResponsive } from '../hooks/useResponsive';
 import { BrandColors, liaCardBorder } from '../theme/brand';
 import { Radius, Space } from '../theme/tokens';
+import IdentificationResultCard from '../components/identification-result/IdentificationResultCard';
+import IdentificationResultWave from '../components/identification-result/IdentificationResultWave';
 import { SPEECH_CAMERA_GUIDE } from '../utils/speechPhrases';
 import { normalizeMedicationName } from '../utils/helpers';
 import { resolveMediaUrl } from '../utils/mediaUrl';
@@ -396,6 +392,10 @@ export default function CameraGuideScreen({ navigation }: Props) {
         />
       ) : null}
 
+      {phase === 'result' ? (
+        <IdentificationResultWave topOffset={insets.top + scaleSpacing(Space[8])} />
+      ) : null}
+
       <Screen
         scroll
         transparent
@@ -404,6 +404,7 @@ export default function CameraGuideScreen({ navigation }: Props) {
           paddingTop: insets.top + scaleSpacing(Space[4]),
           paddingHorizontal: horizontalPadding,
           paddingBottom: scaleSpacing(Space[32]),
+          zIndex: 1,
         }}
       >
         <Pressable
@@ -420,15 +421,76 @@ export default function CameraGuideScreen({ navigation }: Props) {
           ]}
         >
           <Ionicons name="chevron-back" size={26} color={ink} />
+          {phase === 'result' ? (
+            <AppText variant="body" style={{ color: ink, fontWeight: '600' }}>
+              Identificar
+            </AppText>
+          ) : null}
         </Pressable>
 
-        <AppText
-          variant="label"
-          tone="secondary"
-          style={{ marginTop: scaleSpacing(Space[4]) }}
-        >
-          Identificar con cámara
-        </AppText>
+        {phase !== 'result' ? (
+          <AppText
+            variant="label"
+            tone="secondary"
+            style={{ marginTop: scaleSpacing(Space[4]) }}
+          >
+            Identificar con cámara
+          </AppText>
+        ) : null}
+
+        {shouldShowOnlineCameraNotice() && phase !== 'result' ? (
+          <SurfaceCard
+            variant="quiet"
+            style={{
+              marginTop: scaleSpacing(Space[16]),
+              marginBottom: scaleSpacing(Space[8]),
+              borderWidth: isHighContrast ? 2 : 1,
+              borderColor: cardBorder,
+            }}
+          >
+            <View
+              accessible
+              accessibilityRole="text"
+              accessibilityLabel="Cámara no disponible en esta versión. La función de cámara requiere la conexión con el dispositivo físico de LÍA. Por el momento, no está disponible en esta versión en línea."
+              style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}
+            >
+              <View
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: lightChrome ? BrandColors.white : colors.surface,
+                  borderWidth: 1,
+                  borderColor: cardBorder,
+                }}
+              >
+                <Ionicons
+                  name="information-circle-outline"
+                  size={26}
+                  color={teal}
+                />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <AppText
+                  variant="h3"
+                  style={{
+                    color: ink,
+                    fontWeight: '600',
+                    fontSize: scaleFont(18),
+                    marginBottom: 6,
+                  }}
+                >
+                  Cámara no disponible en esta versión
+                </AppText>
+                <AppText variant="body" style={{ color: muted, flexShrink: 1 }}>
+                  La función de cámara requiere la conexión con el dispositivo físico de LÍA. Por el momento, no está disponible en esta versión en línea.
+                </AppText>
+              </View>
+            </View>
+          </SurfaceCard>
+        ) : null}
 
         {showGuide ? (
           <View style={{ marginBottom: scaleSpacing(Space[20]) }}>
@@ -677,85 +739,57 @@ export default function CameraGuideScreen({ navigation }: Props) {
         ) : null}
 
         {phase === 'result' && result ? (
-          <SurfaceCard
-            variant="emphasis"
-            style={{
-              backgroundColor: isHighContrast
-                ? colors.surface
-                : isDark
-                  ? colors.surfaceElevated
-                  : BrandColors.white,
-              borderColor: lightChrome ? BrandColors.skyBlue : colors.border,
-              borderWidth: isHighContrast ? 2 : 1,
-            }}
-          >
-            <AppText
-              variant="overline"
+          <View style={{ marginTop: scaleSpacing(Space[8]) }}>
+            <EditorialText
+              variant="headline"
+              accessibilityRole="header"
               style={{
-                color: isHighContrast ? colors.textSecondary : isDark ? colors.primary : BrandColors.teal,
+                fontSize: scaleFont(32),
+                lineHeight: scaleFont(38),
                 marginBottom: scaleSpacing(Space[8]),
+                flexShrink: 1,
               }}
             >
-              Medicamento identificado
+              Usa la cámara LÍA
+            </EditorialText>
+            <AppText
+              variant="body"
+              style={{
+                color: muted,
+                flexShrink: 1,
+                marginBottom: scaleSpacing(Space[24]),
+              }}
+            >
+              Te guiamos paso a paso. No hay botón de foto en la app: usa el botón rojo de la cámara.
             </AppText>
-            {photoUrl || result.imageUrl ? (
-              <Image
-                source={{ uri: resolveMediaUrl(result.imageUrl || photoUrl) }}
-                style={styles.resultPhoto}
-                resizeMode="cover"
-                accessibilityLabel="Foto tomada por la cámara LIA"
-                accessibilityIgnoresInvertColors
-              />
-            ) : null}
-            <AppText variant="medicationName" style={{ flexShrink: 1 }}>
-              {result.name.trim() ? result.name : 'Medicamento identificado'}
-            </AppText>
-            {result.activeIngredient ? (
-              <AppText variant="body" tone="secondary" style={{ marginTop: 4, flexShrink: 1 }}>
-                {`Principio activo: ${result.activeIngredient}`}
-              </AppText>
-            ) : null}
-            {result.purpose ? (
-              <View style={{ marginTop: scaleSpacing(Space[12]) }}>
-                <AppText variant="label" style={{ marginBottom: scaleSpacing(Space[8]) }}>
-                  ¿Para qué se utiliza?
-                </AppText>
-                <AppText variant="body" style={{ flexShrink: 1 }}>
-                  {result.purpose}
-                </AppText>
-              </View>
-            ) : null}
-            {result.importantPoints.length > 0 ? (
-              <View style={{ marginTop: scaleSpacing(Space[12]), gap: scaleSpacing(Space[8]) }}>
-                <AppText variant="label">Puntos importantes</AppText>
-                {result.importantPoints.slice(0, 4).map((p, i) => (
-                  <AppText key={`${i}-${p.slice(0, 12)}`} variant="body" style={{ flexShrink: 1 }}>
-                    {`· ${p}`}
-                  </AppText>
-                ))}
-              </View>
-            ) : null}
-            {result.source ? (
-              <AppText variant="caption" tone="muted" style={{ marginTop: scaleSpacing(Space[12]) }}>
-                {result.source}
-              </AppText>
-            ) : null}
 
-            {voiceEnabled && speakText ? (
-              <SpeakButton
-                id={`camera-result-${result.name}`}
-                label="Escuchar"
-                stopLabel="Detener"
-                text={speakText}
-                style={{ marginTop: scaleSpacing(Space[16]) }}
-              />
-            ) : null}
+            <IdentificationResultCard
+              name={result.name}
+              purpose={result.purpose}
+              activeIngredient={result.activeIngredient}
+              importantPoints={result.importantPoints}
+              source={result.source}
+              imageUrl={result.imageUrl || photoUrl}
+              speakId={`camera-result-${result.name}`}
+              speakText={speakText}
+            />
 
-            <View style={{ gap: scaleSpacing(Space[8]), marginTop: scaleSpacing(Space[16]) }}>
-              <Button title="Agregar medicamento" onPress={handleAdd} />
-              <Button title="Ahora no" variant="outline" onPress={handleDismiss} />
+            <View style={{ gap: scaleSpacing(Space[8]), marginTop: scaleSpacing(Space[20]) }}>
+              <Button
+                title="Agregar medicamento"
+                onPress={handleAdd}
+                accessibilityLabel="Agregar medicamento identificado"
+                style={{ minHeight: Math.max(56, minTouch), borderRadius: Radius.lg }}
+              />
+              <Button
+                title="Ahora no"
+                variant="outline"
+                onPress={handleDismiss}
+                accessibilityLabel="Ahora no agregar el medicamento"
+                style={{ minHeight: Math.max(54, minTouch), borderRadius: Radius.lg }}
+              />
             </View>
-          </SurfaceCard>
+          </View>
         ) : null}
       </Screen>
 
@@ -793,8 +827,10 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   backBtn: {
     alignSelf: 'flex-start',
-    alignItems: 'flex-start',
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    justifyContent: 'flex-start',
   },
   timeline: {
     width: '100%',
@@ -849,13 +885,6 @@ const styles = StyleSheet.create({
   },
   livePhoto: {
     borderRadius: Radius.md,
-    backgroundColor: '#EAF3F7',
-  },
-  resultPhoto: {
-    width: '100%',
-    height: 180,
-    borderRadius: Radius.lg,
-    marginBottom: Space[12],
     backgroundColor: '#EAF3F7',
   },
   identifyingRow: {

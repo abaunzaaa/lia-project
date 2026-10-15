@@ -309,12 +309,11 @@ export async function createMedication(
     }
 
     await insertSchedules(client, medicationId, schedules);
+    const schedulesByMed = await fetchSchedules(client, [medicationId]);
     await client.query('COMMIT');
-
-    const schedulesByMed = await fetchSchedules(pool, [medicationId]);
     return mapMedication(row, schedulesByMed.get(medicationId) ?? []);
   } catch (error) {
-    await client.query('ROLLBACK');
+    await client.query('ROLLBACK').catch(() => undefined);
 
     if (isUniqueViolation(error)) {
       throw new MedicationServiceError(409, 'Ya existe un horario duplicado para este medicamento.');
@@ -456,12 +455,11 @@ export async function updateMedication(
       await insertSchedules(client, medicationId, input.schedules);
     }
 
+    const schedulesByMed = await fetchSchedules(client, [medicationId]);
     await client.query('COMMIT');
-
-    const schedulesByMed = await fetchSchedules(pool, [medicationId]);
     return mapMedication(row, schedulesByMed.get(medicationId) ?? []);
   } catch (error) {
-    await client.query('ROLLBACK');
+    await client.query('ROLLBACK').catch(() => undefined);
 
     if (error instanceof MedicationServiceError) {
       throw error;

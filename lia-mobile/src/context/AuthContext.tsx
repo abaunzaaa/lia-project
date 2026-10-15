@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { User as FirebaseUser, onAuthStateChanged } from 'firebase/auth';
-import * as SecureStore from 'expo-secure-store';
+import {
+  deletePersistentItem,
+  setPersistentItem,
+} from '../utils/persistentStore';
 import {
   initFirebase,
   getFirebaseAuth,
@@ -140,7 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const profile = await loginUser(email, password);
       setUser(profile);
       setIsDemo(false);
-      await SecureStore.setItemAsync(KEEP_SESSION_KEY, 'true');
+      await setPersistentItem(KEEP_SESSION_KEY, 'true');
       return;
     }
 
@@ -193,7 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (FIREBASE_ENABLED) {
       await logoutUser();
-      await SecureStore.deleteItemAsync(KEEP_SESSION_KEY);
+      await deletePersistentItem(KEEP_SESSION_KEY);
     } else {
       await clearAuthToken();
     }

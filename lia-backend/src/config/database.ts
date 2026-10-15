@@ -10,6 +10,9 @@ export const pool = new Pool({
   ssl: {
     rejectUnauthorized: false,
   },
+  max: process.env.VERCEL ? 1 : 10,
+  idleTimeoutMillis: process.env.VERCEL ? 1000 : 30000,
+  connectionTimeoutMillis: 10000,
 });
 
 export async function testDatabaseConnection(): Promise<{ serverTime: Date }> {
