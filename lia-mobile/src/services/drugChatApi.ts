@@ -18,6 +18,9 @@ export type DrugChatRequest = {
   message: string;
   history?: DrugChatHistoryItem[];
   registeredDose?: string;
+  registeredPurpose?: string;
+  registeredPresentation?: string;
+  registeredNotes?: string;
 };
 
 export type DrugChatResponseData = {
@@ -45,12 +48,6 @@ function mapChatError(error: unknown): ApiClientError {
       return new ApiClientError(
         'LIA está recibiendo varias preguntas en este momento. Espera un momento y vuelve a intentarlo.',
         429
-      );
-    }
-    if (error.status === 502 || error.status === 503 || error.status === 504) {
-      return new ApiClientError(
-        'No pude consultar la información del medicamento en este momento. Inténtalo nuevamente.',
-        error.status
       );
     }
     if (error.status === undefined) {
@@ -110,6 +107,15 @@ export async function sendDrugChatMessage(
 
   if (params.registeredDose?.trim()) {
     body.registeredDose = params.registeredDose.trim().slice(0, 100);
+  }
+  if (params.registeredPurpose?.trim()) {
+    body.registeredPurpose = params.registeredPurpose.trim().slice(0, 200);
+  }
+  if (params.registeredPresentation?.trim()) {
+    body.registeredPresentation = params.registeredPresentation.trim().slice(0, 80);
+  }
+  if (params.registeredNotes?.trim()) {
+    body.registeredNotes = params.registeredNotes.trim().slice(0, 500);
   }
 
   try {

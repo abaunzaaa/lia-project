@@ -228,12 +228,17 @@ export async function loginWithApi(
 
   if (!response.ok) {
     const err = await readErrorBody(response);
+    if (__DEV__) {
+      console.warn(`[auth:login] status=${response.status}`);
+    }
     const msg =
       response.status === 401
         ? 'Correo o contraseña incorrectos.'
-        : err.message && !looksTechnical(err.message)
-          ? err.message
-          : 'No pudimos completar la solicitud. Inténtalo de nuevo.';
+        : response.status === 502 || response.status === 503 || response.status === 504
+          ? 'LÍA no respondió. Revisa que el servidor esté encendido e inténtalo de nuevo.'
+          : err.message && !looksTechnical(err.message)
+            ? err.message
+            : 'No pudimos completar la solicitud. Inténtalo de nuevo.';
     throw new AuthApiError(msg, response.status, err.code);
   }
 

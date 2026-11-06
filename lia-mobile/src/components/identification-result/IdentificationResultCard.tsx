@@ -15,10 +15,12 @@ import {
 type Props = {
   name: string;
   purpose: string | null;
+  observedReading?: string | null;
   activeIngredient: string | null;
   importantPoints: string[];
   source: string | null;
   imageUrl?: string | null;
+  photoAccessibilityLabel?: string;
   speakId: string;
   speakText: string;
 };
@@ -26,10 +28,12 @@ type Props = {
 export default function IdentificationResultCard({
   name,
   purpose,
+  observedReading,
   activeIngredient,
   importantPoints,
   source,
   imageUrl,
+  photoAccessibilityLabel = 'Foto tomada por la cámara LÍA',
   speakId,
   speakText,
 }: Props) {
@@ -67,7 +71,7 @@ export default function IdentificationResultCard({
             { marginBottom: scaleSpacing(Space[12]), borderRadius: Radius.lg },
           ]}
           resizeMode="cover"
-          accessibilityLabel="Foto tomada por la cámara LÍA"
+          accessibilityLabel={photoAccessibilityLabel}
           accessibilityIgnoresInvertColors
         />
       ) : null}
@@ -139,6 +143,37 @@ export default function IdentificationResultCard({
           },
         ]}
       />
+
+      {observedReading ? (
+        <View style={{ marginBottom: purpose ? scaleSpacing(Space[12]) : 0 }}>
+          <AppText
+            variant="body"
+            style={{
+              color: ink,
+              fontFamily: FontFamily.semiBold,
+              fontWeight: FontWeight.semiBold,
+              marginBottom: scaleSpacing(Space[8]),
+              flexShrink: 1,
+            }}
+          >
+            Lectura de la foto
+          </AppText>
+          <AppText
+            variant="body"
+            style={{
+              color: muted,
+              fontSize: scaleFont(16),
+              lineHeight: scaleFont(24),
+              flexShrink: 1,
+            }}
+          >
+            {observedReading}
+          </AppText>
+          <AppText variant="caption" style={{ color: muted, marginTop: scaleSpacing(Space[8]), flexShrink: 1 }}>
+            No está confirmada en una ficha oficial.
+          </AppText>
+        </View>
+      ) : null}
 
       {purpose ? (
         <View>

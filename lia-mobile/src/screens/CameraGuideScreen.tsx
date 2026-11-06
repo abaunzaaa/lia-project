@@ -11,7 +11,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../components/icons/Ionicons';
 import { RootStackParamList } from '../types';
 import { AppText, Button, EditorialText, Screen, SpeakButton, SurfaceCard, Toast } from '../components';
 import { shouldShowOnlineCameraNotice } from '../config/app';
@@ -26,6 +26,7 @@ import IdentificationResultCard from '../components/identification-result/Identi
 import IdentificationResultWave from '../components/identification-result/IdentificationResultWave';
 import { SPEECH_CAMERA_GUIDE } from '../utils/speechPhrases';
 import { normalizeMedicationName } from '../utils/helpers';
+import { noteFromRecognition, readingForExistingMedication } from '../utils/recognizedMedication';
 import { resolveMediaUrl } from '../utils/mediaUrl';
 import {
   createCameraSession,
@@ -45,6 +46,7 @@ type RecognizedView = {
   name: string;
   activeIngredient: string | null;
   purpose: string | null;
+  observedReading: string | null;
   importantPoints: string[];
   source: string | null;
   imageUrl: string | null;
@@ -69,14 +71,18 @@ export default function CameraGuideScreen({ navigation }: Props) {
   const { colors, isHighContrast, isDark } = useTheme();
   const lightChrome = !isDark && !isHighContrast;
   const { width, horizontalPadding } = useResponsive();
-  const { medications } = useMedications();
+  const { medications, updateMedication } = useMedications();
   const { setPendingResult, clearPendingResult } = useCameraRecognition();
   const insets = useSafeAreaInsets();
 
   const [phase, setPhase] = useState<GuidePhase>('step1');
   const [result, setResult] = useState<RecognizedView | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [toast, setToast] = useState({ visible: false, message: '', type: 'error' as const });
+  const [toast, setToast] = useState<{
+    visible: boolean;
+    message: string;
+    type: 'success' | 'error' | 'info';
+  }>({ visible: false, message: '', type: 'error' });
   const [flashOn, setFlashOn] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
 
@@ -234,6 +240,7 @@ export default function CameraGuideScreen({ navigation }: Props) {
               name: normalized.name,
               activeIngredient: normalized.activeIngredient,
               purpose: normalized.purpose,
+              observedReading: normalized.observedReading,
               importantPoints: normalized.importantPoints,
               source: normalized.source,
               imageUrl: normalized.imageUrl,
@@ -308,25 +315,47 @@ export default function CameraGuideScreen({ navigation }: Props) {
     }
   }, [setPendingResult, stopPolling]);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     const prefilledName = result?.name?.trim() || '';
     if (prefilledName) {
       const nameNorm = normalizeMedicationName(prefilledName);
-      const exists = medications.some((m) => normalizeMedicationName(m.name) === nameNorm);
-      if (exists) {
+      const existing = medications.find((m) => normalizeMedicationName(m.name) === nameNorm);
+      if (existing) {
+        const reading = readingForExistingMedication(
+          existing.description,
+          noteFromRecognition({
+            purpose: result?.purpose,
+            observedReading: result?.observedReading,
+          })
+        );
+        let kept = false;
+        if (reading) {
+          try {
+            await updateMedication(existing.id, { description: reading });
+            kept = true;
+          } catch {
+            kept = false;
+          }
+        }
         setToast({
           visible: true,
-          message: 'Este medicamento ya está registrado.',
-          type: 'error',
+          message: kept
+            ? 'Este medicamento ya está registrado. La lectura de la foto quedó en su detalle.'
+            : 'Este medicamento ya está registrado.',
+          type: kept ? 'success' : 'error',
         });
         return;
       }
     }
+    const savedNote = noteFromRecognition({
+      purpose: result?.purpose,
+      observedReading: result?.observedReading,
+    });
     clearPendingResult();
     navigation.navigate('AddMedication', {
       prefilled: prefilledName
-        ? { name: prefilledName, imageUrl: result?.imageUrl || photoUrl || undefined }
-        : { imageUrl: result?.imageUrl || photoUrl || undefined },
+        ? { name: prefilledName, description: savedNote }
+        : undefined,
     });
   };
 
@@ -342,6 +371,7 @@ export default function CameraGuideScreen({ navigation }: Props) {
         result.name,
         result.activeIngredient ? `Principio activo: ${result.activeIngredient}` : '',
         result.purpose || '',
+        result.observedReading ? `Lectura de la foto: ${result.observedReading}` : '',
         ...(result.importantPoints || []).slice(0, 3),
       ]
         .filter(Boolean)
@@ -766,6 +796,7 @@ export default function CameraGuideScreen({ navigation }: Props) {
             <IdentificationResultCard
               name={result.name}
               purpose={result.purpose}
+              observedReading={result.observedReading}
               activeIngredient={result.activeIngredient}
               importantPoints={result.importantPoints}
               source={result.source}

@@ -12,7 +12,9 @@ import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import ScanMedicationScreen from '../screens/ScanMedicationScreen';
+import CameraSourceScreen from '../screens/CameraSourceScreen';
 import CameraGuideScreen from '../screens/CameraGuideScreen';
+import PhoneCameraScreen from '../screens/PhoneCameraScreen';
 import DrugSearchScreen from '../screens/DrugSearchScreen';
 import DrugMatchesScreen from '../screens/DrugMatchesScreen';
 import DrugInfoScreen from '../screens/DrugInfoScreen';
@@ -21,6 +23,7 @@ import AddMedicationScreen from '../screens/AddMedicationScreen';
 import EditMedicationScreen from '../screens/EditMedicationScreen';
 import MedicationDetailScreen from '../screens/MedicationDetailScreen';
 import DrugChatScreen from '../screens/DrugChatScreen';
+import AccountMedicationsChatScreen from '../screens/AccountMedicationsChatScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import EmergencyContactScreen from '../screens/EmergencyContactScreen';
 
@@ -66,7 +69,9 @@ export default function AppNavigator() {
           <>
             <Stack.Screen name="Main" component={MainTabNavigator} />
             <Stack.Screen name="ScanMedication" component={ScanMedicationScreen} />
+            <Stack.Screen name="CameraSource" component={CameraSourceScreen} />
             <Stack.Screen name="CameraGuide" component={CameraGuideScreen} />
+            <Stack.Screen name="PhoneCamera" component={PhoneCameraScreen} />
             <Stack.Screen name="DrugSearch" component={DrugSearchScreen} />
             <Stack.Screen name="DrugMatches" component={DrugMatchesScreen} />
             <Stack.Screen name="DrugInfo" component={DrugInfoScreen} />
@@ -75,6 +80,7 @@ export default function AppNavigator() {
             <Stack.Screen name="EditMedication" component={EditMedicationScreen} />
             <Stack.Screen name="MedicationDetail" component={MedicationDetailScreen} />
             <Stack.Screen name="DrugChat" component={DrugChatScreen} />
+            <Stack.Screen name="AccountMedicationsChat" component={AccountMedicationsChatScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} />
             <Stack.Screen name="EmergencyContact" component={EmergencyContactScreen} />
           </>

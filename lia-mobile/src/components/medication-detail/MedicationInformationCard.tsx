@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../icons/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
 import { useAccessibility } from '../../context/AccessibilityContext';
 import { BrandColors, brandAccent, brandInk, liaCardBorder } from '../../theme/brand';

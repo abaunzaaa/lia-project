@@ -11,7 +11,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../components/icons/Ionicons';
 import { AppText, HistoryDeleteModals, HistoryDoseCard } from '../components';
 import { useAuth } from '../context/AuthContext';
 import { useReminders } from '../context/ReminderContext';

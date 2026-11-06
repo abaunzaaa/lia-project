@@ -143,10 +143,7 @@ const styles = StyleSheet.create({
   },
   heroImage: {
     width: 118,
-    maxWidth: 128,
-    height: undefined,
-    maxHeight: 100,
-    aspectRatio: 1448 / 1086,
+    height: 88,
     backgroundColor: 'transparent',
   },
   overlapSpacer: {

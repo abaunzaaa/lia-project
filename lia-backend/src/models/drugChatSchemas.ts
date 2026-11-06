@@ -42,6 +42,10 @@ export const drugChatRequestSchema = z
     history: z.array(drugChatHistoryItemSchema).max(MAX_HISTORY).optional().default([]),
     /** Solo contexto de UI; no se usa como evidencia clínica. */
     registeredDose: z.string().trim().max(100).optional(),
+    registeredPurpose: z.string().trim().max(200).optional(),
+    registeredPresentation: z.string().trim().max(80).optional(),
+    /** Nota ya guardada con el medicamento. No es una ficha oficial. */
+    registeredNotes: z.string().trim().max(500).optional(),
   })
   .strict();
 

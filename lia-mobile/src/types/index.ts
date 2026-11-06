@@ -272,6 +272,8 @@ export type RootStackParamList = {
     | undefined;
   ScanMedication: undefined;
   CameraGuide: undefined;
+  CameraSource: undefined;
+  PhoneCamera: undefined;
   DrugSearch: { fresh?: boolean } | undefined;
   DrugMatches: {
     query: string;
@@ -288,7 +290,12 @@ export type RootStackParamList = {
     name: string;
     rxcui?: string;
     registeredDose?: string;
+    registeredPurpose?: string;
+    registeredPresentation?: string;
+    registeredNotes?: string;
   };
+  /** Chat sobre los medicamentos registrados de la cuenta. */
+  AccountMedicationsChat: undefined;
   Settings: undefined;
   EmergencyContact: undefined;
 };

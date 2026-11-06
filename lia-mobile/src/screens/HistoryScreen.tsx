@@ -369,7 +369,7 @@ export default function HistoryScreen({ navigation }: Props) {
                   Cuando registres una toma, podrás consultarla aquí.
                 </AppText>
               </View>
-            ) : null
+            ) : undefined
           }
           contentContainerStyle={{
             paddingTop: insets.top + scaleSpacing(Space[8]),

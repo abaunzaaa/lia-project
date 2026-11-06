@@ -7,7 +7,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../icons/Ionicons';
 import { useAccessibility } from '../../context/AccessibilityContext';
 import { Radius } from '../../theme/tokens';
 import { useMedicationFormColors } from './useMedicationFormColors';

@@ -60,6 +60,15 @@ const QUICK_QUESTIONS = [
   'Explícamelo de forma sencilla.',
 ];
 
+function introMessage(medicationName: string): UiMessage {
+  return {
+    id: generateId(),
+    role: 'local',
+    content: `Puedes preguntarme sobre la información disponible de ${medicationName}.`,
+    createdAt: Date.now(),
+  };
+}
+
 function toHistory(messages: UiMessage[]): DrugChatHistoryItem[] {
   return messages
     .filter((m) => m.role === 'user' || m.role === 'assistant')
@@ -72,7 +81,8 @@ function toHistory(messages: UiMessage[]): DrugChatHistoryItem[] {
 }
 
 export default function DrugChatScreen({ navigation, route }: Props) {
-  const { name, rxcui, registeredDose } = route.params;
+  const { name, rxcui, registeredDose, registeredPurpose, registeredPresentation, registeredNotes } =
+    route.params;
   const insets = useSafeAreaInsets();
   const { scaleFont, scaleSpacing, minTouch } = useAccessibility();
   const { colors, isHighContrast, isDark } = useTheme();
@@ -85,15 +95,9 @@ export default function DrugChatScreen({ navigation, route }: Props) {
   const listRef = useRef<FlatList<UiMessage>>(null);
   const sendingRef = useRef(false);
   const messagesRef = useRef<UiMessage[]>([]);
+  const conversationRef = useRef(0);
 
-  const [messages, setMessages] = useState<UiMessage[]>(() => [
-    {
-      id: generateId(),
-      role: 'local',
-      content: `Puedes preguntarme sobre la información disponible de ${name}.`,
-      createdAt: Date.now(),
-    },
-  ]);
+  const [messages, setMessages] = useState<UiMessage[]>(() => [introMessage(name)]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
@@ -101,6 +105,17 @@ export default function DrugChatScreen({ navigation, route }: Props) {
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+
+  useEffect(() => {
+    conversationRef.current += 1;
+    sendingRef.current = false;
+    const intro = introMessage(name);
+    messagesRef.current = [intro];
+    setMessages([intro]);
+    setInput('');
+    setSending(false);
+    setHasInteracted(false);
+  }, [name, rxcui]);
 
   const scrollToEnd = useCallback(() => {
     requestAnimationFrame(() => {
@@ -118,6 +133,7 @@ export default function DrugChatScreen({ navigation, route }: Props) {
       if (!question || sendingRef.current) return;
       if (question.length > DRUG_CHAT_MAX_MESSAGE) return;
 
+      const generation = conversationRef.current;
       sendingRef.current = true;
       setSending(true);
       setHasInteracted(true);
@@ -165,7 +181,11 @@ export default function DrugChatScreen({ navigation, route }: Props) {
           message: question,
           history,
           registeredDose: registeredDose?.trim() || undefined,
+          registeredPurpose: registeredPurpose?.trim() || undefined,
+          registeredPresentation: registeredPresentation?.trim() || undefined,
+          registeredNotes: registeredNotes?.trim() || undefined,
         });
+        if (generation !== conversationRef.current) return;
 
         const assistantMsg: UiMessage = {
           id: generateId(),
@@ -180,6 +200,11 @@ export default function DrugChatScreen({ navigation, route }: Props) {
           return updated;
         });
       } catch (e) {
+        if (generation !== conversationRef.current) return;
+        if (__DEV__) {
+          const status = e instanceof DrugChatApiError ? e.status ?? 'network' : 'unknown';
+          console.warn(`[drug-chat] status=${status}`);
+        }
         const message =
           e instanceof DrugChatApiError
             ? e.message
@@ -197,11 +222,13 @@ export default function DrugChatScreen({ navigation, route }: Props) {
           return updated;
         });
       } finally {
-        sendingRef.current = false;
-        setSending(false);
+        if (generation === conversationRef.current) {
+          sendingRef.current = false;
+          setSending(false);
+        }
       }
     },
-    [name, rxcui, registeredDose]
+    [name, rxcui, registeredDose, registeredPurpose, registeredPresentation, registeredNotes]
   );
 
   const canSend = input.trim().length > 0 && !sending;
@@ -453,7 +480,7 @@ export default function DrugChatScreen({ navigation, route }: Props) {
                     LIA está escribiendo…
                   </AppText>
                 </View>
-              ) : null
+              ) : undefined
             }
           />
 

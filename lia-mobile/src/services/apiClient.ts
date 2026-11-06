@@ -34,6 +34,16 @@ export function friendlyApiMessage(
     if (raw && !looksTechnical(raw)) return raw;
     return 'Revisa los datos e inténtalo nuevamente.';
   }
+  if (
+    (status === 500 || status === 502 || status === 503 || status === 504) &&
+    raw &&
+    !looksTechnical(raw)
+  ) {
+    return raw;
+  }
+  if (status === 502 || status === 503 || status === 504) {
+    return 'LÍA no respondió. Revisa que el servidor esté encendido e inténtalo de nuevo.';
+  }
   if (status === 500 || status === undefined) {
     return 'No pudimos completar la acción. Inténtalo nuevamente.';
   }

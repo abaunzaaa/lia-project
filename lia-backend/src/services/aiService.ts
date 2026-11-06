@@ -162,7 +162,7 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
             generationConfig: {
               temperature: 0.1,
               responseMimeType: 'application/json',
-              maxOutputTokens: 256,
+              maxOutputTokens: 1024,
             },
           }),
         });
@@ -195,13 +195,15 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
         }
 
         const data = (parsedBody || {}) as GeminiGenerateResponse;
-        const text = data.candidates?.[0]?.content?.parts
-          ?.map((part) => part.text ?? '')
-          .join('')
-          .trim();
+        const text = extractGeminiVisibleText(data);
 
         if (!text) {
-          throw new AiProviderError('La IA no devolvió contenido.', 'invalid_response');
+          if (isDev()) {
+            console.warn(
+              `[gemini] vision visibleTextEmpty finish=${data.candidates?.[0]?.finishReason ?? 'none'}`
+            );
+          }
+          return { name: '', identified: false, confidence: 0 };
         }
 
         return this.parseVisionResult(this.parseJsonLoose(text));
@@ -463,7 +465,7 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
           contents,
           generationConfig: {
             temperature: params.temperature ?? 0.3,
-            maxOutputTokens: 700,
+            maxOutputTokens: 2048,
           },
         }),
       });
@@ -499,6 +501,11 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
       const text = extractGeminiVisibleText(data);
 
       if (!text) {
+        if (isDev()) {
+          console.warn(
+            `[gemini] chat visibleTextEmpty finish=${data.candidates?.[0]?.finishReason ?? 'none'}`
+          );
+        }
         throw new AiProviderError('La IA no devolvió contenido.', 'invalid_response');
       }
 

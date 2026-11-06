@@ -1,6 +1,6 @@
 import React from 'react';
 import { Image, ImageSourcePropType, Pressable, StyleSheet, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../icons/Ionicons';
 import AppText from '../AppText';
 import { useAccessibility } from '../../context/AccessibilityContext';
 import { Radius, Space } from '../../theme/tokens';

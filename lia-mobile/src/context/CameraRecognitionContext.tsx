@@ -12,6 +12,7 @@ export type CameraPendingResult = {
   name: string;
   activeIngredient?: string | null;
   purpose?: string | null;
+  observedReading?: string | null;
   importantPoints?: string[];
   source?: string | null;
   imageUrl?: string | null;

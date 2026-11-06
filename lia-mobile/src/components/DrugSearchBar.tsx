@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from './icons/Ionicons';
 import { FontFamily, Layout, Radius, Space } from '../theme/tokens';
 import { BrandColors } from '../theme/brand';
 import { useTheme } from '../context/ThemeContext';

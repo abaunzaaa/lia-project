@@ -4,8 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { CompositeNavigationProp, useFocusEffect } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
-import { RootStackParamList, MainTabParamList, Reminder } from '../types';
+import { Ionicons } from '../components/icons/Ionicons';
+import { RootStackParamList, MainTabParamList, Reminder, MedicationPresentation } from '../types';
 import {
   AppText,
   Button,
@@ -24,11 +24,13 @@ import { useTheme } from '../context/ThemeContext';
 import { useResponsive } from '../hooks/useResponsive';
 import { BrandColors, brandAccent, liaCardBorder } from '../theme/brand';
 import { FontFamily, FontWeight, Radius, Space } from '../theme/tokens';
-import { getMedicationImageScale, getMedicationImageSource, MEDICATION_IMAGE_SLOT } from '../config/medicationImages';
+import { MEDICATION_IMAGE_SLOT } from '../config/medicationImages';
+import { presentationVisualSource } from '../utils/presentationVisual';
 import { getGreeting, normalizeMedicationName } from '../utils/helpers';
+import { noteFromRecognition, readingForExistingMedication } from '../utils/recognizedMedication';
 import { formatTimeForDisplay } from '../utils/dateTime';
 import { buildNextDoseSpeech, buildReminderSpeech } from '../utils/speechPhrases';
-import { isCapturedMedicationPhoto, resolveMediaUrl } from '../utils/mediaUrl';
+import { resolveMediaUrl } from '../utils/mediaUrl';
 
 type HomeNavProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Home'>,
@@ -47,13 +49,17 @@ const CAMERA_IMAGE = require('../assets/images/lia-camera.png');
 
 export default function HomeScreen({ navigation }: Props) {
   const { user, isDemo } = useAuth();
-  const { medications, loading: medsLoading } = useMedications();
+  const { medications, loading: medsLoading, updateMedication } = useMedications();
   const { nextDoseGroup, todayReminders, homeLoading, refreshHome } = useReminders();
   const { pendingResult, clearPendingResult } = useCameraRecognition();
   const { scaleSpacing, minTouch, scaleFont, isSeniorMode } = useAccessibility();
   const { colors, isHighContrast, isDark } = useTheme();
   const { compact, width, horizontalPadding } = useResponsive();
-  const [toast, setToast] = React.useState({ visible: false, message: '', type: 'error' as const });
+  const [toast, setToast] = React.useState<{
+    visible: boolean;
+    message: string;
+    type: 'success' | 'error' | 'info';
+  }>({ visible: false, message: '', type: 'error' });
   const [profileImage, setProfileImage] = React.useState<string | null>(null);
 
   const firstName = user?.fullName?.split(' ')[0] || 'Amigo';
@@ -127,7 +133,7 @@ export default function HomeScreen({ navigation }: Props) {
           id: med.id,
           name: med.name,
           dose: med.dose,
-          imageUrl: med.imageUrl,
+          presentation: med.presentation,
           nextTime,
           nextTimeRaw,
           missed,
@@ -140,24 +146,39 @@ export default function HomeScreen({ navigation }: Props) {
   const showBootstrapLoading = (medsLoading || homeLoading) && !hasMeds && !isDemo;
   const showNextDoseLoading = hasMeds && homeLoading && !isDemo && todayReminders.length === 0;
 
-  const handleAddRecognized = () => {
+  const handleAddRecognized = async () => {
     if (!pendingResult?.name) return;
     const nameNorm = normalizeMedicationName(pendingResult.name);
-    const exists = medications.some(
+    const existing = medications.find(
       (m) => normalizeMedicationName(m.name) === nameNorm
     );
-    if (exists) {
+    if (existing) {
+      const reading = readingForExistingMedication(
+        existing.description,
+        noteFromRecognition(pendingResult)
+      );
+      let kept = false;
+      if (reading) {
+        try {
+          await updateMedication(existing.id, { description: reading });
+          kept = true;
+        } catch {
+          kept = false;
+        }
+      }
       setToast({
         visible: true,
-        message: 'Este medicamento ya está registrado.',
-        type: 'error',
+        message: kept
+          ? 'Este medicamento ya está registrado. La lectura de la foto quedó en su detalle.'
+          : 'Este medicamento ya está registrado.',
+        type: kept ? 'success' : 'error',
       });
       return;
     }
     const name = pendingResult.name;
-    const imageUrl = pendingResult.imageUrl || undefined;
+    const description = noteFromRecognition(pendingResult);
     clearPendingResult();
-    navigation.navigate('AddMedication', { prefilled: { name, imageUrl } });
+    navigation.navigate('AddMedication', { prefilled: { name, description } });
   };
 
   return (
@@ -270,7 +291,7 @@ export default function HomeScreen({ navigation }: Props) {
                 source={{ uri: resolveMediaUrl(pendingResult.imageUrl) }}
                 style={styles.pendingPhoto}
                 resizeMode="cover"
-                accessibilityLabel="Foto tomada por la cámara LIA"
+                accessibilityLabel="Foto del medicamento"
                 accessibilityIgnoresInvertColors
               />
             ) : null}
@@ -282,6 +303,11 @@ export default function HomeScreen({ navigation }: Props) {
             {pendingResult.purpose ? (
               <AppText variant="body" style={{ marginTop: scaleSpacing(Space[8]), flexShrink: 1 }}>
                 {pendingResult.purpose}
+              </AppText>
+            ) : null}
+            {pendingResult.observedReading ? (
+              <AppText variant="body" style={{ marginTop: scaleSpacing(Space[8]), flexShrink: 1 }}>
+                {`Lectura de la foto: ${pendingResult.observedReading}`}
               </AppText>
             ) : null}
             {pendingResult.source ? (
@@ -342,9 +368,9 @@ export default function HomeScreen({ navigation }: Props) {
             title="Identificar con cámara"
             description="Reconoce tus medicamentos de forma rápida y sencilla con LIA"
             buttonTitle="Abrir cámara"
-            onPress={() => navigation.navigate('CameraGuide')}
+            onPress={() => navigation.navigate('CameraSource')}
             accessibilityLabel="Abrir cámara"
-            accessibilityHint="Abre la guía de la cámara física LIA"
+            accessibilityHint="Elige la cámara de LÍA o la cámara de tu celular"
           />
         </View>
 
@@ -392,7 +418,7 @@ export default function HomeScreen({ navigation }: Props) {
                     nextTimeRaw={card.nextTimeRaw}
                     missed={card.missed}
                     missedReminder={card.missedReminder}
-                    imageUrl={card.imageUrl}
+                    presentation={card.presentation}
                     onReview={goToReminders}
                   />
                 ))}
@@ -597,7 +623,7 @@ type HomeMedicationCardProps = {
   nextTimeRaw: string | null;
   missed: number;
   missedReminder: Reminder | null;
-  imageUrl?: string;
+  presentation?: MedicationPresentation | null;
   onReview: () => void;
 };
 
@@ -610,19 +636,14 @@ function HomeMedicationCard({
   nextTimeRaw,
   missed,
   missedReminder,
-  imageUrl,
+  presentation,
   onReview,
 }: HomeMedicationCardProps) {
   const { colors, isHighContrast, isDark } = useTheme();
-  const { minTouch } = useAccessibility();
+  const { minTouch, scaleFont, scaleSpacing } = useAccessibility();
   const lightChrome = !isDark && !isHighContrast;
   const hasMissed = missed > 0;
-  const [imageFailed, setImageFailed] = React.useState(false);
-  const showImage = Boolean(imageUrl) && !imageFailed;
-
-  React.useEffect(() => {
-    setImageFailed(false);
-  }, [imageUrl]);
+  const artSource = presentationVisualSource(presentation);
 
   return (
     <View
@@ -675,17 +696,20 @@ function HomeMedicationCard({
             </AppText>
           ) : null}
 
-          <View style={[styles.medStatus, { marginTop: 8 }]}>
+          <View style={[styles.medStatus, { marginTop: 8, gap: scaleSpacing(6) }]}>
             <Ionicons
               name={hasMissed ? 'alert-circle-outline' : 'checkmark-circle-outline'}
-              size={16}
+              size={scaleFont(16)}
               color={lightChrome ? BrandColors.navy : colors.textPrimary}
+              allowFontScaling
+              maxFontSizeMultiplier={1.35}
+              style={styles.medStatusIcon}
             />
             <AppText
               variant="caption"
               numberOfLines={1}
               style={{
-                flex: 1,
+                flexShrink: 1,
                 color: lightChrome ? BrandColors.navy : colors.textPrimary,
                 fontWeight: '600',
               }}
@@ -699,35 +723,12 @@ function HomeMedicationCard({
           </View>
         </View>
 
-        <View
-          style={[
-            styles.medArt,
-            isCapturedMedicationPhoto(imageUrl) ? styles.medArtPhoto : null,
-          ]}
-          pointerEvents="none"
-        >
+        <View style={styles.medArt} pointerEvents="none">
           <Image
-            source={
-              showImage && imageUrl
-                ? { uri: imageUrl }
-                : getMedicationImageSource(name)
-            }
-            style={[
-              styles.medArtImage,
-              {
-                transform: [
-                  {
-                    scale: isCapturedMedicationPhoto(imageUrl)
-                      ? 1
-                      : getMedicationImageScale(name),
-                  },
-                ],
-                backgroundColor: 'transparent',
-              },
-            ]}
-            resizeMode={isCapturedMedicationPhoto(imageUrl) ? 'cover' : 'contain'}
+            source={artSource}
+            style={[styles.medArtImage, { backgroundColor: 'transparent' }]}
+            resizeMode="contain"
             accessibilityIgnoresInvertColors
-            onError={() => setImageFailed(true)}
           />
         </View>
       </View>
@@ -941,10 +942,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: 'transparent',
   },
-  medArtPhoto: {
-    borderRadius: 16,
-    backgroundColor: '#EAF3F7',
-  },
   medArtImage: {
     width: MEDICATION_IMAGE_SLOT.width,
     height: MEDICATION_IMAGE_SLOT.height,
@@ -955,8 +952,13 @@ const styles = StyleSheet.create({
   },
   medStatus: {
     flexDirection: 'row',
+    flexWrap: 'nowrap',
     alignItems: 'center',
-    gap: 6,
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+  },
+  medStatusIcon: {
+    flexShrink: 0,
   },
   medReview: {
     alignSelf: 'stretch',

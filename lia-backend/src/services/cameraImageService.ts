@@ -46,3 +46,12 @@ export function normalizeCameraImageUrl(value: string | null | undefined): strin
   const match = trimmed.match(/\/uploads\/camera\/[A-Za-z0-9._-]+\.(?:jpe?g|png|webp)$/i);
   return match ? match[0] : null;
 }
+
+/** Borra solo un archivo ya validado dentro de uploads/camera. */
+export async function deleteCameraImage(publicPath: string | null | undefined): Promise<void> {
+  const normalized = normalizeCameraImageUrl(publicPath);
+  if (!normalized) return;
+  const filename = path.basename(normalized);
+  if (!/^[A-Za-z0-9._-]+\.(?:jpe?g|png|webp)$/i.test(filename)) return;
+  await fs.unlink(path.join(CAMERA_UPLOAD_DIR, filename)).catch(() => undefined);
+}

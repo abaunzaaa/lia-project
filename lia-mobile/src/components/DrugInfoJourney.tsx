@@ -7,12 +7,13 @@ import {
   Easing,
   PanResponder,
   ScrollView,
+  type ScrollViewInstance,
   AccessibilityInfo,
   LayoutChangeEvent,
   Image,
   ImageSourcePropType,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from './icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PatientDrugInfo } from '../types';
 import { Space } from '../theme/tokens';
@@ -342,7 +343,7 @@ export default function DrugInfoJourney({
     to: [],
   });
   const indexRef = useRef(0);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
 
   const name = presentDrugName(info.name);
   const generic = presentDrugName(info.genericName);
