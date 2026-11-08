@@ -1,5 +1,11 @@
 import { mentionedDrugNames } from '../services/accountMedicationChatService';
-import { chatAboutDrug, explainKnownMedicationContext, medicationSourceAgrees } from '../services/drugChatService';
+import {
+  acceptPublicProduct,
+  chatAboutDrug,
+  DrugChatError,
+  explainKnownMedicationContext,
+  medicationSourceAgrees,
+} from '../services/drugChatService';
 import { getRawDrugInfo } from '../services/drugReferenceService';
 import { getBrandNames, searchApproximateTerms } from '../services/rxNormService';
 import { aiService } from '../services/aiService';
@@ -18,6 +24,8 @@ const localCases: Array<[string, boolean, ReturnType<typeof sample>]> = [
   ['Losartán', true, sample('Losartan', 'Losartan', [])],
   ['Acetaminofén', true, sample('Acetaminophen', 'Acetaminophen', [])],
   ['Aspirina', true, sample('Aspirin', 'Aspirin', [])],
+  ['Levotiroxina', true, sample('levothyroxine', 'levothyroxine', [])],
+  ['Sprainer', false, sample('levothyroxine', 'levothyroxine', [])],
 ];
 
 let failed = 0;
@@ -28,8 +36,7 @@ const foam = explainKnownMedicationContext({
 const foamOk = Boolean(
   foam &&
     /espuma/i.test(foam) &&
-    /no está confirmada/i.test(foam) &&
-    !/vaginal|miconazol|escríbeme/i.test(foam)
+    !/ficha|registrad|jarabe|vaginal|miconazol|escríbeme/i.test(foam)
 );
 if (!foamOk) failed += 1;
 console.log(`sprainer-note ${foamOk ? 'OK' : 'FAIL'}`);
@@ -39,6 +46,52 @@ if (noContext !== null) {
   console.log('sprainer-empty FAIL');
 } else {
   console.log('sprainer-empty OK');
+}
+const publicFoam = acceptPublicProduct('Sprainer', {
+  found: true,
+  name: 'Sprainer',
+  kind: 'higiene',
+  form: 'solución espumosa',
+  purpose: 'Limpieza de párpados y pestañas.',
+  cautions: [],
+  sourceName: 'ficha comercial',
+});
+const publicWrong = acceptPublicProduct('Sprainer', {
+  found: true,
+  name: 'Miconazole Nitrate Vaginal Cream',
+  kind: 'medicamento',
+  form: 'crema',
+  purpose: 'Infección vaginal.',
+});
+const publicMissing = acceptPublicProduct('Sprainer', { found: false });
+if (
+  !publicFoam ||
+  publicFoam.uses[0] !== 'Limpieza de párpados y pestañas.' ||
+  publicFoam.dosageForms[0] !== 'solución espumosa' ||
+  publicWrong ||
+  publicMissing
+) {
+  failed += 1;
+  console.log('public-product FAIL');
+} else {
+  console.log('public-product OK');
+}
+const levoNames = mentionedDrugNames('¿Para qué sirve la levotiroxina?');
+const bareName = mentionedDrugNames('levotiroxina');
+const followName = mentionedDrugNames('¿Para qué sirve?', [
+  { role: 'user', content: 'levotiroxina' },
+]);
+const accountName = mentionedDrugNames('¿Qué medicamentos tengo registrados?');
+if (
+  levoNames[0]?.toLowerCase() !== 'levotiroxina' ||
+  bareName[0]?.toLowerCase() !== 'levotiroxina' ||
+  followName[0]?.toLowerCase() !== 'levotiroxina' ||
+  accountName.length !== 0
+) {
+  failed += 1;
+  console.log('name-extraction FAIL');
+} else {
+  console.log('name-extraction OK');
 }
 for (const [requested, expected, info] of localCases) {
   const actual = medicationSourceAgrees(requested, info);
@@ -80,11 +133,20 @@ async function ask(
   message: string,
   history: { role: 'user' | 'assistant'; content: string }[] = []
 ): Promise<{ message: string; grounded: boolean; medicationName: string }> {
-  const result = await chatAboutDrug({
-    medication: { name },
-    message,
-    history,
-  });
+  let result;
+  try {
+    result = await chatAboutDrug({
+      medication: { name },
+      message,
+      history,
+    });
+  } catch (error) {
+    if (error instanceof DrugChatError) {
+      console.log(`${label} status=${error.statusCode} text=${error.message}`);
+      return { message: error.message, grounded: false, medicationName: name };
+    }
+    throw error;
+  }
   console.log(
     `${label} medication=${result.medication.name} grounded=${result.grounded} source=${result.source?.name ?? 'none'} flags=${flags(result.message)}`
   );
@@ -96,6 +158,7 @@ async function ask(
 }
 
 async function main(): Promise<void> {
+  if (process.env.CHAT_LIVE === '0') return;
   await live('Sprainer');
   await live('Ibuprofen');
   await live('Losartan');
@@ -113,15 +176,21 @@ async function main(): Promise<void> {
 
   const first = await ask('sprainer-1', 'Sprainer', 'Explícame de forma sencilla para qué sirve.');
   const firstText = first.message.toLowerCase();
+  const useful = /p[aá]rpado|pesta[nñ]a|limpieza/i.test(first.message);
   if (
-    first.grounded ||
     firstText.includes('vaginal') ||
+    firstText.includes('miconazol') ||
+    firstText.includes('jarabe') ||
+    firstText.includes('esto es lo que hay registrado') ||
     firstText.includes('escríbeme') ||
-    firstText.includes('principio activo') ||
-    !firstText.includes('no encontré información suficiente')
+    firstText.includes('principio activo')
   ) {
     failed += 1;
     console.log('sprainer-1 FAIL');
+  } else if (!useful) {
+    console.log('sprainer-1 PENDING public source did not answer');
+  } else {
+    console.log('sprainer-1 useful');
   }
   const ingredient = await ask(
     'sprainer-ingredient',

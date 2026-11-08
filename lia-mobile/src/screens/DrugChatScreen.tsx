@@ -18,7 +18,6 @@ import AskLiaHeader from '../components/chat/AskLiaHeader';
 import SuggestedQuestionChip from '../components/chat/SuggestedQuestionChip';
 import ChatComposer from '../components/chat/ChatComposer';
 import {
-  CHAT_BEIGE,
   CHAT_BUBBLE_SIZE,
   CHAT_MESSAGE_FILL,
   LIA_CHAT_BUBBLE,
@@ -60,15 +59,6 @@ const QUICK_QUESTIONS = [
   'Explícamelo de forma sencilla.',
 ];
 
-function introMessage(medicationName: string): UiMessage {
-  return {
-    id: generateId(),
-    role: 'local',
-    content: `Puedes preguntarme sobre la información disponible de ${medicationName}.`,
-    createdAt: Date.now(),
-  };
-}
-
 function toHistory(messages: UiMessage[]): DrugChatHistoryItem[] {
   return messages
     .filter((m) => m.role === 'user' || m.role === 'assistant')
@@ -97,7 +87,7 @@ export default function DrugChatScreen({ navigation, route }: Props) {
   const messagesRef = useRef<UiMessage[]>([]);
   const conversationRef = useRef(0);
 
-  const [messages, setMessages] = useState<UiMessage[]>(() => [introMessage(name)]);
+  const [messages, setMessages] = useState<UiMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
@@ -109,9 +99,8 @@ export default function DrugChatScreen({ navigation, route }: Props) {
   useEffect(() => {
     conversationRef.current += 1;
     sendingRef.current = false;
-    const intro = introMessage(name);
-    messagesRef.current = [intro];
-    setMessages([intro]);
+    messagesRef.current = [];
+    setMessages([]);
     setInput('');
     setSending(false);
     setHasInteracted(false);
@@ -425,39 +414,6 @@ export default function DrugChatScreen({ navigation, route }: Props) {
             },
           ]}
         >
-          <View
-            style={[
-              styles.notice,
-              {
-                backgroundColor: lightChrome
-                  ? '#E8ECEF'
-                  : isHighContrast && !isDark
-                    ? colors.surfaceElevated
-                    : colors.surface,
-                borderColor: lightChrome ? CHAT_BEIGE : colors.border,
-                borderWidth: isHighContrast ? 2 : 0,
-                paddingVertical: scaleSpacing(12),
-                paddingHorizontal: scaleSpacing(16),
-                marginTop: scaleSpacing(Space[8]),
-                marginBottom: scaleSpacing(Space[8]),
-              },
-            ]}
-          >
-            <AppText
-              variant="caption"
-              style={{
-                color: colors.textSecondary,
-                fontFamily: FontFamily.regular,
-                fontSize: scaleFont(14),
-                lineHeight: scaleFont(20),
-                flexShrink: 1,
-              }}
-            >
-              LIA ofrece información orientativa y no reemplaza las indicaciones de tu profesional de
-              salud.
-            </AppText>
-          </View>
-
           <FlatList
             ref={listRef}
             data={messages}
@@ -483,6 +439,20 @@ export default function DrugChatScreen({ navigation, route }: Props) {
               ) : undefined
             }
           />
+
+          {!hasInteracted ? (
+            <AppText
+              variant="caption"
+              tone="muted"
+              style={{
+                marginBottom: scaleSpacing(4),
+                fontSize: scaleFont(14),
+                lineHeight: scaleFont(20),
+              }}
+            >
+              Información orientativa. No reemplaza a tu médico.
+            </AppText>
+          ) : null}
 
           {!hasInteracted ? (
             <View style={[styles.quickWrap, { gap: scaleSpacing(Space[8]) }]}>
@@ -518,10 +488,6 @@ export default function DrugChatScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   flex: { flex: 1 },
-  notice: {
-    borderRadius: 14,
-    alignSelf: 'stretch',
-  },
   localBlock: {
     alignSelf: 'stretch',
   },

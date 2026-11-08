@@ -1,8 +1,12 @@
-import { aiService } from './aiService';
+import { aiService, AiProviderError } from './aiService';
 import { findMedication } from '../models/medicationDatabase';
 import { getDrugInfo, getRawDrugInfo, DrugReferenceError } from './drugReferenceService';
-import { medicationSourceAgrees } from './drugChatService';
-import { PatientDrugInfo } from '../models/drugReferenceTypes';
+import { DrugChatError, lookupPublicProduct, medicationSourceAgrees } from './drugChatService';
+import {
+  describeCommercialProduct,
+  lookupCommercialCatalog,
+} from './commercialCatalogService';
+import { DRUG_INFO_DISCLAIMER, PatientDrugInfo } from '../models/drugReferenceTypes';
 import { RecognitionResult } from '../models/types';
 import { getBrandNames, searchApproximateTerms } from './rxNormService';
 
@@ -25,6 +29,145 @@ async function referenceForSameDrug(name: string) {
     return null;
   }
   return getRawDrugInfo({ rxcui: top.id, name });
+}
+
+function patientFromPurpose(name: string, purpose: string, dosageForms: string[] = []): PatientDrugInfo {
+  return {
+    id: null,
+    name,
+    genericName: null,
+    brandNames: [],
+    purpose,
+    importantInformation: [],
+    precautions: [],
+    dosageForms,
+    source: null,
+    language: 'es',
+    simplified: true,
+    informationAvailable: true,
+    disclaimer: DRUG_INFO_DISCLAIMER,
+  };
+}
+
+export async function enrichRecognizedName(name: string): Promise<{
+  patientInfo: PatientDrugInfo | null;
+  rxcui: string | null;
+  description: string;
+  dose: string;
+}> {
+  let patientInfo: PatientDrugInfo | null = null;
+  let rxcui: string | null = null;
+  let description = 'No se pudo obtener información adicional del medicamento.';
+  let dose = '';
+
+  try {
+    const raw = await referenceForSameDrug(name);
+    const sameDrug = Boolean(
+      raw && medicationSourceAgrees(name, raw) && raw.informationAvailable
+    );
+    if (raw && sameDrug) {
+      patientInfo = await getDrugInfo({ rxcui: raw.id, name });
+      rxcui = patientInfo.id;
+      const purpose = patientInfo.purpose?.trim() || patientInfo.importantInformation[0]?.trim() || '';
+      if (purpose) {
+        description = purpose;
+        dose = patientInfo.dosageForms[0] || '';
+        return { patientInfo, rxcui, description, dose };
+      }
+    }
+  } catch (error) {
+    if (!(error instanceof DrugReferenceError)) {
+      console.error('[recognize:drug-reference]', error instanceof Error ? error.message : 'error');
+    }
+  }
+
+  const listed = await lookupCommercialCatalog(name);
+  if (listed) {
+    description = describeCommercialProduct(listed);
+    dose = listed.form || '';
+    patientInfo = patientFromPurpose(name, description, listed.form ? [listed.form] : []);
+    logEnrichment(name, {
+      presentation: listed.form,
+      product: listed.name,
+      source: listed.source,
+      agreed: true,
+      reason: 'mismo nombre comercial',
+      purpose: description,
+    });
+    return { patientInfo, rxcui, description, dose };
+  }
+
+  const local = agreedCatalog(name);
+  if (local) {
+    description = local.description;
+    patientInfo = patientFromPurpose(name, local.description);
+    logEnrichment(name, {
+      presentation: null,
+      product: name,
+      source: 'catálogo local',
+      agreed: true,
+      reason: 'nombre del catálogo',
+      purpose: description,
+    });
+    return { patientInfo, rxcui, description, dose };
+  }
+
+  try {
+    const commercial = await lookupPublicProduct(name);
+    const purpose = commercial?.uses[0]?.trim() || '';
+    if (commercial && purpose && medicationSourceAgrees(name, commercial)) {
+      description = purpose;
+      patientInfo = patientFromPurpose(name, purpose, commercial.dosageForms);
+      patientInfo.importantInformation = commercial.warnings.slice(0, 3);
+      logEnrichment(name, {
+        presentation: commercial.dosageForms[0] || null,
+        product: commercial.name,
+        source: 'búsqueda pública',
+        agreed: true,
+        reason: 'el nombre del resultado coincide',
+        purpose: description,
+      });
+    } else {
+      logEnrichment(name, {
+        presentation: null,
+        product: commercial?.name || null,
+        source: commercial ? 'búsqueda pública' : 'ninguna',
+        agreed: false,
+        reason: commercial ? 'el nombre no coincide' : 'sin ficha ni catálogo comercial',
+        purpose: null,
+      });
+    }
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      const http =
+        error instanceof AiProviderError
+          ? error.httpStatus ?? 'none'
+          : error instanceof DrugChatError
+            ? error.statusCode
+            : 'none';
+      const category = error instanceof AiProviderError ? error.quota ?? error.kind : 'error';
+      console.warn(`[recognize:public] http=${http} category=${category}`);
+    }
+  }
+
+  return { patientInfo, rxcui, description, dose };
+}
+
+function logEnrichment(
+  name: string,
+  stage: {
+    presentation: string | null;
+    product: string | null;
+    source: string;
+    agreed: boolean;
+    reason: string;
+    purpose: string | null;
+  }
+): void {
+  if (process.env.NODE_ENV === 'production') return;
+  console.log(
+    `[recognize:stages] read=${name} normalized=${name.trim().toLowerCase()} presentation=${stage.presentation || '-'} packageText=none product=${stage.product || '-'} ingredient=- source=${stage.source} agreed=${stage.agreed} reason=${stage.reason} purpose=${stage.purpose ? 'yes' : 'no'} patientPurpose=${stage.purpose ? 'yes' : 'no'}`
+  );
 }
 
 function agreedCatalog(name: string): { description: string; dose: string } | null {
@@ -73,41 +216,12 @@ export async function recognizeAndEnrichMedicationImage(
   let description = 'No se pudo obtener información adicional del medicamento.';
   let dose = '';
 
-  // Enriquecer ficha si hay nombre; el fallo de Drug Reference NO bloquea la sesión.
   if (vision.name) {
-    try {
-      const raw = await referenceForSameDrug(vision.name);
-      const sameDrug = Boolean(
-        raw && medicationSourceAgrees(vision.name, raw) && raw.informationAvailable
-      );
-      if (raw && sameDrug) {
-        patientInfo = await getDrugInfo({ rxcui: raw.id, name: vision.name });
-        rxcui = patientInfo.id;
-        description =
-          patientInfo.purpose ||
-          patientInfo.importantInformation[0] ||
-          description;
-        dose = patientInfo.dosageForms[0] || '';
-      } else if (!raw) {
-        const local = agreedCatalog(vision.name);
-        if (local) {
-          description = local.description;
-          dose = local.dose;
-        }
-      }
-    } catch (error) {
-      if (!(error instanceof DrugReferenceError)) {
-        console.error(
-          '[recognize:drug-reference]',
-          error instanceof Error ? error.message : 'error'
-        );
-      }
-      const local = agreedCatalog(vision.name);
-      if (local) {
-        description = local.description;
-        dose = local.dose;
-      }
-    }
+    const enriched = await enrichRecognizedName(vision.name);
+    patientInfo = enriched.patientInfo;
+    rxcui = enriched.rxcui;
+    description = enriched.description;
+    dose = enriched.dose;
   }
 
   const identified = Boolean(vision.identified && vision.name);

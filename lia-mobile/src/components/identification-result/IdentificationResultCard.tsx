@@ -170,7 +170,7 @@ export default function IdentificationResultCard({
             {observedReading}
           </AppText>
           <AppText variant="caption" style={{ color: muted, marginTop: scaleSpacing(Space[8]), flexShrink: 1 }}>
-            No está confirmada en una ficha oficial.
+            Sale de la foto y todavía no está confirmada.
           </AppText>
         </View>
       ) : null}

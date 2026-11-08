@@ -184,10 +184,9 @@ export function normalizeCameraResult(
   if (!name && !voiceFallback) return null;
 
   const agrees = catalogAgreesWithReadName(name, info);
-  const source =
-    agrees && typeof info?.source === 'object' && info?.source?.name
-      ? info.source.name
-      : null;
+  const rawSource =
+    agrees && typeof info?.source === 'object' && info?.source?.name ? info.source.name : null;
+  const source = rawSource && rawSource !== 'Public' ? rawSource : null;
   return {
     name,
     activeIngredient: agrees ? info?.genericName?.trim() || null : null,
@@ -240,10 +239,17 @@ export function normalizeDirectRecognition(
     },
   });
 
+  const described = payload.description?.trim() || '';
+  const usefulDescription =
+    described &&
+    described !== 'No se pudo obtener información adicional del medicamento.' &&
+    !isGenericMedicationReading(described)
+      ? described
+      : null;
   return {
     name: readName,
     activeIngredient: view?.activeIngredient || null,
-    purpose: view?.purpose || null,
+    purpose: view?.purpose || usefulDescription,
     observedReading: view?.observedReading || null,
     importantPoints: view?.importantPoints || [],
     source: view?.source || null,
@@ -344,6 +350,47 @@ function diagnosticLabel(error: unknown): string {
  * de React Native lanza antes de salir del dispositivo y se veía como
  * un fallo de conexión.
  */
+function newRequestId(): string {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+function isEmptyProxyResponse(status: number, body: DirectRecognitionPayload): boolean {
+  return (status === 502 || status === 503 || status === 504) && !body.message && !body.error;
+}
+
+async function readPreparedPhoto(uri: string): Promise<Uint8Array> {
+  const source = new File(uri);
+  const size = source.exists ? source.size : 0;
+  if (size < 1) {
+    throw new CameraApiError('La fotografía no es válida. Vuelve a tomarla.');
+  }
+  if (size > MOBILE_PHOTO_MAX_BYTES) {
+    throw new CameraApiError(
+      'La foto es demasiado grande. Acerca menos el medicamento e inténtalo otra vez.',
+      400
+    );
+  }
+
+  let data = await source.bytes();
+  if (data.byteLength < size) {
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    data = await source.bytes();
+  }
+  if (data.byteLength < 3 || data[0] !== 0xff || data[1] !== 0xd8 || data.byteLength < size) {
+    throw new CameraApiError('La fotografía no es válida. Vuelve a tomarla.');
+  }
+  return data;
+}
+
+function appendPreparedPhoto(form: FormData, data: Uint8Array): void {
+  const photo = {
+    name: 'medication.jpg',
+    type: 'image/jpeg',
+    bytes: () => data,
+  };
+  form.append('image', photo as unknown as Blob);
+}
+
 async function appendMedicationPhoto(form: FormData, uri: string): Promise<number> {
   if (Platform.OS === 'web') {
     const response = await fetch(previewableImageUri(uri));
@@ -398,10 +445,13 @@ export async function recognizeMedicationPhoto(
     throw new CameraApiError('Tu sesión expiró. Vuelve a iniciar sesión.', 401);
   }
 
-  const form = new FormData();
-  const photoBytes = await appendMedicationPhoto(form, trimmed);
+  const prepared =
+    Platform.OS === 'web' ? null : await readPreparedPhoto(trimmed);
+  const requestId = newRequestId();
   if (__DEV__) {
-    console.log(`[camera-mobile-photo] prepared bytes=${photoBytes}`);
+    console.log(
+      `[camera-mobile-photo] id=${requestId} prepared bytes=${prepared?.byteLength ?? 0}`
+    );
   }
 
   const controller = new AbortController();
@@ -409,22 +459,58 @@ export async function recognizeMedicationPhoto(
   const abortFromCaller = () => controller.abort();
   signal?.addEventListener('abort', abortFromCaller);
 
-  try {
+  const postPhoto = async (attempt: number): Promise<Response> => {
+    const form = new FormData();
+    if (prepared) {
+      appendPreparedPhoto(form, prepared);
+    } else {
+      await appendMedicationPhoto(form, trimmed);
+    }
+    const started = Date.now();
     const response = await fetch(`${API_BASE_URL}/camera/mobile-photo`, {
       method: 'POST',
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${token}`,
+        'X-Request-Id': `${requestId}-${attempt}`,
       },
       body: form,
       signal: controller.signal,
     });
+    if (__DEV__) {
+      console.log(
+        `[camera-mobile-photo] id=${requestId} attempt=${attempt} status=${response.status} ms=${Date.now() - started}`
+      );
+    }
+    return response;
+  };
 
-    let body: DirectRecognitionPayload = {};
+  const readBody = async (response: Response): Promise<DirectRecognitionPayload> => {
     try {
-      body = (await response.json()) as DirectRecognitionPayload;
+      return (await response.json()) as DirectRecognitionPayload;
     } catch {
-      body = {};
+      return {};
+    }
+  };
+
+  try {
+    let response: Response;
+    let body: DirectRecognitionPayload;
+    let sent = 1;
+    try {
+      response = await postPhoto(1);
+      body = await readBody(response);
+    } catch (error) {
+      if (signal?.aborted || (error instanceof Error && error.name === 'AbortError')) {
+        throw error;
+      }
+      sent = 2;
+      response = await postPhoto(2);
+      body = await readBody(response);
+    }
+    if (sent === 1 && isEmptyProxyResponse(response.status, body) && !signal?.aborted) {
+      response = await postPhoto(2);
+      body = await readBody(response);
     }
 
     if (response.status === 401) {
@@ -433,9 +519,6 @@ export async function recognizeMedicationPhoto(
 
     if (!response.ok) {
       const raw = body.message || body.error;
-      if (__DEV__) {
-        console.warn(`[camera-mobile-photo] status=${response.status}`);
-      }
       throw new CameraApiError(friendlyMessage(response.status, raw, false), response.status);
     }
 

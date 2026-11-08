@@ -42,13 +42,24 @@ type ApiSuccessBody = {
   message?: string;
 };
 
+const ASSISTANT_UNAVAILABLE =
+  'En este momento no puedo consultar más información. Puedes intentarlo más tarde.';
+
+function visibleChatText(message: string): string {
+  if (
+    /AI_API_KEY|process\.env|gemini-|\bHTTP\s*\d{3}\b|cuota diaria|AI_MODEL|AI_CHAT|clave con m[aá]s cupo/i.test(
+      message
+    )
+  ) {
+    return ASSISTANT_UNAVAILABLE;
+  }
+  return message;
+}
+
 function mapChatError(error: unknown): ApiClientError {
   if (error instanceof ApiClientError) {
     if (error.status === 429) {
-      return new ApiClientError(
-        'LIA está recibiendo varias preguntas en este momento. Espera un momento y vuelve a intentarlo.',
-        429
-      );
+      return new ApiClientError(visibleChatText(error.message), error.status);
     }
     if (error.status === undefined) {
       return new ApiClientError(
@@ -56,7 +67,7 @@ function mapChatError(error: unknown): ApiClientError {
         undefined
       );
     }
-    return error;
+    return new ApiClientError(visibleChatText(error.message), error.status);
   }
   return new ApiClientError(
     'No pude consultar la información del medicamento en este momento. Inténtalo nuevamente.',
@@ -135,7 +146,7 @@ export async function sendDrugChatMessage(
     }
 
     return {
-      message: json.data.message,
+      message: visibleChatText(json.data.message),
       medication: {
         id: json.data.medication?.id ?? null,
         name: json.data.medication?.name ?? medication.name ?? '',

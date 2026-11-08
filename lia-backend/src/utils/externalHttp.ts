@@ -7,6 +7,8 @@ const ALLOWED_HOSTS = new Set([
   'rxnav.nlm.nih.gov',
   'api.fda.gov',
   'dailymed.nlm.nih.gov',
+  'connect.medlineplus.gov',
+  'medlineplus.gov',
 ]);
 
 export class ExternalApiError extends Error {
@@ -79,6 +81,48 @@ export async function fetchJson<T>(
       throw new ExternalApiError('La consulta externa tardó demasiado.', 'timeout');
     }
 
+    throw new ExternalApiError('No se pudo contactar el servicio externo.', 'network');
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function fetchText(
+  urlString: string,
+  options?: {
+    timeoutMs?: number;
+    headers?: Record<string, string>;
+  }
+): Promise<string> {
+  const url = assertAllowedUrl(urlString);
+  const timeoutMs = options?.timeoutMs ?? 8000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      signal: controller.signal,
+      headers: {
+        Accept: 'text/html',
+        ...(options?.headers ?? {}),
+      },
+    });
+
+    if (response.status === 404) {
+      throw new ExternalApiError('Recurso no encontrado.', 'not_found');
+    }
+
+    if (!response.ok) {
+      throw new ExternalApiError('No se pudo consultar el servicio externo.', 'http');
+    }
+
+    return await response.text();
+  } catch (error) {
+    if (error instanceof ExternalApiError) throw error;
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new ExternalApiError('La consulta externa tardó demasiado.', 'timeout');
+    }
     throw new ExternalApiError('No se pudo contactar el servicio externo.', 'network');
   } finally {
     clearTimeout(timer);

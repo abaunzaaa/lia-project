@@ -6,7 +6,8 @@ export class AiProviderError extends Error {
   constructor(
     message: string,
     public kind: 'not_configured' | 'timeout' | 'http' | 'invalid_response' | 'network',
-    public httpStatus?: number
+    public httpStatus?: number,
+    public quota?: 'daily' | 'rate' | 'tokens'
   ) {
     super(message);
     this.name = 'AiProviderError';
@@ -37,6 +38,21 @@ function isDev(): boolean {
 
 function isTransientGeminiHttp(status?: number): boolean {
   return typeof status === 'number' && TRANSIENT_GEMINI_HTTP.has(status);
+}
+
+function quotaCategory(message: string): 'daily' | 'rate' | 'tokens' | undefined {
+  const text = message.toLowerCase();
+  if (/per day|daily|quota exceeded|exceeded your current quota|resource_exhausted/.test(text)) {
+    return 'daily';
+  }
+  if (/token/.test(text)) return 'tokens';
+  if (/per minute|rate limit|retry in/.test(text)) return 'rate';
+  return undefined;
+}
+
+/** Texto para la persona. El detalle del límite se queda en el registro del servidor. */
+export function assistantQuotaMessage(_quota?: 'daily' | 'rate' | 'tokens'): string {
+  return 'En este momento no puedo consultar más información. Puedes intentarlo más tarde.';
 }
 
 function geminiRetryDelayMs(retryNumber: number): number {
@@ -96,7 +112,7 @@ class AIService {
 
     if (!this.isConfigured()) {
       throw new AiProviderError(
-        'IA no configurada. Define AI_API_KEY (y opcionalmente AI_SERVICE_URL) para reconocimiento.',
+        'El asistente no está disponible en este momento.',
         'not_configured'
       );
     }
@@ -111,7 +127,7 @@ class AIService {
   private async callGeminiVisionRecognition(imageBuffer: Buffer): Promise<VisionRecognitionResult> {
     const apiKey = config.ai.apiKey?.trim();
     if (!apiKey) {
-      throw new AiProviderError('IA no configurada (falta AI_API_KEY).', 'not_configured');
+      throw new AiProviderError('El asistente no está disponible en este momento.', 'not_configured');
     }
 
     if (!config.ai.serviceUrl || isGeminiApiBase(config.ai.serviceUrl)) {
@@ -191,7 +207,12 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
               ? String((parsedBody as GeminiGenerateResponse).error?.message)
               : `Error HTTP ${response.status} del proveedor de IA.`;
 
-          throw new AiProviderError(googleMessage, 'http', response.status);
+          throw new AiProviderError(
+            googleMessage,
+            'http',
+            response.status,
+            response.status === 429 ? quotaCategory(googleMessage) : undefined
+          );
         }
 
         const data = (parsedBody || {}) as GeminiGenerateResponse;
@@ -317,6 +338,9 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
     temperature?: number;
     /** Modelo Gemini específico; por defecto AI_CHAT_MODEL / AI_MODEL. */
     model?: string;
+    /** Busca en fuentes públicas. No se usa en el reconocimiento por imagen. */
+    grounding?: boolean;
+    requestId?: string;
   }): Promise<string> {
     if (!this.isConfigured()) {
       throw new AiProviderError('IA no configurada.', 'not_configured');
@@ -355,6 +379,8 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
     history?: Array<{ role: 'user' | 'assistant'; content: string }>;
     temperature?: number;
     model?: string;
+    grounding?: boolean;
+    requestId?: string;
   }): Promise<string> {
     const primaryModel = this.resolveGeminiModel(params.model, config.ai.chatModel);
     const fallbackModel = this.resolveGeminiModel(undefined, config.ai.chatFallbackModel);
@@ -365,6 +391,7 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
       const canFallback =
         error instanceof AiProviderError &&
         isTransientGeminiHttp(error.httpStatus) &&
+        error.quota !== 'daily' &&
         fallbackModel !== primaryModel;
 
       if (!canFallback) {
@@ -382,20 +409,42 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
       userContent: string;
       history?: Array<{ role: 'user' | 'assistant'; content: string }>;
       temperature?: number;
+      grounding?: boolean;
+      requestId?: string;
     },
     model: string
   ): Promise<string> {
-    const maxAttempts = 1 + MAX_GEMINI_RETRIES;
+    const maxAttempts = params.grounding ? 1 : 1 + MAX_GEMINI_RETRIES;
     let lastError: unknown;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const started = Date.now();
       try {
-        console.log(`[gemini] model=${model} attempt=${attempt}`);
-        return await this.callGeminiChatTextOnce(params, model);
+        if (isDev()) {
+          console.log(
+            `[gemini] id=${params.requestId ?? 'none'} stage=${params.grounding ? 'public-search' : 'answer'} model=${model} attempt=${attempt}`
+          );
+        }
+        const text = await this.callGeminiChatTextOnce(params, model);
+        if (isDev()) {
+          console.log(
+            `[gemini] id=${params.requestId ?? 'none'} stage=${params.grounding ? 'public-search' : 'answer'} model=${model} ms=${Date.now() - started} http=200`
+          );
+        }
+        return text;
       } catch (error) {
+        if (isDev()) {
+          const httpStatus = error instanceof AiProviderError ? error.httpStatus : undefined;
+          const category = error instanceof AiProviderError ? error.quota ?? error.kind : 'error';
+          console.warn(
+            `[gemini] id=${params.requestId ?? 'none'} stage=${params.grounding ? 'public-search' : 'answer'} model=${model} ms=${Date.now() - started} http=${httpStatus ?? 'none'} category=${category}`
+          );
+        }
         lastError = error;
         const httpStatus = error instanceof AiProviderError ? error.httpStatus : undefined;
+        const dailyQuota = error instanceof AiProviderError && error.quota === 'daily';
         const retryable =
+          !dailyQuota &&
           error instanceof AiProviderError &&
           isTransientGeminiHttp(httpStatus) &&
           attempt < maxAttempts;
@@ -423,12 +472,13 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
       userContent: string;
       history?: Array<{ role: 'user' | 'assistant'; content: string }>;
       temperature?: number;
+      grounding?: boolean;
     },
     model: string
   ): Promise<string> {
     const apiKey = config.ai.apiKey?.trim();
     if (!apiKey) {
-      throw new AiProviderError('IA no configurada (falta AI_API_KEY).', 'not_configured');
+      throw new AiProviderError('El asistente no está disponible en este momento.', 'not_configured');
     }
 
     const { url, baseUrl } = this.buildGeminiGenerateUrl(model);
@@ -467,6 +517,7 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
             temperature: params.temperature ?? 0.3,
             maxOutputTokens: 2048,
           },
+          ...(params.grounding ? { tools: [{ google_search: {} }] } : {}),
         }),
       });
 
@@ -494,7 +545,12 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
             ? String((parsedBody as GeminiGenerateResponse).error?.message)
             : `Error HTTP ${response.status} del proveedor de IA.`;
 
-        throw new AiProviderError(googleMessage, 'http', response.status);
+        throw new AiProviderError(
+            googleMessage,
+            'http',
+            response.status,
+            response.status === 429 ? quotaCategory(googleMessage) : undefined
+          );
       }
 
       const data = (parsedBody || {}) as GeminiGenerateResponse;
@@ -559,7 +615,8 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
     } else if (params.status === 404) {
       console.error('[gemini] hint=modelo/endpoint incorrecto');
     } else if (params.status === 429) {
-      console.error('[gemini] hint=cuota/rate limit');
+      const category = quotaCategory(String(err?.message ?? ''));
+      console.error(`[gemini] hint=cuota category=${category ?? 'unknown'}`);
     } else if (params.status >= 500) {
       console.error('[gemini] hint=error externo de Google');
     }
@@ -573,7 +630,7 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
   }): Promise<unknown> {
     const apiKey = config.ai.apiKey?.trim();
     if (!apiKey) {
-      throw new AiProviderError('IA no configurada (falta AI_API_KEY).', 'not_configured');
+      throw new AiProviderError('El asistente no está disponible en este momento.', 'not_configured');
     }
 
     const model = this.resolveGeminiModel(params.model, config.ai.simplificationModel);
@@ -634,7 +691,12 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
             ? String((parsedBody as GeminiGenerateResponse).error?.message)
             : `Error HTTP ${response.status} del proveedor de IA.`;
 
-        throw new AiProviderError(googleMessage, 'http', response.status);
+        throw new AiProviderError(
+            googleMessage,
+            'http',
+            response.status,
+            response.status === 429 ? quotaCategory(googleMessage) : undefined
+          );
       }
 
       const data = (parsedBody || {}) as GeminiGenerateResponse;

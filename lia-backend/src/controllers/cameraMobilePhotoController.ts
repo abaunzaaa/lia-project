@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { config } from '../config';
 import { AiProviderError } from '../services/aiService';
 import { CameraImageError, deleteCameraImage, saveCameraJpeg } from '../services/cameraImageService';
 import { recognizeAndEnrichMedicationImage } from '../services/medicationRecognitionService';
@@ -17,6 +18,7 @@ function friendlyImageMessage(error: CameraImageError): string {
  */
 export async function recognizeMobilePhoto(req: Request, res: Response) {
   let imageUrl: string | null = null;
+  const started = Date.now();
   try {
     const buffer = req.file?.buffer;
     if (!buffer || buffer.length === 0) {
@@ -26,9 +28,10 @@ export async function recognizeMobilePhoto(req: Request, res: Response) {
       });
     }
 
+    const requestId = (req.get('x-request-id') || '').replace(/[^a-z0-9-]/gi, '').slice(0, 24);
     if (process.env.NODE_ENV !== 'production') {
       console.log(
-        `[camera-mobile-photo] bytes=${buffer.length} type=${req.file?.mimetype ?? 'none'}`
+        `[camera-mobile-photo] id=${requestId || 'none'} bytes=${buffer.length} type=${req.file?.mimetype ?? 'none'}`
       );
     }
 
@@ -47,7 +50,6 @@ export async function recognizeMobilePhoto(req: Request, res: Response) {
       );
     }
 
-    const started = Date.now();
     const payload = await recognizeAndEnrichMedicationImage(buffer);
     if (process.env.NODE_ENV !== 'production') {
       console.log(
@@ -81,10 +83,20 @@ export async function recognizeMobilePhoto(req: Request, res: Response) {
         });
       }
       if (error.httpStatus === 429) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn(
+            `[camera-mobile-photo] stage=vision provider=gemini model=${config.ai.chatModel} http=429 category=${error.quota ?? 'unknown'} calls=1 enrichment=skipped ms=${Date.now() - started}`
+          );
+        }
+        const message =
+          error.quota === 'daily'
+            ? 'El reconocimiento de la foto no está disponible en este momento: se agotó la cuota diaria. Puedes intentarlo mañana.'
+            : error.quota === 'tokens'
+              ? 'El reconocimiento de la foto supera el límite de este momento. Espera un minuto e inténtalo de nuevo.'
+              : 'El reconocimiento de la foto está recibiendo muchas consultas en este minuto. Espera un momento e inténtalo de nuevo.';
         return res.status(503).json({
           error: 'Límite de IA',
-          message:
-            'El reconocimiento está recibiendo muchas consultas. Espera un momento e inténtalo de nuevo.',
+          message,
         });
       }
       return res.status(502).json({

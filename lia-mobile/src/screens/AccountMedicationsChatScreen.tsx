@@ -87,7 +87,7 @@ export default function AccountMedicationsChatScreen({ navigation }: Props) {
     {
       id: generateId(),
       role: 'local',
-      content: 'Puedes preguntarme sobre los medicamentos que tienes registrados en tu cuenta.',
+      content: 'Escribe tu pregunta cuando quieras. Si prefieres, también puedes tocar una de las ideas.',
       createdAt: Date.now(),
     },
   ]);
@@ -343,7 +343,7 @@ export default function AccountMedicationsChatScreen({ navigation }: Props) {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <AskLiaHeader onBack={() => navigation.goBack()} medicationName="tus medicamentos registrados" />
+      <AskLiaHeader onBack={() => navigation.goBack()} medicationName="tus medicamentos" />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View
           style={[
@@ -404,30 +404,32 @@ export default function AccountMedicationsChatScreen({ navigation }: Props) {
             onContentSizeChange={scrollToEnd}
             keyboardShouldPersistTaps="handled"
             ListFooterComponent={
-              sending ? (
-                <View style={styles.typingRow} accessibilityLabel="LIA está escribiendo">
-                  <ActivityIndicator size="small" color={colors.primary} />
-                  <AppText variant="caption" tone="secondary">
-                    LIA está escribiendo…
-                  </AppText>
-                </View>
-              ) : undefined
+              <View>
+                {sending ? (
+                  <View style={styles.typingRow} accessibilityLabel="LIA está escribiendo">
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <AppText variant="caption" tone="secondary">
+                      LIA está escribiendo…
+                    </AppText>
+                  </View>
+                ) : null}
+                {!hasInteracted ? (
+                  <View style={[styles.quickWrap, { gap: scaleSpacing(Space[8]) }]}>
+                    {QUICK_QUESTIONS.map((question) => (
+                      <SuggestedQuestionChip
+                        key={question}
+                        question={question}
+                        onPress={() => void ask(question)}
+                        disabled={sending}
+                      />
+                    ))}
+                  </View>
+                ) : null}
+              </View>
             }
           />
 
-          {!hasInteracted ? (
-            <View style={[styles.quickWrap, { gap: scaleSpacing(Space[8]) }]}>
-              {QUICK_QUESTIONS.map((question) => (
-                <SuggestedQuestionChip
-                  key={question}
-                  question={question}
-                  onPress={() => void ask(question)}
-                  disabled={sending}
-                />
-              ))}
-            </View>
-          ) : null}
-
+          <View style={styles.composerSlot}>
           <ChatComposer
             value={input}
             onChangeText={(text) => setInput(text.slice(0, DRUG_CHAT_MAX_MESSAGE))}
@@ -440,6 +442,7 @@ export default function AccountMedicationsChatScreen({ navigation }: Props) {
             accessibilityLabel="Escribe tu pregunta"
             bottomInset={Math.max(insets.bottom, scaleSpacing(Space[8]))}
           />
+          </View>
         </View>
       </KeyboardAvoidingView>
     </View>
@@ -484,4 +487,5 @@ const styles = StyleSheet.create({
   },
   typingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
   quickWrap: { flexDirection: 'column', alignItems: 'flex-start', paddingBottom: Space[12] },
+  composerSlot: { flexShrink: 0 },
 });

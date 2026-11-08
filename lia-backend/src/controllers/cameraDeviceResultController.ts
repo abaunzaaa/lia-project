@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { ZodError, z } from 'zod';
 import { getDrugInfo, DrugReferenceError } from '../services/drugReferenceService';
+import { medicationSourceAgrees } from '../services/drugChatService';
 import { PatientDrugInfo } from '../models/drugReferenceTypes';
 import {
   markLatestWaitingSessionRecognized,
@@ -104,8 +105,11 @@ export async function reportDeviceResult(req: Request, res: Response) {
 
     if (medicationName && !/^NO_IDENTIFICADO$/i.test(medicationName)) {
       try {
-        patientInfo = await getDrugInfo({ name: medicationName });
-        rxcui = patientInfo.id;
+        const info = await getDrugInfo({ name: medicationName });
+        if (medicationSourceAgrees(medicationName, info)) {
+          patientInfo = info;
+          rxcui = info.id;
+        }
       } catch (error) {
         if (!(error instanceof DrugReferenceError)) {
           console.error(

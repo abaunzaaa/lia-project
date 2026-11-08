@@ -20,7 +20,6 @@ type Props = {
 } & Omit<ViewProps, 'style' | 'children'>;
 
 const paths = iconPaths.icons as Record<string, string>;
-const bottoms = iconPaths.bottom as Record<string, number>;
 
 /**
  * Los mismos símbolos de Ionicons, dibujados con sus contornos.
@@ -41,19 +40,14 @@ const Ionicons = Object.assign(
   }: Props) {
     const d = paths[name];
     const units = iconPaths.units;
-    const viewBottom = bottoms[name] ?? units;
-    const drawHeight = (size * viewBottom) / units;
     return (
       <View
         {...rest}
         pointerEvents="none"
-        style={[
-          style,
-          { width: size, height: drawHeight, overflow: 'visible', backgroundColor: 'transparent' },
-        ]}
+        style={[style, { width: size, height: size, backgroundColor: 'transparent' }]}
       >
         {d ? (
-          <Svg width={size} height={drawHeight} viewBox={`0 0 ${units} ${viewBottom}`}>
+          <Svg width={size} height={size} viewBox={`0 0 ${units} ${units}`}>
             <Path d={d} fill={color || '#000000'} />
           </Svg>
         ) : null}

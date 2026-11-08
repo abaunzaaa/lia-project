@@ -269,10 +269,11 @@ export default function PhoneCameraScreen({ navigation }: Props) {
     if (existing) {
       const reading = readingForExistingMedication(
         existing.description,
-        noteFromRecognition({
-          purpose: result?.purpose,
-          observedReading: result?.observedReading,
-        })
+        result?.purpose?.trim() ||
+          noteFromRecognition({
+            purpose: null,
+            observedReading: result?.observedReading,
+          })
       );
       let kept = false;
       if (reading) {
@@ -290,13 +291,19 @@ export default function PhoneCameraScreen({ navigation }: Props) {
       );
       return;
     }
-    const savedNote = noteFromRecognition({
-      purpose: result?.purpose,
-      observedReading: result?.observedReading,
-    });
+    const savedNote =
+      result?.purpose?.trim() ||
+      noteFromRecognition({
+        purpose: null,
+        observedReading: result?.observedReading,
+      });
     clearPendingResult();
     navigation.navigate('AddMedication', {
-      prefilled: { name: prefilledName, description: savedNote },
+      prefilled: {
+        name: prefilledName,
+        description: savedNote,
+        purpose: result?.purpose?.trim() || undefined,
+      },
     });
   };
 
@@ -545,7 +552,7 @@ export default function PhoneCameraScreen({ navigation }: Props) {
               facing="back"
               mode="picture"
               mute
-              active
+              active={phase === 'preview'}
               animateShutter={false}
               onCameraReady={() => setCameraReady(true)}
               onMountError={() => {
