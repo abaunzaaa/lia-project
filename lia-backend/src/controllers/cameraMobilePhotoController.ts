@@ -50,7 +50,9 @@ export async function recognizeMobilePhoto(req: Request, res: Response) {
       );
     }
 
-    const payload = await recognizeAndEnrichMedicationImage(buffer);
+    const payload = await recognizeAndEnrichMedicationImage(buffer, undefined, {
+      readPackage: true,
+    });
     if (process.env.NODE_ENV !== 'production') {
       console.log(
         `[camera-mobile-photo] done ms=${Date.now() - started} bytes=${buffer.length} identified=${payload.identified}`

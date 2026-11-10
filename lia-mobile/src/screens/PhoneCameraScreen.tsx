@@ -7,10 +7,11 @@ import {
   ActivityIndicator,
   AccessibilityInfo,
   Linking,
+  useWindowDimensions,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useIsFocused } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { File, Paths } from 'expo-file-system';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
@@ -77,6 +78,16 @@ export default function PhoneCameraScreen({ navigation }: Props) {
   const { medications, updateMedication } = useMedications();
   const { setPendingResult, clearPendingResult } = useCameraRecognition();
   const insets = useSafeAreaInsets();
+  const windowSize = useWindowDimensions();
+  const portrait = windowSize.height >= windowSize.width;
+  const resultTopInset =
+    insets.top > 0 ? insets.top : portrait ? (initialWindowMetrics?.insets.top ?? 0) : 0;
+  const resultHeaderHeight =
+    scaleSpacing(Space[12]) +
+    Math.max(44, minTouch) +
+    scaleSpacing(Space[12]) +
+    scaleFont(38) +
+    scaleSpacing(Space[24]);
   const isFocused = useIsFocused();
   const [permission, requestPermission] = useCameraPermissions();
 
@@ -215,22 +226,20 @@ export default function PhoneCameraScreen({ navigation }: Props) {
         return;
       }
 
-      const withPhoto = {
-        ...normalized,
-        imageUrl: normalized.imageUrl || null,
-      };
-      setResult(withPhoto);
+      const localPhoto = photoUri ? previewableImageUri(photoUri) : null;
+      setResult(normalized);
       setPendingResult({
-        name: withPhoto.name,
-        activeIngredient: withPhoto.activeIngredient,
-        purpose: withPhoto.purpose,
-        observedReading: withPhoto.observedReading,
-        importantPoints: withPhoto.importantPoints,
-        source: withPhoto.source,
-        imageUrl: withPhoto.imageUrl,
+        name: normalized.name,
+        activeIngredient: normalized.activeIngredient,
+        purpose: normalized.purpose,
+        observedReading: normalized.observedReading,
+        importantPoints: normalized.importantPoints,
+        presentation: normalized.presentation,
+        source: normalized.source,
+        imageUrl: localPhoto || normalized.imageUrl || null,
       });
       setPhase('result');
-      AccessibilityInfo.announceForAccessibility(`Medicamento identificado: ${withPhoto.name}`);
+      AccessibilityInfo.announceForAccessibility(`Medicamento identificado: ${normalized.name}`);
     } catch (error) {
       if (
         !mountedRef.current ||
@@ -315,10 +324,14 @@ export default function PhoneCameraScreen({ navigation }: Props) {
   const speakText = result
     ? [
         result.name,
-        result.activeIngredient ? `Principio activo: ${result.activeIngredient}` : '',
+        result.activeIngredient
+          ? `${/ y |,/.test(result.activeIngredient) ? 'Principios activos' : 'Principio activo'}: ${result.activeIngredient}`
+          : '',
+        result.presentation ? `Presentación: ${result.presentation}` : '',
         result.purpose || '',
         result.observedReading ? `Lectura de la foto: ${result.observedReading}` : '',
-        ...(result.importantPoints || []).slice(0, 3),
+        result.observedReading ? 'Sale de la foto y todavía no está confirmada.' : '',
+        ...(result.importantPoints || []).slice(0, 2),
       ]
         .filter(Boolean)
         .join('. ')
@@ -400,14 +413,14 @@ export default function PhoneCameraScreen({ navigation }: Props) {
 
   if (phase === 'result' && result) {
     return (
-      <View style={[styles.root, { backgroundColor: pageBg }]}>
-        <IdentificationResultWave topOffset={insets.top + scaleSpacing(Space[8])} />
+      <View style={[styles.root, { backgroundColor: pageBg, paddingTop: resultTopInset }]}>
+        <IdentificationResultWave topOffset={0} height={resultHeaderHeight} coverTop />
         <Screen
           scroll
           transparent
           padded={false}
           contentStyle={{
-            paddingTop: insets.top + scaleSpacing(Space[4]),
+            paddingTop: scaleSpacing(Space[12]),
             paddingHorizontal: horizontalPadding,
             paddingBottom: insets.bottom + scaleSpacing(Space[32]),
             zIndex: 1,
@@ -425,8 +438,8 @@ export default function PhoneCameraScreen({ navigation }: Props) {
             style={{
               fontSize: scaleFont(32),
               lineHeight: scaleFont(38),
-              marginTop: scaleSpacing(Space[8]),
-              marginBottom: scaleSpacing(Space[16]),
+              marginTop: scaleSpacing(Space[12]),
+              marginBottom: scaleSpacing(Space[24]),
             }}
           >
             Medicamento reconocido
@@ -436,9 +449,11 @@ export default function PhoneCameraScreen({ navigation }: Props) {
             purpose={result.purpose}
             observedReading={result.observedReading}
             activeIngredient={result.activeIngredient}
+            presentation={result.presentation}
             importantPoints={result.importantPoints}
             source={result.source}
-            imageUrl={result.imageUrl || (photoUri ? previewableImageUri(photoUri) : null)}
+            imageUrl={photoUri ? previewableImageUri(photoUri) : result.imageUrl}
+            fallbackImageUrl={photoUri ? result.imageUrl : null}
             photoAccessibilityLabel="Foto tomada con la cámara de tu celular"
             speakId={`phone-camera-result-${result.name}`}
             speakText={speakText}

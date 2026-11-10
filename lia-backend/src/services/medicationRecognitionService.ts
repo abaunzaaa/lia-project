@@ -8,6 +8,8 @@ import {
 } from './commercialCatalogService';
 import { DRUG_INFO_DISCLAIMER, PatientDrugInfo } from '../models/drugReferenceTypes';
 import { RecognitionResult } from '../models/types';
+import { explainMobileRecognition } from './compositionRecognitionService';
+import { distinctiveNameTokens } from './packageObservation';
 import { getBrandNames, searchApproximateTerms } from './rxNormService';
 
 /**
@@ -49,7 +51,10 @@ function patientFromPurpose(name: string, purpose: string, dosageForms: string[]
   };
 }
 
-export async function enrichRecognizedName(name: string): Promise<{
+export async function enrichRecognizedName(
+  name: string,
+  options?: { requireDistinctiveToken?: boolean }
+): Promise<{
   patientInfo: PatientDrugInfo | null;
   rxcui: string | null;
   description: string;
@@ -67,12 +72,17 @@ export async function enrichRecognizedName(name: string): Promise<{
     );
     if (raw && sameDrug) {
       patientInfo = await getDrugInfo({ rxcui: raw.id, name });
+      const distinctive = !options?.requireDistinctiveToken || phoneNameAgrees(name, patientInfo);
       rxcui = patientInfo.id;
       const purpose = patientInfo.purpose?.trim() || patientInfo.importantInformation[0]?.trim() || '';
-      if (purpose) {
+      if (purpose && distinctive) {
         description = purpose;
         dose = patientInfo.dosageForms[0] || '';
         return { patientInfo, rxcui, description, dose };
+      }
+      if (!distinctive) {
+        patientInfo = null;
+        rxcui = null;
       }
     }
   } catch (error) {
@@ -170,6 +180,18 @@ function logEnrichment(
   );
 }
 
+function phoneNameAgrees(name: string, info: PatientDrugInfo): boolean {
+  const tokens = distinctiveNameTokens(name);
+  if (tokens.length === 0) return false;
+  return tokens.some((token) =>
+    medicationSourceAgrees(token, {
+      name: info.name,
+      genericName: info.genericName,
+      brandNames: info.brandNames,
+    })
+  );
+}
+
 function agreedCatalog(name: string): { description: string; dose: string } | null {
   const catalog = findMedication(name);
   if (!catalog) return null;
@@ -201,9 +223,15 @@ function buildVoiceText(name: string, patient: PatientDrugInfo | null): string {
  */
 export async function recognizeAndEnrichMedicationImage(
   imageBuffer: Buffer,
-  deviceId?: string
+  deviceId?: string,
+  options?: { readPackage?: boolean }
 ): Promise<RecognitionResult> {
-  const vision = await aiService.recognizeFromImage(imageBuffer, deviceId);
+  const vision = await aiService.recognizeFromImage(imageBuffer, deviceId, {
+    readPackage: options?.readPackage === true,
+  });
+  if (options?.readPackage) {
+    return explainMobileRecognition(vision);
+  }
 
   if (process.env.NODE_ENV !== 'production') {
     console.log(

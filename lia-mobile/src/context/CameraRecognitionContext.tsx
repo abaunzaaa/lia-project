@@ -14,6 +14,7 @@ export type CameraPendingResult = {
   purpose?: string | null;
   observedReading?: string | null;
   importantPoints?: string[];
+  presentation?: string | null;
   source?: string | null;
   imageUrl?: string | null;
 };

@@ -202,6 +202,14 @@ export function normalizeCameraResult(
   };
 }
 
+export type ObservedPackagePayload = {
+  ingredients?: Array<{ name?: string; strength?: string | null }>;
+  presentation?: string | null;
+  route?: string | null;
+  manufacturer?: string | null;
+  sanitaryRegistry?: string | null;
+};
+
 export type DirectRecognitionPayload = {
   name?: string;
   description?: string;
@@ -212,9 +220,40 @@ export type DirectRecognitionPayload = {
   voiceText?: string | null;
   identified?: boolean;
   imageUrl?: string | null;
+  observedPackage?: ObservedPackagePayload | null;
+  compositionVerified?: boolean;
   message?: string;
   error?: string;
 };
+
+export type PhoneRecognitionView = {
+  name: string;
+  activeIngredient: string | null;
+  purpose: string | null;
+  observedReading: string | null;
+  importantPoints: string[];
+  presentation: string | null;
+  source: string | null;
+  imageUrl: string | null;
+};
+
+function packageReading(pkg: ObservedPackagePayload): string | null {
+  const parts = (pkg.ingredients || [])
+    .map((item) => [item.name?.trim(), item.strength?.trim()].filter(Boolean).join(' '))
+    .filter(Boolean);
+  if (parts.length === 0) return null;
+  const ingredients =
+    parts.length === 1
+      ? parts[0]
+      : parts.length === 2
+        ? `${parts[0]} y ${parts[1]}`
+        : `${parts.slice(0, -1).join(', ')} y ${parts[parts.length - 1]}`;
+  const where = [pkg.presentation?.trim(), pkg.route?.trim() ? `vía ${pkg.route.trim()}` : '']
+    .filter(Boolean)
+    .join(', ');
+  const detail = where ? `${ingredients}, en ${where}` : ingredients;
+  return `En la foto se lee ${detail}.`;
+}
 
 /**
  * Adapta la respuesta directa de reconocimiento al mismo modelo de la cámara física.
@@ -222,11 +261,35 @@ export type DirectRecognitionPayload = {
  */
 export function normalizeDirectRecognition(
   payload: DirectRecognitionPayload
-): ReturnType<typeof normalizeCameraResult> {
+): PhoneRecognitionView | null {
   if (payload.identified !== true) return null;
 
   const readName = usableNameOrNull(payload.name);
   if (!readName) return null;
+
+  const imageUrl = payload.imageUrl?.trim() || null;
+  const unverified =
+    payload.compositionVerified !== true &&
+    (payload.observedPackage?.ingredients?.length || 0) > 0
+      ? packageReading(payload.observedPackage || {})
+      : null;
+  if (unverified) {
+    const info = payload.patientInfo;
+    const backedPurpose =
+      info && !info.genericName?.trim() && info.importantInformation.length === 0
+        ? info.purpose?.trim() || null
+        : null;
+    return {
+      name: readName,
+      activeIngredient: null,
+      purpose: backedPurpose,
+      observedReading: unverified,
+      importantPoints: [],
+      presentation: backedPurpose ? info?.dosageForms?.[0]?.trim() || null : null,
+      source: backedPurpose ? info?.source?.reference?.trim() || null : null,
+      imageUrl,
+    };
+  }
 
   const view = normalizeCameraResult({
     status: 'recognized',
@@ -235,7 +298,7 @@ export function normalizeDirectRecognition(
       rxcui: payload.rxcui,
       patientInfo: payload.patientInfo,
       voiceText: payload.voiceText,
-      imageUrl: payload.imageUrl,
+      imageUrl,
     },
   });
 
@@ -246,14 +309,17 @@ export function normalizeDirectRecognition(
     !isGenericMedicationReading(described)
       ? described
       : null;
+  const reference = payload.patientInfo?.source?.reference?.trim() || '';
+  const presentation = payload.patientInfo?.dosageForms?.[0]?.trim() || payload.dose?.trim() || null;
   return {
     name: readName,
     activeIngredient: view?.activeIngredient || null,
     purpose: view?.purpose || usefulDescription,
     observedReading: view?.observedReading || null,
     importantPoints: view?.importantPoints || [],
-    source: view?.source || null,
-    imageUrl: view?.imageUrl || payload.imageUrl?.trim() || null,
+    presentation,
+    source: reference || view?.source || null,
+    imageUrl: view?.imageUrl || imageUrl,
   };
 }
 
@@ -329,8 +395,15 @@ export class CameraRequestCancelled extends CameraApiError {
 }
 
 function previewableImageUri(uri: string): string {
-  if (/^(file:|content:|blob:|data:|https?:|asset:)/i.test(uri)) return uri;
-  return `data:image/jpeg;base64,${uri}`;
+  const trimmed = uri.trim();
+  if (/^(file:|content:|blob:|data:|https?:|ph:|assets-library:|asset:)/i.test(trimmed)) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('/')) return `file://${trimmed}`;
+  if (trimmed.length > 80 && /^[a-z0-9+/=\s]+$/i.test(trimmed)) {
+    return `data:image/jpeg;base64,${trimmed.replace(/\s+/g, '')}`;
+  }
+  return trimmed;
 }
 
 const MOBILE_PHOTO_MAX_BYTES = 8 * 1024 * 1024;

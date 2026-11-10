@@ -1,6 +1,11 @@
 import { VisionRecognitionResult } from '../models/types';
 import { findMedication } from '../models/medicationDatabase';
 import { config } from '../config';
+import {
+  MOBILE_PACKAGE_VISION_INSTRUCTION,
+  MOBILE_PACKAGE_VISION_USER_TEXT,
+  parseObservedPackage,
+} from './packageObservation';
 
 export class AiProviderError extends Error {
   constructor(
@@ -104,7 +109,8 @@ class AIService {
    */
   async recognizeFromImage(
     imageBuffer: Buffer,
-    deviceId?: string
+    deviceId?: string,
+    options?: { readPackage?: boolean }
   ): Promise<VisionRecognitionResult> {
     console.log(
       `🔍 Procesando imagen (${imageBuffer.length} bytes)${deviceId ? ` desde ${deviceId}` : ''}`
@@ -121,10 +127,13 @@ class AIService {
       throw new AiProviderError('Imagen vacía.', 'invalid_response');
     }
 
-    return this.callGeminiVisionRecognition(imageBuffer);
+    return this.callGeminiVisionRecognition(imageBuffer, options?.readPackage === true);
   }
 
-  private async callGeminiVisionRecognition(imageBuffer: Buffer): Promise<VisionRecognitionResult> {
+  private async callGeminiVisionRecognition(
+    imageBuffer: Buffer,
+    readPackage: boolean
+  ): Promise<VisionRecognitionResult> {
     const apiKey = config.ai.apiKey?.trim();
     if (!apiKey) {
       throw new AiProviderError('El asistente no está disponible en este momento.', 'not_configured');
@@ -137,14 +146,17 @@ class AIService {
         console.log(`[gemini] vision model=${model}`);
       }
 
-      const systemInstruction = `Eres un asistente de reconocimiento de medicamentos.
+      const systemInstruction = readPackage
+        ? MOBILE_PACKAGE_VISION_INSTRUCTION
+        : `Eres un asistente de reconocimiento de medicamentos.
 Identifica el nombre del medicamento a partir de una foto del empaque.
 Responde SIEMPRE en español y SOLO con JSON válido de la forma:
 {"name":"nombre del medicamento o cadena vacía","identified":true o false}
 No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=false y name="".`;
 
-      const userText =
-        'Identifica el medicamento en esta foto del empaque. Devuelve JSON {"name":"...","identified":true/false}.';
+      const userText = readPackage
+        ? MOBILE_PACKAGE_VISION_USER_TEXT
+        : 'Identifica el medicamento en esta foto del empaque. Devuelve JSON {"name":"...","identified":true/false}.';
 
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), config.ai.timeoutMs);
@@ -241,8 +253,9 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
 
     // Endpoint custom: envía imagen en base64
     const data = await this.callCustomJsonEndpoint({
-      systemInstruction:
-        'Identifica el medicamento en la foto. Responde JSON {"name":"...","identified":true/false}.',
+      systemInstruction: readPackage
+        ? MOBILE_PACKAGE_VISION_INSTRUCTION
+        : 'Identifica el medicamento en la foto. Responde JSON {"name":"...","identified":true/false}.',
       userContent: JSON.stringify({
         imageBase64: imageBuffer.toString('base64'),
         mimeType: 'image/jpeg',
@@ -258,7 +271,12 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
       throw new AiProviderError('Respuesta de visión inválida.', 'invalid_response');
     }
 
-    const obj = data as { name?: unknown; identified?: unknown; confidence?: unknown };
+    const obj = data as {
+      name?: unknown;
+      identified?: unknown;
+      confidence?: unknown;
+      observedPackage?: unknown;
+    };
     const name = typeof obj.name === 'string' ? obj.name.trim() : '';
     const identified =
       typeof obj.identified === 'boolean' ? obj.identified : Boolean(name);
@@ -269,10 +287,12 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
           ? 90
           : 0;
 
+    const observedPackage = parseObservedPackage(obj.observedPackage);
     return {
       name: identified ? name : name || '',
       identified: identified && Boolean(name),
       confidence,
+      ...(observedPackage ? { observedPackage } : {}),
     };
   }
 

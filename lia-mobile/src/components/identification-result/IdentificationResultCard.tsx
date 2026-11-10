@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import { useAccessibility } from '../../context/AccessibilityContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -17,22 +17,68 @@ type Props = {
   purpose: string | null;
   observedReading?: string | null;
   activeIngredient: string | null;
+  presentation?: string | null;
   importantPoints: string[];
   source: string | null;
   imageUrl?: string | null;
+  fallbackImageUrl?: string | null;
   photoAccessibilityLabel?: string;
   speakId: string;
   speakText: string;
 };
+
+function ResultPhoto({
+  imageUrl,
+  fallbackImageUrl,
+  accessibilityLabel,
+}: {
+  imageUrl?: string | null;
+  fallbackImageUrl?: string | null;
+  accessibilityLabel: string;
+}) {
+  const primary = resolveMediaUrl(imageUrl);
+  const fallback = resolveMediaUrl(fallbackImageUrl);
+  const [current, setCurrent] = useState(primary);
+  const [hidden, setHidden] = useState(!primary);
+
+  useEffect(() => {
+    setCurrent(primary);
+    setHidden(!primary);
+  }, [primary]);
+
+  if (hidden || !current) return null;
+
+  return (
+    <View style={styles.photoFrame}>
+      <Image
+        key={current}
+        source={{ uri: current }}
+        style={styles.capturedPhoto}
+        resizeMode="cover"
+        onError={() => {
+          if (fallback && fallback !== current) {
+            setCurrent(fallback);
+            return;
+          }
+          setHidden(true);
+        }}
+        accessibilityLabel={accessibilityLabel}
+        accessibilityIgnoresInvertColors
+      />
+    </View>
+  );
+}
 
 export default function IdentificationResultCard({
   name,
   purpose,
   observedReading,
   activeIngredient,
+  presentation,
   importantPoints,
   source,
   imageUrl,
+  fallbackImageUrl,
   photoAccessibilityLabel = 'Foto tomada por la cámara LÍA',
   speakId,
   speakText,
@@ -44,7 +90,13 @@ export default function IdentificationResultCard({
   const muted = lightChrome ? BrandColors.teal : colors.textSecondary;
   const teal = lightChrome ? BrandColors.teal : colors.secondary;
   const displayName = name.trim() ? name : 'Medicamento identificado';
-  const capturedUri = resolveMediaUrl(imageUrl);
+  const ingredientLabel = activeIngredient && / y |,/.test(activeIngredient)
+    ? 'Principios activos'
+    : 'Principio activo';
+  const purposeTitle =
+    purpose && /^(no confirm|confirmé|no pude|la consulta)/i.test(purpose.trim())
+      ? 'Qué quedó pendiente'
+      : '¿Para qué se utiliza?';
 
   return (
     <View
@@ -63,18 +115,11 @@ export default function IdentificationResultCard({
         },
       ]}
     >
-      {capturedUri ? (
-        <Image
-          source={{ uri: capturedUri }}
-          style={[
-            styles.capturedPhoto,
-            { marginBottom: scaleSpacing(Space[12]), borderRadius: Radius.lg },
-          ]}
-          resizeMode="cover"
-          accessibilityLabel={photoAccessibilityLabel}
-          accessibilityIgnoresInvertColors
-        />
-      ) : null}
+      <ResultPhoto
+        imageUrl={imageUrl}
+        fallbackImageUrl={fallbackImageUrl}
+        accessibilityLabel={photoAccessibilityLabel}
+      />
 
       <View style={styles.header}>
         <View style={styles.headerCopy}>
@@ -118,12 +163,20 @@ export default function IdentificationResultCard({
               variant="body"
               style={{ color: muted, marginTop: scaleSpacing(Space[4]), flexShrink: 1 }}
             >
-              {`Principio activo: ${activeIngredient}`}
+              {`${ingredientLabel}: ${activeIngredient}`}
+            </AppText>
+          ) : null}
+          {presentation ? (
+            <AppText
+              variant="body"
+              style={{ color: muted, marginTop: scaleSpacing(Space[4]), flexShrink: 1 }}
+            >
+              {`Presentación: ${presentation}`}
             </AppText>
           ) : null}
         </View>
 
-        {capturedUri ? null : (
+        {imageUrl || fallbackImageUrl ? null : (
           <Image
             source={identifiedMedicineAsset}
             style={styles.art}
@@ -187,7 +240,7 @@ export default function IdentificationResultCard({
               flexShrink: 1,
             }}
           >
-            ¿Para qué se utiliza?
+            {purposeTitle}
           </AppText>
           <AppText
             variant="body"
@@ -278,9 +331,16 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     width: '100%',
   },
+  photoFrame: {
+    width: '100%',
+    height: 180,
+    marginBottom: 12,
+    borderRadius: Radius.lg,
+    overflow: 'hidden',
+    backgroundColor: '#EAF3F7',
+  },
   capturedPhoto: {
     width: '100%',
     height: 180,
-    backgroundColor: '#EAF3F7',
   },
 });

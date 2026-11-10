@@ -4,7 +4,7 @@ import {
   RxNormPropertiesResponse,
   RxNormRelatedResponse,
 } from '../models/drugReferenceTypes';
-import { asArray, fetchJson, foldAccents, titleCaseName } from '../utils/externalHttp';
+import { asArray, ExternalApiError, fetchJson, foldAccents, titleCaseName } from '../utils/externalHttp';
 
 const RXNORM_BASE = 'https://rxnav.nlm.nih.gov/REST';
 
@@ -155,4 +155,71 @@ export async function getBrandNames(rxcui: string): Promise<string[]> {
 export async function findRxcuiByName(name: string): Promise<string | null> {
   const results = await searchApproximateTerms(name, 1);
   return results[0]?.id ?? null;
+}
+
+/**
+ * Coincidencia exacta o normalizada. No usa el buscador aproximado:
+ * un nombre parecido, como Nalixone y naloxona, no debe resolverse aquí.
+ */
+export async function findExactRxcuis(name: string): Promise<string[]> {
+  const term = foldAccents(name).trim();
+  if (term.length < 3) return [];
+  const url = `${RXNORM_BASE}/rxcui.json?name=${encodeURIComponent(term)}&search=2`;
+  try {
+    const data = await fetchJson<{ idGroup?: { rxnormId?: string | string[] } }>(url, { timeoutMs: 8000 });
+    const raw = data.idGroup?.rxnormId;
+    const ids = Array.isArray(raw) ? raw : raw ? [raw] : [];
+    return ids.filter((id) => /^\d+$/.test(id)).slice(0, 4);
+  } catch (error) {
+    if (error instanceof ExternalApiError && (error.kind === 'not_found' || error.kind === 'http')) {
+      return [];
+    }
+    throw error;
+  }
+}
+
+/** Identificador ATC de nivel 5. No interpreta un nombre parecido. */
+export async function findRxcuisByAtc(code: string): Promise<string[]> {
+  if (!/^[A-Z]\d{2}[A-Z]{2}\d{2}$/.test(code)) return [];
+  const url = `${RXNORM_BASE}/rxcui.json?idtype=ATC&id=${encodeURIComponent(code)}`;
+  try {
+    const data = await fetchJson<{ idGroup?: { rxnormId?: string | string[] } }>(url, { timeoutMs: 8000 });
+    const raw = data.idGroup?.rxnormId;
+    const ids = Array.isArray(raw) ? raw : raw ? [raw] : [];
+    return ids.filter((id) => /^\d+$/.test(id)).slice(0, 4);
+  } catch (error) {
+    if (error instanceof ExternalApiError && (error.kind === 'not_found' || error.kind === 'http')) {
+      return [];
+    }
+    throw error;
+  }
+}
+
+/** El principio activo de un concepto IN, o el único IN ligado a una sal PIN. */
+export async function singleIngredientConcept(
+  rxcui: string
+): Promise<{ rxcui: string; canonicalName: string } | null> {
+  const props = await getConceptProperties(rxcui);
+  if (!props || props.suppress === 'Y') return null;
+  if (props.tty === 'IN') return { rxcui: props.rxcui, canonicalName: props.name };
+  if (props.tty !== 'PIN') return null;
+  const url = `${RXNORM_BASE}/rxcui/${encodeURIComponent(props.rxcui)}/related.json?tty=IN`;
+  try {
+    const data = await fetchJson<RxNormRelatedResponse>(url, { timeoutMs: 8000 });
+    const found = new Map<string, string>();
+    for (const group of data.relatedGroup?.conceptGroup ?? []) {
+      for (const concept of group.conceptProperties ?? []) {
+        if (!concept.rxcui || !concept.name) continue;
+        found.set(concept.rxcui, concept.name);
+      }
+    }
+    if (found.size !== 1) return null;
+    const [id, name] = [...found.entries()][0];
+    return { rxcui: id, canonicalName: name };
+  } catch (error) {
+    if (error instanceof ExternalApiError && (error.kind === 'not_found' || error.kind === 'http')) {
+      return null;
+    }
+    throw error;
+  }
 }

@@ -307,6 +307,22 @@ function buildFont(buf) {
   return { units, pathFor };
 }
 
+function iconFrame(icons) {
+  let min = 0;
+  let max = 0;
+  for (const d of Object.values(icons)) {
+    const tokens = d.match(/-?\d+(?:\.\d+)?/g) || [];
+    for (const token of tokens) {
+      const value = Number(token);
+      min = Math.min(min, value);
+      max = Math.max(max, value);
+    }
+  }
+  const origin = Math.floor(min) - 4;
+  const side = Math.ceil(max) + 4 - origin;
+  return { min: origin, side };
+}
+
 function main() {
   const font = fs.readFileSync(fontPath);
   const glyphMap = JSON.parse(fs.readFileSync(glyphPath, 'utf8'));
@@ -333,7 +349,7 @@ function main() {
     process.exitCode = 1;
     return;
   }
-  const payload = { units, bottom, icons };
+  const payload = { units, frame: iconFrame(icons), bottom, icons };
   fs.writeFileSync(outPath, `${JSON.stringify(payload)}\n`);
   const bytes = fs.statSync(outPath).size;
   console.log(`icons=${names.length} units=${units} bytes=${bytes}`);

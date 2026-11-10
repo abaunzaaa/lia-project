@@ -61,6 +61,10 @@ export default function HomeScreen({ navigation }: Props) {
     type: 'success' | 'error' | 'info';
   }>({ visible: false, message: '', type: 'error' });
   const [profileImage, setProfileImage] = React.useState<string | null>(null);
+  const [pendingPhotoVisible, setPendingPhotoVisible] = React.useState(true);
+  React.useEffect(() => {
+    setPendingPhotoVisible(true);
+  }, [pendingResult?.imageUrl]);
 
   const firstName = user?.fullName?.split(' ')[0] || 'Amigo';
   const hasMeds = medications.length > 0;
@@ -286,18 +290,24 @@ export default function HomeScreen({ navigation }: Props) {
             <AppText variant="medicationName" style={{ flexShrink: 1 }}>
               {pendingResult.name}
             </AppText>
-            {pendingResult.imageUrl ? (
+            {pendingResult.imageUrl && pendingPhotoVisible ? (
               <Image
                 source={{ uri: resolveMediaUrl(pendingResult.imageUrl) }}
                 style={styles.pendingPhoto}
                 resizeMode="cover"
                 accessibilityLabel="Foto del medicamento"
                 accessibilityIgnoresInvertColors
+                onError={() => setPendingPhotoVisible(false)}
               />
             ) : null}
             {pendingResult.activeIngredient ? (
               <AppText variant="body" tone="secondary" style={{ marginTop: 4, flexShrink: 1 }}>
                 {pendingResult.activeIngredient}
+              </AppText>
+            ) : null}
+            {pendingResult.presentation ? (
+              <AppText variant="body" tone="secondary" style={{ marginTop: 4, flexShrink: 1 }}>
+                {`Presentación: ${pendingResult.presentation}`}
               </AppText>
             ) : null}
             {pendingResult.purpose ? (

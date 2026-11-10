@@ -20,13 +20,26 @@ type Props = {
 } & Omit<ViewProps, 'style' | 'children'>;
 
 const paths = iconPaths.icons as Record<string, string>;
+const frame = iconPaths.frame;
+const origin = frame?.min ?? 0;
+const side = frame?.side ?? iconPaths.units;
+
+function shiftPath(d: string, by: number): string {
+  if (by === 0) return d;
+  return d.replace(/-?\d+(?:\.\d+)?/g, (token) => String(Number(token) + by));
+}
+
+const shiftedPaths = Object.fromEntries(
+  Object.entries(paths).map(([name, d]) => [name, shiftPath(d, -origin)])
+);
 
 /**
  * Los mismos símbolos de Ionicons, dibujados con sus contornos.
- * En Expo Go con React Native 0.88 la fuente de íconos no se pinta de forma
- * estable: el nombre ionicons ya está registrado, y liaicons queda en blanco
- * según el peso, el alto de línea o la cara que pide iOS. Un vector no depende
- * de esa carga.
+ * El trazo real llega hasta 578 y también un poco por debajo de 0.
+ * Un viewBox de 512 deja esos puntos fuera y en iOS el símbolo puede no pintarse.
+ * Estirar el alto por encima de `size` lo corta la fila que lo contiene.
+ * El marco es un cuadrado común, los puntos se corren para que empiece en 0,
+ * y el hueco del ícono sigue siendo exactamente `size`.
  */
 const Ionicons = Object.assign(
   function Ionicons({
@@ -38,16 +51,16 @@ const Ionicons = Object.assign(
     maxFontSizeMultiplier: _maxFontSizeMultiplier,
     ...rest
   }: Props) {
-    const d = paths[name];
-    const units = iconPaths.units;
+    const d = shiftedPaths[name];
     return (
       <View
         {...rest}
+        collapsable={false}
         pointerEvents="none"
-        style={[style, { width: size, height: size, backgroundColor: 'transparent' }]}
+        style={[style, { width: size, height: size, overflow: 'hidden', backgroundColor: 'transparent' }]}
       >
         {d ? (
-          <Svg width={size} height={size} viewBox={`0 0 ${units} ${units}`}>
+          <Svg width={size} height={size} viewBox={`0 0 ${side} ${side}`}>
             <Path d={d} fill={color || '#000000'} />
           </Svg>
         ) : null}

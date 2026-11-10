@@ -12,7 +12,8 @@
     "web": "expo start --web",
     "export:web": "expo export -p web",
     "lint": "eslint . --ext .ts,.tsx",
-    "check:assets": "node scripts/audit-visual-assets.cjs"
+    "check:assets": "node scripts/audit-visual-assets.cjs",
+    "check:icons": "node scripts/check-icons.cjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~58.0.17",
