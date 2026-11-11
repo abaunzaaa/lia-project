@@ -10,6 +10,7 @@ export type CommercialProduct = {
   purpose: string;
   form: string | null;
   source: string;
+  alternatives?: string[];
 };
 
 const CACHE = new Map<string, CommercialProduct | null>();
@@ -135,6 +136,9 @@ export function purposeFromCatalogDescription(
 
 export function describeCommercialProduct(product: CommercialProduct): string {
   const name = product.name.trim();
+  if (product.alternatives && product.alternatives.length > 1) {
+    return `${name} tiene más de una presentación. Las fuentes mencionan: ${product.alternatives.join('; ')}. La foto no dice cuál es.`;
+  }
   const purpose = product.purpose.replace(/\.$/, '');
   const form = product.form;
   const identity = !form
@@ -163,6 +167,41 @@ export function commercialDrugInfo(product: CommercialProduct): DrugInfo {
     informationAvailable: true,
     source: { name: 'Public', reference: product.source },
     disclaimer: 'Información pública del producto. No es una receta ni una dosis personal.',
+  };
+}
+
+function samePurpose(left: string, right: string): boolean {
+  const key = (value: string) =>
+    fold(value)
+      .replace(/\b(la|el|los|las|de|del|para|una|un|limpieza|limpiar)\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  const a = key(left);
+  const b = key(right);
+  if (!a || !b) return false;
+  return a === b || a.includes(b) || b.includes(a);
+}
+
+/** Si las fuentes describen usos distintos, no elige uno. */
+export function chooseCommercialProduct(matches: CommercialProduct[]): CommercialProduct | null {
+  if (matches.length === 0) return null;
+  const distinct: CommercialProduct[] = [];
+  for (const match of matches) {
+    if (distinct.some((item) => samePurpose(item.purpose, match.purpose))) continue;
+    distinct.push(match);
+  }
+  if (distinct.length === 1) {
+    return { ...distinct[0], form: matches.find((item) => item.form)?.form || distinct[0].form };
+  }
+  return {
+    name: matches[0].name,
+    purpose: distinct
+      .slice(0, 3)
+      .map((item) => item.purpose.replace(/\.$/, ''))
+      .join('; '),
+    form: null,
+    source: distinct[0].source,
+    alternatives: distinct.slice(0, 3).map((item) => item.purpose.replace(/\.$/, '')),
   };
 }
 
@@ -223,20 +262,18 @@ async function lookupUncached(name: string): Promise<CommercialProduct | null> {
     slug(name).length >= 3 ? fetchText(CATALOGS[1].url(name)) : Promise.resolve(null),
   ]);
 
-  let formFromCatalog: string | null = null;
+  const matches: CommercialProduct[] = [];
   if (cruz) {
     for (const label of labelsFromSuggestions(cruz)) {
-      if (!sameProduct(name, label)) continue;
-      formFromCatalog = formFromCatalog || detectForm(label);
       const found = purposeFromCatalogTitle(name, label);
-      if (found) return { ...found, form: found.form || formFromCatalog, source: 'Cruz Verde' };
+      if (found) matches.push({ ...found, source: 'Cruz Verde' });
     }
   }
-  if (farmatodo) {
+  if (matches.length === 0 && farmatodo) {
     const found = fromFarmatodo(farmatodo, name);
-    if (found) return { ...found, form: found.form || formFromCatalog, source: 'Farmatodo' };
+    if (found) matches.push(found);
   }
-  return null;
+  return chooseCommercialProduct(matches);
 }
 
 export async function lookupCommercialCatalog(name: string): Promise<CommercialProduct | null> {

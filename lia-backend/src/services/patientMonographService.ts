@@ -1,5 +1,6 @@
 import { fetchJson, fetchText, foldAccents } from '../utils/externalHttp';
 import { medicationSourceAgrees } from './drugChatService';
+import { briefMonographPurpose } from './packageObservation';
 
 const RXNORM_CODE_SYSTEM = '2.16.840.1.113883.6.88';
 
@@ -10,6 +11,8 @@ export type PatientMonograph = {
   administration: string;
   precautions: string;
   adverse: string;
+  /** Advertencia destacada de la misma ficha, si la página la trae. */
+  boxedWarning: string;
 };
 
 const monographCache = new Map<string, PatientMonograph | null>();
@@ -36,6 +39,7 @@ function plainText(html: string): string {
       .replace(/<script[\s\S]*?<\/script>/gi, ' ')
       .replace(/<style[\s\S]*?<\/style>/gi, ' ')
       .replace(/<li[^>]*>/gi, '\n')
+      .replace(/<\/li>/gi, ';\n')
       .replace(/<\/p>/gi, '\n')
       .replace(/<br\s*\/?>/gi, '\n')
       .replace(/<[^>]+>/g, ' ')
@@ -58,11 +62,38 @@ function sectionText(html: string, sectionId: string): string {
 }
 
 function sentencesOf(text: string): string[] {
-  return text
-    .replace(/\s+/g, ' ')
-    .split(/(?<=\.)\s+/)
-    .map((part) => part.trim())
-    .filter((part) => part.length > 20);
+  const lines = text
+    .split('\n')
+    .map((line) => line.replace(/[ \t]+/g, ' ').trim())
+    .filter(Boolean);
+  const sentences: string[] = [];
+  const fragments: string[] = [];
+  const flush = () => {
+    if (fragments.length === 0) return;
+    const cleaned = fragments
+      .map((part) => part.replace(/[;,]+$/g, '').trim())
+      .filter((part) => part.length > 0);
+    fragments.length = 0;
+    if (cleaned.length === 0) return;
+    const joined =
+      cleaned.length === 1
+        ? cleaned[0]
+        : `${cleaned.slice(0, -1).join(', ')} y ${cleaned[cleaned.length - 1]}`;
+    sentences.push(/[.!?]$/.test(joined) ? joined : `${joined}.`);
+  };
+  for (const line of lines) {
+    for (const piece of line.split(/(?<=\.)\s+/).map((part) => part.trim()).filter(Boolean)) {
+      const fragment = piece.length < 90 && !/[.!?]$/.test(piece);
+      if (fragment) {
+        fragments.push(piece);
+        continue;
+      }
+      flush();
+      if (piece.length > 20) sentences.push(/[.!?]$/.test(piece) ? piece : `${piece}.`);
+    }
+  }
+  flush();
+  return sentences.filter((sentence) => sentence.length > 20);
 }
 
 function bulletsOf(text: string): string[] {
@@ -74,8 +105,15 @@ function bulletsOf(text: string): string[] {
 
 function firstSentence(text: string, maxChars = 280): string {
   const sentence = (sentencesOf(text)[0] || text.trim()).replace(/\s*\([^)]*\)/g, '').replace(/\s{2,}/g, ' ').trim();
-  const cut = sentence.length > maxChars ? `${sentence.slice(0, maxChars - 1).trimEnd()}…` : sentence;
-  return cut.charAt(0).toUpperCase() + cut.slice(1);
+  const room = sentence.length <= maxChars ? sentence : sentence.slice(0, maxChars);
+  const end =
+    room.length === sentence.length
+      ? room.length
+      : Math.max(room.lastIndexOf('. '), room.lastIndexOf('; '), room.lastIndexOf(', '));
+  const piece = (end > 40 ? room.slice(0, end) : room).replace(/[\s,;:]+$/g, '').trim();
+  if (!piece) return '';
+  const spoken = piece.charAt(0).toUpperCase() + piece.slice(1);
+  return /[.!?]$/.test(spoken) ? spoken : `${spoken}.`;
 }
 
 function pageAgrees(html: string, drugName: string, purpose: string): boolean {
@@ -126,6 +164,7 @@ export function parseSpanishMonograph(
     administration,
     precautions,
     adverse,
+    boxedWarning: sectionText(html, 'boxed-warning'),
   };
 }
 
@@ -328,7 +367,12 @@ export function explainVerifiedCause(input: {
   message: string;
   previousAnswer: string;
   monograph: PatientMonograph;
+  focusTerm?: string;
+  labelNotes?: string;
 }): string | null {
+  if ((input.focusTerm || '').trim().length >= 4) {
+    return causeForTopic(input.focusTerm || '', input.monograph, input.labelNotes || '');
+  }
   const sentences = monographSentences(input.monograph);
   const label = monographDrugLabel(input.monograph);
   const focus = causeFocus(input.message, input.previousAnswer);
@@ -362,6 +406,85 @@ export function explainVerifiedCause(input: {
   return null;
 }
 
+const TOPIC_FILLER = new Set([
+  'tiene',
+  'tienes',
+  'alguna',
+  'veces',
+  'enfermedad',
+  'problemas',
+  'otro',
+  'otra',
+  'tipo',
+  'puede',
+  'darte',
+  'medico',
+  'antes',
+  'tomarlo',
+]);
+
+/** Motivo escrito junto a esa precaución. No reutiliza la lista ni el paréntesis de otra. */
+function causeForTopic(topic: string, page: PatientMonograph, labelNotes = ''): string | null {
+  const word = foldAccents(topic)
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .find((part) => part.length >= 5 && !TOPIC_FILLER.has(part));
+  if (!word) return null;
+  const text = [page.boxedWarning || '', page.precautions, page.adverse, page.administration, labelNotes].join('\n');
+  const folded = foldAccents(text).toLowerCase();
+  let from = 0;
+  while (from < folded.length) {
+    const at = folded.indexOf(word, from);
+    if (at < 0) break;
+    const before = at === 0 ? ' ' : folded[at - 1];
+    let length = word.length;
+    if (folded[at + length] === 's') length += 1;
+    const after = folded[at + length] || ' ';
+    from = at + length;
+    if (/[a-z0-9]/.test(before) || /[a-z0-9]/.test(after)) continue;
+    const local = text.slice(at + length, at + length + 320).replace(/\s*\([^)]*\)/g, '');
+    const clause = local.split(/[.;]/)[0] || '';
+    const because = clause.match(/\bporque\s+(.{8,180})/i);
+    if (because && !isConditionDefinition(because[1])) return spokenCause(because[1]);
+    const effect = drugEffect(clause, word);
+    if (effect) return effect;
+  }
+  return null;
+}
+
+/** Un efecto del medicamento escrito en la misma frase. No usa la definición de la enfermedad. */
+function drugEffect(clause: string, word: string): string | null {
+  if (/informe a su m[eé]dico|consulte a su m[eé]dico|ask a doctor|ask your doctor/i.test(clause)) return null;
+  const found = clause.match(
+    /((?:este medicamento |el medicamento )?(?:puede|pueden|podr[ií]a) (?:aumentar|empeorar|agravar|dificultar|espesar)[^.]{8,140})/i
+  );
+  if (!found || isConditionDefinition(found[1])) return null;
+  const effect = found[1].replace(/^(?:este|el) medicamento\s+/i, '');
+  const mentionsTopic = foldAccents(effect).toLowerCase().includes(word);
+  const mentionsHarm = /presi[oó]n|secreci[oó]n|riesgo|sangr|respir/i.test(effect);
+  if (!mentionsTopic && !mentionsHarm) return null;
+  if (/[aá]ngulo cerrado|narrow-angle/i.test(clause) && !/[aá]ngulo cerrado|narrow-angle/i.test(effect)) {
+    return spokenCause(`En el glaucoma de ángulo cerrado, ${effect.charAt(0).toLocaleLowerCase('es')}${effect.slice(1)}`);
+  }
+  return spokenCause(effect);
+}
+
+/** Un paréntesis que dice qué es la enfermedad no explica el riesgo del medicamento. */
+function isConditionDefinition(clause: string): boolean {
+  return /^(?:una? )?(?:afecci[oó]n|enfermedad|trastorno|forma de|tipo de)\b|^es decir\b|^que es\b|\ben la que\b|\bdebido a\b/i.test(
+    clause.trim()
+  );
+}
+
+function spokenCause(clause: string): string {
+  const text = clause
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!text) return '';
+  const spoken = text.charAt(0).toLocaleUpperCase('es') + text.slice(1);
+  return /[.!?]$/.test(spoken) ? spoken : `${spoken}.`;
+}
+
 export function answerFromPatientMonograph(input: {
   name: string;
   aspect:
@@ -380,6 +503,8 @@ export function answerFromPatientMonograph(input: {
   if (input.aspect === 'general') return null;
 
   if (input.aspect === 'purpose' || input.aspect === 'identity') {
+    const brief = briefMonographPurpose(page.purpose);
+    if (brief) return brief;
     const sentence = sentencesOf(page.purpose)[0];
     if (!sentence) return `No tengo información comprobada sobre para qué se usa ${name}.`;
     return firstSentence(sentence, 420);
@@ -416,9 +541,22 @@ export function answerFromPatientMonograph(input: {
     return items.join(' ');
   }
 
-  const symptoms = bulletsOf(page.adverse)
-    .filter((line) => line.length < 80 && !/medwatch|informe a su m[eé]dico si cualquiera|pueden ser graves/i.test(line))
-    .slice(0, 5);
+  const symptoms = page.adverse
+    .split('\n')
+    .map((line) => line.replace(/\s+/g, ' ').trim())
+    .filter(
+      (line) =>
+        line.length > 3 &&
+        line.length < 80 &&
+        !/medwatch|informe a su m[eé]dico si cualquiera|pueden ser graves|puede ocasionar/i.test(line)
+    )
+    .slice(0, 5)
+    .map((line) => line.replace(/[;,.\s]+$/g, '').trim())
+    .filter((line) => line.length > 2);
   if (symptoms.length === 0) return `No tengo efectos secundarios comprobados para ${name}.`;
-  return `${name} puede causar ${symptoms.join(', ')}.`;
+  const listed =
+    symptoms.length === 1
+      ? symptoms[0]
+      : `${symptoms.slice(0, -1).join(', ')} y ${symptoms[symptoms.length - 1]}`;
+  return `${name} puede causar ${listed}.`;
 }

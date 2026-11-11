@@ -135,11 +135,12 @@ export type QuestionAspect =
   | 'interactions'
   | 'adverse'
   | 'reason'
+  | 'simpler'
   | 'general';
 
 function aspectOf(message: string): QuestionAspect {
   const text = message.trim();
-  if (/por qu[eé]|c[oó]mo as[ií]|a qu[eé] se debe/i.test(text)) return 'reason';
+  if (/por qu[eé]|c[oó]mo as[ií]|a qu[eé] se debe|qu[eé] pasa si/i.test(text)) return 'reason';
   if (/efectos? secundarios|reacci[oó]n adversa|efectos? adversos/i.test(text)) return 'adverse';
   if (/contraindic|no debe usarse|qui[eé]n no debe/i.test(text)) return 'contraindications';
   if (/interacci|mezclar con|otros medicamentos|junto con/i.test(text)) return 'interactions';
@@ -150,6 +151,12 @@ function aspectOf(message: string): QuestionAspect {
   }
   if (/qu[eé] es|presentaci[oó]n/i.test(text)) return 'identity';
   if (/informaci[oó]n importante/i.test(text)) return 'precautions';
+  if (
+    /m[aá]s sencillo|no entend[ií]|d[ií]melo|expl[ií]camelo mejor|como si no supiera/i.test(text) &&
+    !/para qu[eé]|precauc|efecto|qu[eé] es/i.test(text)
+  ) {
+    return 'simpler';
+  }
   if (/forma sencilla|expl[ií]camelo|expl[ií]came/i.test(text)) return 'purpose';
   return 'general';
 }
@@ -208,11 +215,195 @@ export function missingCauseReply(): string {
   return 'No tengo una explicación comprobada de por qué es así.';
 }
 
+export function sourceOmitsCauseReply(): string {
+  return 'La ficha confirma esa precaución, pero no explica por qué este medicamento puede ser un riesgo.';
+}
+
+function conversationalReference(message: string): 'all' | 'which' | 'summary' | 'accept' | number | null {
+  const text = message.trim();
+  if (/res[uú]m|en una frase/i.test(text)) return 'summary';
+  if (/^(¿?\s*)?(cu[aá]les|cu[aá]l)\b/i.test(text)) return 'which';
+  if (/\b(de todas|todas|todos|ambas|ambos|todo eso|expl[ií]came todo)\b/i.test(text)) return 'all';
+  const index = text.match(/^la (primera|segunda|tercera)\b/i)?.[1]?.toLowerCase();
+  if (index === 'primera') return 0;
+  if (index === 'segunda') return 1;
+  if (index === 'tercera') return 2;
+  if (/^(¿?\s*)?(s[ií]|esa|eso|esta|este)\b/i.test(text) && text.length <= 48) return 'accept';
+  return null;
+}
+
+function topicsFromReply(answer: string): string[] {
+  const listed = answer.match(/mencion[eé] varias:\s*([^?.]+)/i)?.[1];
+  const source = listed || '';
+  const pieces = source
+    ? source.split(/\s*,\s*|\s*;\s*|\s+y\s+|\s+o\s+|\s+u\s+/i)
+    : [];
+  const cleaned = pieces.map((item) => item.replace(/[.;,\s]+$/g, '').trim()).filter((item) => item.length >= 4);
+  return cleaned.length > 0 ? cleaned.slice(0, 4) : conditionTopics(answer);
+}
+
+function finishSpoken(text: string): string {
+  const clean = text.replace(/\s+/g, ' ').trim();
+  if (!clean) return '';
+  return /[.!?]$/.test(clean) ? clean : `${clean}.`;
+}
+
+function readableTopic(topic: string): string {
+  const clean = topic
+    .replace(/\b(alguna vez|otro tipo de|o has tenido|tienes|tiene)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .replace(/^[,;:\s]+|[,;:\s]+$/g, '')
+    .trim();
+  const text = clean || topic.trim();
+  return text.charAt(0).toLocaleUpperCase('es') + text.slice(1);
+}
+
+function explainListedTopic(
+  topic: string,
+  monograph: PatientMonograph | null,
+  previous: string,
+  labelNotes: string
+): { label: string; cause: string | null } {
+  const label = readableTopic(topic);
+  if (!monograph && !labelNotes.trim()) return { label, cause: null };
+  if (!monograph) return { label, cause: null };
+  const cause = explainVerifiedCause({
+    message: topic,
+    previousAnswer: previous,
+    monograph,
+    focusTerm: topic,
+    labelNotes,
+  });
+  return { label, cause: cause || null };
+}
+
+function conditionTopics(answer: string): string[] {
+  const found: string[] = [];
+  const text = answer.replace(/\s+/g, ' ');
+  for (const part of text.split(/(?<=\.)\s+/)) {
+    const told = part.match(/si (?:tienes|tiene)(?: o has tenido)? ([^.]+)/i)?.[1];
+    if (told) {
+      found.push(
+        ...told
+          .split(/\s*,\s*|\s*;\s*|\s+y\s+|\s+o\s+|\s+u\s+/i)
+          .map((item) => item.replace(/[.;,\s]+$/g, '').trim())
+          .filter((item) => item.length >= 4 && item.length <= 70)
+      );
+    }
+    const effect = part.match(/puede darte ([^.]+)/i)?.[1];
+    if (effect) found.push(effect.replace(/[.;,\s]+$/g, '').trim());
+  }
+  return [...new Set(found)].slice(0, 4);
+}
+
+function namedTopic(message: string, topics: string[]): string | null {
+  const folded = foldAccents(message).toLowerCase();
+  const ignored = new Set(['tiene', 'tienes', 'enfermedad', 'problemas', 'puede', 'darte', 'medico']);
+  for (const topic of topics) {
+    const token = foldAccents(topic)
+      .toLowerCase()
+      .split(' ')
+      .find((word) => word.length >= 5 && !ignored.has(word));
+    if (token && folded.includes(token)) return topic;
+  }
+  return null;
+}
+
+function joinTopics(topics: string[]): string {
+  if (topics.length <= 1) return topics[0] || '';
+  return `${topics.slice(0, -1).join(', ')} y ${topics[topics.length - 1]}`;
+}
+
+export function firstSpokenSentence(text: string): string {
+  const sentence = text
+    .replace(/\s+/g, ' ')
+    .split(/(?<=\.)\s+/)
+    .map((part) => part.trim())
+    .find(Boolean);
+  if (!sentence) return '';
+  return /[.!?]$/.test(sentence) ? sentence : `${sentence}.`;
+}
+
 function isInformationGap(text: string | undefined): boolean {
   if (!text) return false;
   return /no tengo informaci[oó]n comprobada|no tengo precauciones comprobadas|no tengo instrucciones comprobadas|no tengo efectos secundarios comprobados|no tengo contraindicaciones comprobadas|no tengo interacciones comprobadas|en este momento no puedo consultar/i.test(
     text
   );
+}
+
+function latestTopics(history: Array<{ role: string; content: string }>): string[] {
+  for (let index = history.length - 1; index >= 0; index -= 1) {
+    if (history[index]?.role !== 'assistant') continue;
+    const topics = topicsFromReply(history[index].content);
+    if (topics.length > 0) return topics;
+  }
+  return [];
+}
+
+function answerConversationReference(input: {
+  name: string;
+  reference: 'all' | 'which' | 'summary' | 'accept' | number;
+  history: Array<{ role: string; content: string }>;
+  monograph: PatientMonograph | null;
+  labelNotes?: string;
+}): string | null {
+  const assistants = input.history.filter((item) => item.role === 'assistant');
+  const latest = assistants[assistants.length - 1]?.content || '';
+  const topics = latestTopics(input.history);
+  if (input.reference === 'summary') {
+    const source = [...assistants].reverse().find((item) => !/mencion[eé] varias|quieres que te explique/i.test(item.content));
+    const sentence = firstSpokenSentence(source?.content || latest);
+    return sentence || null;
+  }
+  if (input.reference === 'which') {
+    if (topics.length === 0) return null;
+    return `Las que mencioné son: ${joinTopics(topics)}.`;
+  }
+  if (input.reference === 'all' && /precauciones, c[oó]mo se usa o para qu[eé] sirve/i.test(latest)) {
+    if (!input.monograph) return null;
+    const parts = (['purpose', 'precautions', 'administration'] as const)
+      .map((aspect) => answerFromPatientMonograph({ name: input.name, aspect, monograph: input.monograph as PatientMonograph }))
+      .filter((part): part is string => Boolean(part));
+    return parts.length > 0 ? parts.join('\n\n') : null;
+  }
+  if (input.reference === 'all' || typeof input.reference === 'number' || input.reference === 'accept') {
+    const chosen =
+      typeof input.reference === 'number'
+        ? topics[input.reference]
+          ? [topics[input.reference]]
+          : []
+        : input.reference === 'accept' && topics.length === 1
+          ? topics
+          : input.reference === 'all'
+            ? topics
+            : [];
+    if (chosen.length === 0) return null;
+    const previous = assistants.find((item) => /precauci|m[eé]dico|mareo|glaucoma/i.test(item.content))?.content || latest;
+    const explained: string[] = [];
+    const unexplained: string[] = [];
+    const used = new Set<string>();
+    for (const topic of chosen) {
+      const item = explainListedTopic(topic, input.monograph, previous, input.labelNotes || '');
+      const causeKey = item.cause ? foldAccents(item.cause).toLowerCase() : '';
+      if (!item.cause || used.has(causeKey)) {
+        unexplained.push(item.label);
+        continue;
+      }
+      used.add(causeKey);
+      explained.push(`${item.label}. ${item.cause}`);
+    }
+    if (unexplained.length === 1) {
+      explained.push(
+        `${unexplained[0]}. La ficha lo menciona, pero no explica por qué este medicamento puede ser un riesgo.`
+      );
+    } else if (unexplained.length > 1) {
+      explained.push(
+        `${joinTopics(unexplained)}. La ficha los menciona, pero no explica por qué este medicamento puede ser un riesgo en esos casos.`
+      );
+    }
+    return explained.join('\n\n');
+  }
+  return null;
 }
 
 /** Respuesta sin modelo: solo los campos que la fuente sí trajo. */
@@ -247,7 +438,7 @@ export function answerFromVerifiedFields(input: {
     if (adverse.length > 0) return `${name}. ${adverse.slice(0, 2).join(' ')}`;
     return `No tengo efectos secundarios comprobados para ${name}.`;
   }
-  if (aspect === 'general') return '';
+  if (aspect === 'general' || aspect === 'simpler' || aspect === 'reason') return '';
   if (purpose) return knownPurposeSentence(name, purpose, input.facts.form);
   return insufficientInfoReply(name);
 }
@@ -258,28 +449,63 @@ export function replyFromVerifiedSources(input: {
   history?: Array<{ role: string; content: string }>;
   monograph: PatientMonograph | null;
   facts: VerifiedFacts | null;
+  /** Texto ya obtenido de la etiqueta oficial. No dispara otra consulta. */
+  labelNotes?: string;
 }): string | null {
+  const history = input.history ?? [];
+  const previousUser = [...history].reverse().find((item) => item.role === 'user');
+  const previousAssistant = [...history].reverse().find((item) => item.role === 'assistant');
+  const reference = conversationalReference(input.message);
+  if (reference !== null) {
+    const referenced = answerConversationReference({
+      name: input.name,
+      reference,
+      history,
+      monograph: input.monograph,
+      labelNotes: input.labelNotes,
+    });
+    if (referenced) return referenced;
+  }
   const aspect = questionAspect(input.message, input.history);
-  if (aspect === 'reason') {
-    const previousUser = [...(input.history ?? [])].reverse().find((item) => item.role === 'user');
-    const previousAssistant = [...(input.history ?? [])].reverse().find((item) => item.role === 'assistant');
+  if (aspect === 'simpler') {
+    const sentence = previousAssistant ? firstSpokenSentence(previousAssistant.content) : '';
+    if (sentence && !isInformationGap(sentence)) return sentence;
+  }
+  const answerAspect = aspect === 'simpler' ? 'purpose' : aspect;
+  if (answerAspect === 'reason') {
     const previousAspect = previousUser ? aspectOf(previousUser.content) : 'general';
     if (!previousUser || previousAspect === 'general' || previousAspect === 'reason' || isInformationGap(previousAssistant?.content)) {
       return clarificationReply();
     }
     if (!input.monograph) return missingCauseReply();
-    return (
-      explainVerifiedCause({
-        message: input.message,
-        previousAnswer: previousAssistant?.content || '',
-        monograph: input.monograph,
-      }) || missingCauseReply()
-    );
+    const explained = explainVerifiedCause({
+      message: input.message,
+      previousAnswer: previousAssistant?.content || '',
+      monograph: input.monograph,
+      labelNotes: input.labelNotes,
+    });
+    if (explained) return explained;
+    const topics = conditionTopics(previousAssistant?.content || '');
+    const focused = namedTopic(input.message, topics);
+    if (topics.length > 1 && !focused) {
+      return `Mencioné varias: ${joinTopics(topics)}. ¿De cuál quieres que te explique el motivo?`;
+    }
+    const specific = explainVerifiedCause({
+      message: input.message,
+      previousAnswer: previousAssistant?.content || '',
+      monograph: input.monograph,
+      focusTerm: focused || topics[0] || '',
+      labelNotes: input.labelNotes,
+    });
+    if (specific) return specific;
+    return previousAspect === 'precautions' || previousAspect === 'adverse'
+      ? sourceOmitsCauseReply()
+      : missingCauseReply();
   }
   if (input.monograph) {
     return answerFromPatientMonograph({
       name: input.name,
-      aspect,
+      aspect: answerAspect,
       monograph: input.monograph,
     });
   }
@@ -983,6 +1209,9 @@ export async function chatAboutDrug(input: DrugChatRequest): Promise<DrugChatRes
     history: input.history,
     monograph,
     facts: monograph ? null : verifiedFacts,
+    labelNotes: sourceInfo
+      ? [...sourceInfo.warnings, ...sourceInfo.precautions, ...sourceInfo.whenUsing].filter(Boolean).join('\n')
+      : '',
   });
   if (verifiedReply) {
     return {

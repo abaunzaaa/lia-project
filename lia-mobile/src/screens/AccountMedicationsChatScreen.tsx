@@ -8,6 +8,7 @@ import {
   Platform,
   ActivityIndicator,
   Image,
+  Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -94,6 +95,7 @@ export default function AccountMedicationsChatScreen({ navigation }: Props) {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -103,6 +105,17 @@ export default function AccountMedicationsChatScreen({ navigation }: Props) {
     requestAnimationFrame(() => {
       listRef.current?.scrollToEnd({ animated: true });
     });
+  }, []);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, () => setKeyboardOpen(true));
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardOpen(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
   }, []);
 
   useEffect(() => {
@@ -356,53 +369,52 @@ export default function AccountMedicationsChatScreen({ navigation }: Props) {
             },
           ]}
         >
-          <View
-            style={[
-              styles.notice,
-              {
-                backgroundColor: lightChrome
-                  ? '#E8ECEF'
-                  : isHighContrast && !isDark
-                    ? colors.surfaceElevated
-                    : colors.surface,
-                borderColor: lightChrome ? CHAT_BEIGE : colors.border,
-                borderWidth: isHighContrast ? 2 : 0,
-                paddingVertical: scaleSpacing(12),
-                paddingHorizontal: scaleSpacing(16),
-                marginTop: scaleSpacing(Space[8]),
-                marginBottom: scaleSpacing(Space[8]),
-              },
-            ]}
-          >
-            <AppText
-              variant="caption"
-              style={{
-                color: colors.textSecondary,
-                fontFamily: FontFamily.regular,
-                fontSize: scaleFont(14),
-                lineHeight: scaleFont(20),
-                flexShrink: 1,
-              }}
-            >
-              LIA recuerda lo que guardaste en tu cuenta y puede explicar un medicamento que no esté en tu
-              lista. No lo agrega a tu cuenta ni reemplaza las indicaciones de tu profesional de salud.
-            </AppText>
-          </View>
-
           <FlatList
             ref={listRef}
             data={messages}
             keyExtractor={(item) => item.id}
             renderItem={renderMessage}
-            style={styles.flex}
+            style={[styles.flex, styles.thread]}
             contentContainerStyle={{
-              paddingVertical: scaleSpacing(Space[8]),
-              paddingBottom: scaleSpacing(Space[16]),
+              paddingTop: scaleSpacing(Space[8]),
+              paddingBottom: scaleSpacing(Space[24]),
               gap: scaleSpacing(Space[12]),
-              flexGrow: 1,
             }}
             onContentSizeChange={scrollToEnd}
             keyboardShouldPersistTaps="handled"
+            ListHeaderComponent={
+              <View
+                style={[
+                  styles.notice,
+                  {
+                    backgroundColor: lightChrome
+                      ? '#E8ECEF'
+                      : isHighContrast && !isDark
+                        ? colors.surfaceElevated
+                        : colors.surface,
+                    borderColor: lightChrome ? CHAT_BEIGE : colors.border,
+                    borderWidth: isHighContrast ? 2 : 0,
+                    paddingVertical: scaleSpacing(8),
+                    paddingHorizontal: scaleSpacing(16),
+                    marginBottom: scaleSpacing(Space[8]),
+                  },
+                ]}
+              >
+                <AppText
+                  variant="caption"
+                  style={{
+                    color: colors.textSecondary,
+                    fontFamily: FontFamily.regular,
+                    fontSize: scaleFont(14),
+                    lineHeight: scaleFont(20),
+                    flexShrink: 1,
+                  }}
+                >
+                  LIA recuerda lo que guardaste en tu cuenta y puede explicar un medicamento que no esté en tu
+                  lista. No lo agrega a tu cuenta ni reemplaza las indicaciones de tu profesional de salud.
+                </AppText>
+              </View>
+            }
             ListFooterComponent={
               <View>
                 {sending ? (
@@ -440,7 +452,7 @@ export default function AccountMedicationsChatScreen({ navigation }: Props) {
             nearLimit={nearLimit}
             placeholder="Escribe tu pregunta…"
             accessibilityLabel="Escribe tu pregunta"
-            bottomInset={Math.max(insets.bottom, scaleSpacing(Space[8]))}
+            bottomInset={keyboardOpen ? scaleSpacing(8) : Math.max(insets.bottom, scaleSpacing(Space[8]))}
           />
           </View>
         </View>
@@ -453,6 +465,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   flex: { flex: 1 },
   notice: { borderRadius: 14, alignSelf: 'stretch' },
+  thread: { overflow: 'hidden' },
   localBlock: { alignSelf: 'stretch' },
   localRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   liaBubbleSlot: {

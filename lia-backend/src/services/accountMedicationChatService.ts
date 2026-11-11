@@ -3,10 +3,14 @@ import { MedicationResponse } from '../models/medicationTypes';
 import { aiService, AiProviderError, assistantQuotaMessage } from './aiService';
 import {
   DrugChatError,
+  firstSpokenSentence,
   lookupPublicProduct,
   lookupVerifiedDrug,
   medicationSourceAgrees,
+  replyFromVerifiedSources,
 } from './drugChatService';
+import { lookupSpanishPatientMonograph } from './patientMonographService';
+import { lookupHealthTopic } from './healthTopicService';
 import { findMedication } from '../models/medicationDatabase';
 import { DrugReferenceError } from './drugReferenceService';
 import { foldAccents } from '../utils/externalHttp';
@@ -52,11 +56,13 @@ CUENTA:
 
 INFORMACIÓN DEL MEDICAMENTO:
 - VERIFIED_REFERENCES, si viene, es información comprobada del nombre consultado. No es su tratamiento personal.
+- warnings y precautions son precauciones. Si una de las dos tiene texto, explícalo. No digas que no hay precauciones cuando la otra lista sí tiene texto.
 - Si preguntan para qué sirve, efectos o precauciones y esa información está, explícala en español sencillo desde la primera oración. Si el texto está en inglés, tradúcelo. No agregues datos que no estén ahí.
 - No estar en su lista no significa que el medicamento sea desconocido.
-- Si el nombre aparece en UNRESOLVED_NAMES, di que no tienes información comprobada de ese nombre. No lo cambies por otro producto y no le pidas que lo investigue.
+- Si el nombre aparece en UNRESOLVED_NAMES, es un medicamento que no se pudo comprobar. Di que no tienes su ficha. No digas que el tema de salud no existe.
 - notaGuardada, si viene, es un texto que la persona guardó. Puedes recordarlo. No inventes a partir de él un componente ni un uso que no diga.
-- Si la pregunta sigue la conversación, responde sobre el mismo medicamento sin pedir el nombre otra vez.
+- Una falla o una cuota agotada no significa que no exista información. Ese caso no se explica como falta de conocimiento.
+- Si la pregunta sigue la conversación, responde sobre el mismo tema sin pedir el nombre otra vez. Si cambia de tema, deja el anterior.
 
 ESTILO:
 - La respuesta ya debe entenderse sin que pidan palabras sencillas.
@@ -104,7 +110,10 @@ function extractDrugNames(message: string): string[] {
   const match = message.match(pattern);
   if (match?.[1]) {
     const cleaned = match[1].replace(/[.?!,;:].*$/, '').replace(/\s+(registrad[oa]s?|programad[oa]s?)$/i, '').trim();
-    if (cleaned.length >= 4 && !/medicamentos|horas|presentaci[oó]n|lista/i.test(cleaned)) {
+    if (
+      cleaned.length >= 4 &&
+      !/medicamentos|horas|presentaci[oó]n|lista|debo|tengo|tiene|puedo|puedes/i.test(cleaned)
+    ) {
       return [cleaned];
     }
   }
@@ -124,7 +133,18 @@ function extractDrugNames(message: string): string[] {
 }
 
 function isFollowUp(message: string): boolean {
-  return /sirve|m[aá]s f[aá]cil|precauc|pastilla|efecto|c[oó]mo se (?:usa|toma)|y eso|expl[ií]ca/i.test(message);
+  return /sirve|m[aá]s f[aá]cil|precauc|pastilla|efecto|c[oó]mo se (?:usa|toma)|y eso|expl[ií]ca|por qu[eé]/i.test(message);
+}
+
+export function isRestatement(message: string): boolean {
+  return (
+    /res[uú]m|en una frase|m[aá]s sencillo|no entend[ií]|d[ií]melo|rep[ií]telo/i.test(message) &&
+    !/para qu[eé]|precauc|efecto|qu[eé] es|por qu[eé]/i.test(message)
+  );
+}
+
+function definitional(message: string): boolean {
+  return /qu[eé] es|qu[eé] significa|en qu[eé] consiste/i.test(message) && !/para qu[eé] sirve/i.test(message);
 }
 
 export function mentionedDrugNames(
@@ -163,13 +183,63 @@ function registeredView(medications: MedicationResponse[]) {
   }));
 }
 
+function looksSpanish(text: string): boolean {
+  return /[áéíóúñ¿¡]|\b(sirve|para|tiene|puede|tomar|m[eé]dico|dolor|es una|cuando)\b/i.test(text);
+}
+
+async function replyForMedication(
+  name: string,
+  message: string,
+  history: Array<{ role: string; content: string }>
+): Promise<{ message: string; sourceName: string } | null> {
+  const info = await lookupVerifiedDrug(name);
+  if (!info) return null;
+  const monographName = info.genericName || info.name;
+  const monograph =
+    /^\d+$/.test(info.id) && monographName
+      ? await lookupSpanishPatientMonograph({ rxcui: info.id, drugName: monographName })
+      : null;
+  const precautions = [...info.warnings, ...info.precautions].filter((line) => looksSpanish(line)).slice(0, 4);
+  const purpose = [info.uses[0] || '', info.summary || ''].find((line) => looksSpanish(line)) || '';
+  const reply = replyFromVerifiedSources({
+    name,
+    message,
+    history,
+    monograph,
+    facts: monograph
+      ? null
+      : {
+          purpose,
+          form: info.dosageForms[0] || null,
+          instructions: info.dosageAndAdministration.filter((line) => looksSpanish(line)),
+          precautions,
+          adverse: [],
+        },
+  });
+  if (!reply || !looksSpanish(reply)) return null;
+  return { message: reply, sourceName: monograph ? 'MedlinePlus' : '' };
+}
+
 export async function chatAboutRegisteredMedications(params: {
   userId: string;
   input: AccountChatRequest;
 }): Promise<{ message: string; sourceName: string }> {
   const medications = await listMedications(params.userId);
   const message = params.input.message;
-  const askedNames = mentionedDrugNames(message, params.input.history);
+  const history = params.input.history.slice(-10).map((item) => ({
+    role: item.role,
+    content: item.content.trim().slice(0, 800),
+  }));
+  const currentNames = extractDrugNames(message);
+  const askedNames = currentNames.length > 0 ? currentNames : mentionedDrugNames(message, history);
+
+  if (currentNames.length === 0 && isRestatement(message)) {
+    const previous = [...history].reverse().find((item) => item.role === 'assistant');
+    const sentence = previous ? firstSpokenSentence(previous.content) : '';
+    if (sentence && !/no tengo|en este momento no puedo consultar/i.test(sentence)) {
+      return { message: sentence, sourceName: '' };
+    }
+  }
 
   if (askedNames.length === 0 && /qu[eé] medicamentos tengo|cu[aá]les tengo|mi lista/i.test(message)) {
     return { message: listReply(medications), sourceName: '' };
@@ -196,15 +266,17 @@ export async function chatAboutRegisteredMedications(params: {
           brandNames: local.aliases,
         })
     );
-    if (local && localAgrees && simpleQuestion) {
-      direct.push(`${local.name}. ${local.description}`);
-      continue;
-    }
-    const foldedName = foldAccents(name).toLowerCase();
-    const inAccount = medications.some(
-      (item) => foldAccents(item.name).toLowerCase() === foldedName
-    );
     try {
+      const grounded = await replyForMedication(name, message, history);
+      if (grounded) return grounded;
+      if (local && localAgrees && simpleQuestion) {
+        direct.push(`${local.name}. ${local.description}`);
+        continue;
+      }
+      const foldedName = foldAccents(name).toLowerCase();
+      const inAccount = medications.some(
+        (item) => foldAccents(item.name).toLowerCase() === foldedName
+      );
       const info = await lookupVerifiedDrug(name);
       if (info) {
         verified.push({
@@ -220,6 +292,11 @@ export async function chatAboutRegisteredMedications(params: {
           dosageForms: info.dosageForms,
         });
         continue;
+      }
+      if (definitional(message)) {
+        const topic = await lookupHealthTopic(name);
+        if (topic) return { message: topic.summary, sourceName: 'MedlinePlus' };
+        return { message: 'No tengo una explicación comprobada sobre eso.', sourceName: '' };
       }
       const commercial = await lookupPublicProduct(name);
       if (commercial?.uses[0]) {
@@ -268,11 +345,6 @@ export async function chatAboutRegisteredMedications(params: {
       'El asistente no está disponible en este momento. Inténtalo más tarde.'
     );
   }
-
-  const history = params.input.history.slice(-10).map((item) => ({
-    role: item.role,
-    content: item.content.trim().slice(0, 800),
-  }));
 
   const userContent =
     `REGISTERED_MEDICATIONS (JSON):\n${JSON.stringify(registeredView(medications))}\n` +

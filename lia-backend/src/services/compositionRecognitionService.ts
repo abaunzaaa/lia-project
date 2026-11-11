@@ -25,9 +25,11 @@ import {
   parseListedProduct,
   plainVerifiedPurpose,
   plainHormoneReplacement,
+  briefMonographPurpose,
   presentationsAgree,
   rejectsConfusedDrug,
   shortenPurpose,
+  selectImportantWarnings,
   singleIngredientInName,
   sameFormulation,
   sameIngredient,
@@ -506,6 +508,11 @@ export async function lookupIngredientIdentity(name: string): Promise<VerifiedIn
   return verifyExactIngredient(name);
 }
 
+function warningsFromSheet(text: string): string[] {
+  const selected = selectImportantWarnings(text);
+  return selected.length > 0 ? selected : briefSourcePrecautions(text);
+}
+
 async function purposeFromOfficialLabel(
   rxcui: string
 ): Promise<{ purpose: string; precautions: string[] } | null> {
@@ -516,8 +523,9 @@ async function purposeFromOfficialLabel(
   const indication = [...(label.indications_and_usage || []), ...(label.purpose || [])].join(' ').slice(0, 900);
   const purpose = plainVerifiedPurpose(indication);
   if (!purpose) return null;
-  const caution = [...(label.warnings || []), ...(label.do_not_use || [])].join(' ').slice(0, 1200);
-  return { purpose, precautions: briefSourcePrecautions(caution) };
+  const caution = [...(label.warnings || []), ...(label.do_not_use || [])].join(' ').slice(0, 1600);
+  const selected = selectImportantWarnings(caution);
+  return { purpose, precautions: selected.length > 0 ? selected : briefSourcePrecautions(caution) };
 }
 
 function factsFromMonograph(page: PatientMonograph): MonographFacts | null {
@@ -530,15 +538,21 @@ function factsFromMonograph(page: PatientMonograph): MonographFacts | null {
       .map((part) => part.trim())
       .find((part) => part.length > 0 && !part.startsWith('¿')) ||
     '';
-  if (!sentence) return null;
-  const precautions = briefPatientLines(briefSourcePrecautions(`${page.precautions}\n${page.adverse}`));
-  if (/cantidad superior|m[aá]s de la indicada|sobredosis|dosis m[aá]xima/i.test(`${page.precautions} ${page.administration}`)) {
+  if (!sentence && !adapted) return null;
+  const selected = selectImportantWarnings(
+    `${page.boxedWarning || ''}\n${page.precautions}\n${page.adverse}`
+  );
+  const precautions =
+    selected.length > 0 ? selected : briefPatientLines(briefSourcePrecautions(`${page.precautions}\n${page.adverse}`));
+  if (
+    /cantidad superior|m[aá]s de la indicada|sobredosis|dosis m[aá]xima/i.test(`${page.precautions} ${page.administration}`) &&
+    !precautions.some((line) => /empaque o tu m[eé]dico/i.test(line))
+  ) {
     precautions.unshift('No tomes más de lo que indica el empaque o tu médico.');
   }
-  const unique = [...new Set(precautions)].slice(0, 2);
   return {
-    purpose: shortenPurpose(sentence),
-    precautions: unique,
+    purpose: adapted || briefMonographPurpose(full) || shortenPurpose(sentence),
+    precautions: [...new Set(precautions)].slice(0, 8),
     source: 'MedlinePlus',
   };
 }
@@ -683,7 +697,7 @@ async function explainPackage(
       return {
         genericName,
         purpose: plainVerifiedPurpose(singleSheet.purpose) || UNCONFIRMED_INGREDIENT,
-        precautions: briefSourcePrecautions(singleSheet.cautionText),
+        precautions: warningsFromSheet(singleSheet.cautionText),
         presentation,
         source: singleSheet.source,
         rxcui: only.rxcui,
@@ -721,7 +735,7 @@ async function explainPackage(
   return {
     genericName,
     purpose,
-    precautions: briefSourcePrecautions(matched.cautionText),
+    precautions: warningsFromSheet(matched.cautionText),
     presentation,
     source: matched.source,
     rxcui: null,
@@ -888,7 +902,7 @@ function voiceFrom(name: string, explanation: BuiltExplanation): string {
     explanation.presentation ? `Presentación: ${explanation.presentation}` : '',
     explanation.purpose || '',
     explanation.observedReading || '',
-    ...explanation.precautions.slice(0, 2),
+    ...explanation.precautions.slice(0, 6),
   ]
     .filter(Boolean)
     .join('. ')

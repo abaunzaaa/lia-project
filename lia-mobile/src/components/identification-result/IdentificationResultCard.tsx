@@ -54,7 +54,7 @@ function ResultPhoto({
         key={current}
         source={{ uri: current }}
         style={styles.capturedPhoto}
-        resizeMode="cover"
+        resizeMode="contain"
         onError={() => {
           if (fallback && fallback !== current) {
             setCurrent(fallback);
@@ -261,7 +261,7 @@ export default function IdentificationResultCard({
           <AppText variant="label" style={{ color: ink }}>
             Puntos importantes
           </AppText>
-          {importantPoints.slice(0, 4).map((point, index) => (
+          {importantPoints.slice(0, 8).map((point, index) => (
             <AppText
               key={`${index}-${point.slice(0, 12)}`}
               variant="body"

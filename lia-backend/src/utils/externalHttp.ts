@@ -9,6 +9,7 @@ const ALLOWED_HOSTS = new Set([
   'dailymed.nlm.nih.gov',
   'connect.medlineplus.gov',
   'medlineplus.gov',
+  'wsearch.nlm.nih.gov',
 ]);
 
 export class ExternalApiError extends Error {

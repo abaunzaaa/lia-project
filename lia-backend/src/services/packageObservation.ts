@@ -1,4 +1,5 @@
 import { ObservedIngredient, ObservedPackage } from '../models/types';
+import { foldAccents } from '../utils/externalHttp';
 
 /**
  * Instrucción de la única llamada de visión de la cámara del celular.
@@ -609,7 +610,376 @@ export function briefSourcePrecautions(text: string): string[] {
   ) {
     facts.push('Si tienes problemas del hígado, consulta antes de tomarlo.');
   }
-  return facts.slice(0, 2);
+  return facts.slice(0, 4);
+}
+
+function parenthesesBalanced(text: string): boolean {
+  let depth = 0;
+  for (const char of text) {
+    if (char === '(') depth += 1;
+    if (char === ')') depth -= 1;
+    if (depth < 0) return false;
+  }
+  return depth === 0;
+}
+
+function closeClause(text: string): string {
+  let piece = text.replace(/[\s,;:]+$/g, '').trim();
+  if (!parenthesesBalanced(piece)) {
+    const open = piece.lastIndexOf('(');
+    if (open > 20) piece = piece.slice(0, open).replace(/[\s,;:]+$/g, '').trim();
+  }
+  if (!piece) return '';
+  return /[.!?]$/.test(piece) ? piece : `${piece}.`;
+}
+
+const SHEET_HEADING =
+  /^(?:precauciones|advertencias|contraindicaciones|interacciones|reacciones adversas|efectos adversos|efectos secundarios)(?:\s+y\s+(?:precauciones|advertencias|contraindicaciones|interacciones))*\s*:?\s*/i;
+
+type PlainWarning = { key: string; rank: number; text: string };
+
+function peelHeadings(value: string): string {
+  let rest = value.replace(/\s+/g, ' ').trim();
+  while (SHEET_HEADING.test(rest)) rest = rest.replace(SHEET_HEADING, '').trim();
+  return rest;
+}
+
+function warningFold(value: string): string {
+  return foldAccents(value).toLowerCase();
+}
+
+function hasWarningVerb(value: string): boolean {
+  return /\b(?:no\s+(?:lo|la|los|las|se)?\s*(?:tome|tomes|use|uses|administre|administrar|debe)|informe|consulte|puede|pueden|incrementa|aumenta|produc(?:e|en|ir)|recomend|evite|llame)\b/i.test(
+    value
+  );
+}
+
+function cleanPunctuation(value: string): string {
+  return value
+    .replace(/\s+/g, ' ')
+    .replace(/\.+\s*;+\s*\.*/g, '.')
+    .replace(/;+\s*\.+/g, '.')
+    .replace(/\.{2,}/g, '.')
+    .replace(/\s+([,.;:!?])/g, '$1')
+    .replace(/[;,]+\s*$/g, '')
+    .trim();
+}
+
+function tidyWarning(value: string): string {
+  const text = cleanPunctuation(value)
+    .replace(/\bNo tome\b/g, 'No tomes')
+    .replace(/\bno tome\b/g, 'no tomes')
+    .replace(/\bNo lo tome\b/gi, 'No lo tomes')
+    .replace(/\bNo use\b/gi, 'No uses')
+    .replace(/\bInforme a su m[eé]dico\b/gi, 'Cuéntale a tu médico')
+    .replace(/\bsi est[aá] embarazada\b/gi, 'si estás embarazada')
+    .replace(/\bsi tiene\b/gi, 'si tienes')
+    .trim();
+  if (!text || isDanglingList(text)) return '';
+  const spoken = text.charAt(0).toLocaleUpperCase('es') + text.slice(1);
+  return /[.!?]$/.test(spoken) ? spoken : `${spoken}.`;
+}
+
+/** Una introducción que promete una lista y no la trae. */
+function isDanglingList(value: string): boolean {
+  if (/:\s*$/.test(value)) return true;
+  if (/cualquiera de estos s[ií]ntomas|siguientes s[ií]ntomas|se vuelve severo o si no desaparece/i.test(value)) {
+    const after = value.split(':').slice(1).join(':').trim();
+    return after.length < 12;
+  }
+  return false;
+}
+
+function listSentence(parts: string[]): string {
+  if (parts.length <= 1) return parts[0] || '';
+  return `${parts.slice(0, -1).join(', ')} o ${parts[parts.length - 1]}`;
+}
+
+function warningKey(value: string): string {
+  const text = warningFold(value);
+  if (/semana|trimestre|feto|bebe|parto/.test(text) && /embaraz/.test(text)) return 'embarazo-especifico';
+  if (/embaraz|lactancia|pecho/.test(text)) return 'embarazo';
+  if (/aspirina|acetil/.test(text) && /ulcera|sangrad/.test(text)) return 'aspirina-ulcera';
+  if (/ulceras, hemorragias|ulcera, sangrado o una perforacion|provocar ulceras/.test(text)) return 'ulcera-riesgo';
+  if (/ulcera|sangrado gastrointestinal|acido peptic/.test(text)) return 'ulcera';
+  if (/severa|grave/.test(text) && /higado|hepatic/.test(text)) return 'higado-grave';
+  if (/higado|hepatic/.test(text)) return 'higado';
+  if (/renal|rinon/.test(text)) return 'rinon';
+  if (/ataque cardiaco recientemente|infarto hace poco/.test(text)) return 'infarto-reciente';
+  if (/ataque cardiaco|infarto|derrame cerebral/.test(text)) return 'corazon';
+  if (/cafeina/.test(text)) return 'cafeina';
+  if (/mismo componente|mismos ingredientes|tomados juntos/.test(text)) return 'duplicado';
+  if (/alerg|hipersensib/.test(text)) return 'alergia';
+  if (/broncoespasmo|polipos|angioneurotico/.test(text)) return 'via-aerea';
+  return text.slice(0, 48);
+}
+
+/** Fragmento sin verbo: solo se convierte si el texto ya dice la condición. */
+function warningFromFragment(fragment: string): PlainWarning | null {
+  const clean = peelHeadings(fragment).replace(/\s*\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
+  if (clean.length < 8 || clean.length > 320) return null;
+  if (looksLikePersonalDose(clean)) return null;
+  if (/iniciar sesion|acceso exclusivo|enciclopedia/i.test(warningFold(clean))) return null;
+  const folded = warningFold(clean);
+  if (!hasWarningVerb(clean)) {
+    if (/ulcera|sangrado gastrointestinal|acido peptic/.test(folded)) {
+      const parts = [
+        /ulcera/.test(folded) ? 'úlcera' : '',
+        /sangrado gastrointestinal/.test(folded) ? 'sangrado del estómago' : '',
+        /acido peptic/.test(folded) ? 'antecedente de enfermedad por ácido' : '',
+      ].filter(Boolean);
+      return { key: 'ulcera', rank: 2, text: `No lo tomes si tienes ${listSentence(parts)}.` };
+    }
+    if (/hipersensib|alerg/.test(folded)) {
+      const nsaid = /aspirina|acetil|aine/.test(folded);
+      const components = /principio|componente|excipiente/.test(folded);
+      const text =
+        nsaid && components
+          ? 'No lo tomes si eres alérgico a sus componentes, a la aspirina o a otros antiinflamatorios.'
+          : nsaid
+            ? 'No lo tomes si has tenido alergia a la aspirina o a otros antiinflamatorios.'
+            : 'No lo tomes si eres alérgico a alguno de sus componentes.';
+      return { key: 'alergia', rank: 1, text };
+    }
+    if (/broncoespasmo|rinitis|polipos|angioneurotico/.test(folded)) {
+      const parts = [
+        /broncoespasmo/.test(folded) ? 'broncoespasmo' : '',
+        /rinitis/.test(folded) ? 'rinitis' : '',
+        /polipos/.test(folded) ? 'pólipos nasales' : '',
+        /angioneurotico/.test(folded) ? 'hinchazón alérgica' : '',
+      ].filter(Boolean);
+      return { key: 'via-aerea', rank: 5, text: `No lo tomes si has tenido ${listSentence(parts)}.` };
+    }
+    if (/hepatic/.test(folded) && /severa|grave/.test(folded)) {
+      return { key: 'higado-grave', rank: 2, text: 'No lo tomes si tienes una enfermedad grave del hígado.' };
+    }
+    if (/renal/.test(folded) && /grave/.test(folded)) {
+      return { key: 'rinon', rank: 2, text: 'No lo tomes si tienes un problema grave de los riñones.' };
+    }
+    if (/hepatic|higado|renal|rinon/.test(folded)) {
+      const liver = /hepatic|higado/.test(folded);
+      const kidney = /renal|rinon/.test(folded);
+      return {
+        key: liver ? 'higado' : 'rinon',
+        rank: 4,
+        text:
+          liver && kidney
+            ? 'Cuéntale a tu médico si tienes problemas del hígado o de los riñones.'
+            : liver
+              ? 'Cuéntale a tu médico si tienes problemas del hígado.'
+              : 'Cuéntale a tu médico si tienes problemas de los riñones.',
+      };
+    }
+    if (/embaraz/.test(folded) || /lactancia/.test(folded)) {
+      const trimester = /tercer trimestre/.test(folded);
+      const nursing = /lactancia|pecho/.test(folded);
+      const text =
+        trimester && nursing
+          ? 'Ten especial cuidado en el tercer trimestre del embarazo y si das pecho.'
+          : trimester
+            ? 'Ten especial cuidado en el tercer trimestre del embarazo.'
+            : nursing
+              ? 'Ten especial cuidado si das pecho.'
+              : '';
+      return text ? { key: 'embarazo-especifico', rank: 3, text } : null;
+    }
+    return null;
+  }
+  if ((clean.match(/,/g) || []).length >= 4 && !/\bno (?:lo |la )?tom/i.test(clean)) return null;
+  if (/aspirina|acetil/.test(folded) && /ulcera|sangrad/.test(folded) && /incrementa|aumenta|riesgo/.test(folded)) {
+    return {
+      key: 'aspirina-ulcera',
+      rank: 4,
+      text: 'Usarlo junto con aspirina aumenta el riesgo de úlcera en el estómago.',
+    };
+  }
+  if (/cafeina/.test(folded) && /insomnio|nauseas/.test(folded)) {
+    return {
+      key: 'cafeina',
+      rank: 6,
+      text: /nauseas/.test(folded)
+        ? 'La cafeína de este producto puede quitarte el sueño o causarte náuseas.'
+        : 'La cafeína de este producto puede quitarte el sueño.',
+    };
+  }
+  const text = tidyWarning(clean);
+  if (
+    !text ||
+    isDanglingList(text) ||
+    /[.][;]|[;][.]/.test(text) ||
+    !/no tom|al[eé]rg|embaraz|h[ií]gado|ri[nñ][oó]n|sangrad|[uú]lcera|infarto|derrame|asma|glaucoma|mismo componente|reacci[oó]n grave|informe|cu[eé]ntale|otro analg[eé]sico/i.test(
+      text
+    )
+  ) {
+    return null;
+  }
+  const key = warningKey(text);
+  const rank = key === 'alergia' ? 1 : key === 'ulcera' || key === 'higado-grave' || key === 'rinon' ? 2 : 4;
+  return { key, rank, text };
+}
+
+function mergeNamed(items: PlainWarning[], key: string, textFor: (blob: string) => string | null): PlainWarning[] {
+  const family = items.filter((item) => item.key === key);
+  if (family.length <= 1) return items;
+  const text = textFor(warningFold(family.map((item) => item.text).join(' ')));
+  if (!text) return items;
+  return [{ key, rank: family[0].rank, text }, ...items.filter((item) => item.key !== key)];
+}
+
+function preferWarnings(items: PlainWarning[]): string[] {
+  const mergedAllergy = mergeNamed(items, 'alergia', (blob) => {
+    const nsaid = /aspirina|antiinflamatorio/.test(blob);
+    const components = /componente/.test(blob);
+    if (nsaid && components) return 'No lo tomes si eres alérgico a sus componentes, a la aspirina o a otros antiinflamatorios.';
+    return null;
+  });
+  const mergedAirway = mergeNamed(mergedAllergy, 'via-aerea', (blob) => {
+    const parts = [
+      /broncoespasmo/.test(blob) ? 'broncoespasmo' : '',
+      /rinitis/.test(blob) ? 'rinitis' : '',
+      /polipos/.test(blob) ? 'pólipos nasales' : '',
+      /hinchazon/.test(blob) ? 'hinchazón alérgica' : '',
+    ].filter(Boolean);
+    return parts.length > 1 ? `No lo tomes si has tenido ${listSentence(parts)}.` : null;
+  });
+  const week = mergedAirway.filter((item) => item.key === 'embarazo-especifico' && /20/.test(item.text));
+  let next = mergedAirway;
+  if (week.length >= 2) {
+    const blob = warningFold(week.map((item) => item.text).join(' '));
+    const merged =
+      /dan|parto|feto|bebe/.test(blob) && /no tom/.test(blob)
+        ? 'A partir de las 20 semanas de embarazo puede hacerle daño al bebé y causar problemas en el parto. No lo tomes en esa etapa, salvo que tu médico lo indique.'
+        : week.slice().sort((left, right) => right.text.length - left.text.length)[0].text;
+    next = [
+      { key: 'embarazo-especifico', rank: 3, text: merged },
+      ...mergedAirway.filter((item) => item.key !== 'embarazo-especifico' || !/20/.test(item.text)),
+    ];
+  }
+  const byKey = new Map<string, PlainWarning>();
+  for (const item of next) {
+    const current = byKey.get(item.key);
+    if (!current || item.rank < current.rank) byKey.set(item.key, item);
+  }
+  let chosen = [...byKey.values()];
+  if (chosen.some((item) => item.key === 'embarazo-especifico')) {
+    chosen = chosen.filter((item) => item.key !== 'embarazo');
+  }
+  if (chosen.some((item) => item.key === 'higado-grave')) chosen = chosen.filter((item) => item.key !== 'higado');
+  if (chosen.some((item) => item.rank <= 2)) {
+    chosen = chosen.filter((item) => !/qu[eé] medicamentos con y sin receta|lista de los ingredientes|65 a[nñ]os o m[aá]s|fertilidad/i.test(item.text));
+  }
+  chosen.sort((left, right) => left.rank - right.rank);
+  const critical = chosen.filter((item) => item.rank <= 2);
+  const rest = chosen.filter((item) => item.rank > 2);
+  return [...critical, ...rest.slice(0, Math.max(0, 6 - critical.length))].slice(0, 8).map((item) => item.text);
+}
+
+function documentedRisks(text: string): PlainWarning[] {
+  const folded = warningFold(text);
+  const found: PlainWarning[] = [];
+  if (/ataque cardiaco|infarto|derrame cerebral/.test(folded)) {
+    found.push({
+      key: 'corazon',
+      rank: 1,
+      text: 'Puede aumentar el riesgo de infarto o derrame cerebral.',
+    });
+  }
+  if (/ataque cardiaco recientemente/.test(folded) && /a menos que|salvo que|se lo indique/.test(folded)) {
+    found.push({
+      key: 'infarto-reciente',
+      rank: 1,
+      text: 'No lo uses si tuviste un infarto hace poco, salvo que tu médico lo indique.',
+    });
+  }
+  if (/ulceras|hemorragia|perforacion/.test(folded) && /estomago|intestino|esofago/.test(folded)) {
+    found.push({
+      key: 'ulcera-riesgo',
+      rank: 1,
+      text: 'Puede causar úlcera, sangrado o una perforación en el estómago o el intestino.',
+    });
+  }
+  if (/dolor de pecho/.test(folded) && /dificultad para respirar/.test(folded) && /dificultad para hablar|debilidad en una parte/.test(folded)) {
+    found.push({
+      key: 'alarma-corazon',
+      rank: 2,
+      text: 'Busca ayuda de inmediato si tienes dolor de pecho, dificultad para respirar, debilidad de un lado del cuerpo o dificultad para hablar.',
+    });
+  }
+  const sentences = folded.split(/\n+|(?<=\.)\s+/);
+  const tells = (pattern: RegExp) =>
+    sentences.some((sentence) => /informe a su medico si/.test(sentence) && pattern.test(sentence));
+  if (tells(/enfermedad renal|insuficiencia renal/) && !/renal grave/.test(folded)) {
+    found.push({
+      key: 'rinon',
+      rank: 2,
+      text: 'Cuéntale a tu médico si tienes una enfermedad de los riñones.',
+    });
+  }
+  if (tells(/insuficiencia cardiaca/)) {
+    found.push({
+      key: 'insuficiencia-cardiaca',
+      rank: 2,
+      text: 'Cuéntale a tu médico si tienes insuficiencia cardíaca.',
+    });
+  }
+  return found;
+}
+
+/** Frases completas y sencillas. No copia cantidades de otra marca ni encabezados de la ficha. */
+export function selectImportantWarnings(text: string): string[] {
+  const prepared = cleanPunctuation(replaceKnownEnglishNames(text));
+  const found = documentedRisks(prepared);
+  for (const chunk of prepared.split(/\n+|(?<=\.)\s+/)) {
+    const warning = warningFromFragment(chunk.trim());
+    if (warning && !isDanglingList(warning.text)) found.push(warning);
+  }
+  return preferWarnings(found);
+}
+
+/**
+ * Primera explicación de una monografía larga: para qué sirve, sin las definiciones
+ * de cada enfermedad. Una finalidad ya breve se deja igual.
+ */
+export function briefMonographPurpose(text: string): string | null {
+  const source = text.replace(/\s+/g, ' ').trim();
+  if (!source || !/\([^)]{12,}\)/.test(source)) return null;
+  const stripped = cleanPunctuation(source.replace(/\s*\([^)]*\)/g, ' '));
+  const sentences = stripped
+    .split(/(?<=\.)\s+/)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 20 && !part.startsWith('¿'));
+  if (sentences.length === 0) return null;
+  const first = leadPurpose(sentences[0]);
+  const extra = sentences
+    .slice(1)
+    .find((part) => /fiebre|infecci[oó]n/.test(part) && !namesAnotherPresentation(part));
+  if (!extra) return first;
+  const second = compressClause(extra, 180);
+  if (warningFold(second) === warningFold(first)) return first;
+  const combined = `${first} ${second}`.replace(/\s+/g, ' ').trim();
+  return combined.length <= 420 ? combined : first;
+}
+
+function namesAnotherPresentation(sentence: string): boolean {
+  return /venta libre|liberaci[oó]n prolongada|suspensi[oó]n|tabletas|c[aá]psulas/i.test(sentence);
+}
+
+function leadPurpose(sentence: string): string {
+  const withoutForm = sentence
+    .replace(/\b(recetad[oa]s?|de venta libre)\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const lead = withoutForm.split(/\s+causad[oa]s?\s+por\b|\s+ocasionad[oa]s?\s+por\b|\s+provocad[oa]s?\s+por\b/i)[0] || withoutForm;
+  const spoken = closeClause(lead.replace(/\s+,/g, ',').replace(/\s{2,}/g, ' ').trim());
+  return spoken.length >= 24 ? spoken : compressClause(sentence, 180);
+}
+
+function compressClause(sentence: string, max: number): string {
+  const clean = cleanPunctuation(sentence);
+  if (clean.length <= max && parenthesesBalanced(clean)) return closeClause(clean);
+  const slice = clean.slice(0, max);
+  const end = Math.max(slice.lastIndexOf(', '), slice.lastIndexOf(' y '), slice.lastIndexOf('; '));
+  return closeClause(end > 60 ? slice.slice(0, end) : slice);
 }
 
 export function replaceKnownEnglishNames(text: string): string {
@@ -638,7 +1008,7 @@ export function briefPatientLines(lines: string[]): string[] {
       sawDoseLimit = true;
       continue;
     }
-    if (clean.length > 160) continue;
+    if (clean.length > 240) continue;
     kept.push(clean);
   }
   if (sawDoseLimit) {
@@ -648,15 +1018,15 @@ export function briefPatientLines(lines: string[]): string[] {
   for (const line of kept) {
     if (!unique.includes(line)) unique.push(line);
   }
-  return unique.slice(0, 2);
+  return unique.slice(0, 8);
 }
 
 export function shortenPurpose(text: string): string {
   const clean = replaceKnownEnglishNames(text).replace(/\s+/g, ' ').trim();
-  if (clean.length <= 220) return clean;
-  const slice = clean.slice(0, 220);
-  const end = slice.lastIndexOf('.');
-  return (end > 80 ? slice.slice(0, end + 1) : slice.replace(/\s+\S*$/, '').trim()).trim();
+  if (clean.length <= 420 && parenthesesBalanced(clean)) return closeClause(clean);
+  const slice = clean.slice(0, 420);
+  const end = Math.max(slice.lastIndexOf('. '), slice.lastIndexOf('; '));
+  return closeClause(end > 80 ? slice.slice(0, end + 1) : slice);
 }
 
 export function distinctiveNameTokens(name: string): string[] {

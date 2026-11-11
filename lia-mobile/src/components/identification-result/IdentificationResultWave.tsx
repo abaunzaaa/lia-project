@@ -28,7 +28,7 @@ export default function IdentificationResultWave({ topOffset, height = 168, cove
           {
             backgroundColor: fill,
             top: coverTop ? 0 : 28,
-            height: coverTop ? height + 220 : 200,
+            height: coverTop ? height : 200,
           },
         ]}
       />

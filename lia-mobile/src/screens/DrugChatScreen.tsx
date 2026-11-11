@@ -8,6 +8,7 @@ import {
   Platform,
   ActivityIndicator,
   Image,
+  Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -91,6 +92,7 @@ export default function DrugChatScreen({ navigation, route }: Props) {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -115,6 +117,17 @@ export default function DrugChatScreen({ navigation, route }: Props) {
   useEffect(() => {
     scrollToEnd();
   }, [messages, sending, scrollToEnd]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, () => setKeyboardOpen(true));
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardOpen(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   const ask = useCallback(
     async (rawQuestion: string, options?: { isRetry?: boolean }) => {
@@ -419,53 +432,52 @@ export default function DrugChatScreen({ navigation, route }: Props) {
             data={messages}
             keyExtractor={(item) => item.id}
             renderItem={renderMessage}
-            style={styles.flex}
+            style={[styles.flex, styles.thread]}
             contentContainerStyle={{
-              paddingVertical: scaleSpacing(Space[8]),
-              paddingBottom: scaleSpacing(Space[16]),
+              paddingTop: scaleSpacing(Space[8]),
+              paddingBottom: scaleSpacing(Space[24]),
               gap: scaleSpacing(Space[12]),
-              flexGrow: 1,
             }}
             onContentSizeChange={scrollToEnd}
             keyboardShouldPersistTaps="handled"
             ListFooterComponent={
-              sending ? (
-                <View style={styles.typingRow} accessibilityLabel="LIA está escribiendo">
-                  <ActivityIndicator size="small" color={colors.primary} />
-                  <AppText variant="caption" tone="secondary">
-                    LIA está escribiendo…
+              <View>
+                {sending ? (
+                  <View style={styles.typingRow} accessibilityLabel="LIA está escribiendo">
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <AppText variant="caption" tone="secondary">
+                      LIA está escribiendo…
+                    </AppText>
+                  </View>
+                ) : null}
+                {!hasInteracted ? (
+                  <AppText
+                    variant="caption"
+                    tone="muted"
+                    style={{
+                      marginBottom: scaleSpacing(8),
+                      fontSize: scaleFont(14),
+                      lineHeight: scaleFont(20),
+                    }}
+                  >
+                    Información orientativa. No reemplaza a tu médico.
                   </AppText>
-                </View>
-              ) : undefined
+                ) : null}
+                {!hasInteracted ? (
+                  <View style={[styles.quickWrap, { gap: scaleSpacing(Space[8]) }]}>
+                    {QUICK_QUESTIONS.map((q) => (
+                      <SuggestedQuestionChip
+                        key={q}
+                        question={q}
+                        onPress={() => void ask(q)}
+                        disabled={sending}
+                      />
+                    ))}
+                  </View>
+                ) : null}
+              </View>
             }
           />
-
-          {!hasInteracted ? (
-            <AppText
-              variant="caption"
-              tone="muted"
-              style={{
-                marginBottom: scaleSpacing(4),
-                fontSize: scaleFont(14),
-                lineHeight: scaleFont(20),
-              }}
-            >
-              Información orientativa. No reemplaza a tu médico.
-            </AppText>
-          ) : null}
-
-          {!hasInteracted ? (
-            <View style={[styles.quickWrap, { gap: scaleSpacing(Space[8]) }]}>
-              {QUICK_QUESTIONS.map((q) => (
-                <SuggestedQuestionChip
-                  key={q}
-                  question={q}
-                  onPress={() => void ask(q)}
-                  disabled={sending}
-                />
-              ))}
-            </View>
-          ) : null}
 
           <ChatComposer
             value={input}
@@ -477,7 +489,7 @@ export default function DrugChatScreen({ navigation, route }: Props) {
             nearLimit={nearLimit}
             placeholder="Escribe tu pregunta…"
             accessibilityLabel="Escribe tu pregunta"
-            bottomInset={Math.max(insets.bottom, scaleSpacing(Space[8]))}
+            bottomInset={keyboardOpen ? scaleSpacing(8) : Math.max(insets.bottom, scaleSpacing(Space[8]))}
           />
         </View>
       </KeyboardAvoidingView>
@@ -488,6 +500,7 @@ export default function DrugChatScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   flex: { flex: 1 },
+  thread: { overflow: 'hidden' },
   localBlock: {
     alignSelf: 'stretch',
   },

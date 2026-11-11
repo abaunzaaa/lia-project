@@ -19,7 +19,6 @@ import { Ionicons } from '../components/icons/Ionicons';
 import { RootStackParamList } from '../types';
 import { AppText, Button, EditorialText, Screen, SurfaceCard } from '../components';
 import IdentificationResultCard from '../components/identification-result/IdentificationResultCard';
-import IdentificationResultWave from '../components/identification-result/IdentificationResultWave';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useTheme } from '../context/ThemeContext';
 import { useMedications } from '../context/MedicationContext';
@@ -82,12 +81,6 @@ export default function PhoneCameraScreen({ navigation }: Props) {
   const portrait = windowSize.height >= windowSize.width;
   const resultTopInset =
     insets.top > 0 ? insets.top : portrait ? (initialWindowMetrics?.insets.top ?? 0) : 0;
-  const resultHeaderHeight =
-    scaleSpacing(Space[12]) +
-    Math.max(44, minTouch) +
-    scaleSpacing(Space[12]) +
-    scaleFont(38) +
-    scaleSpacing(Space[24]);
   const isFocused = useIsFocused();
   const [permission, requestPermission] = useCameraPermissions();
 
@@ -110,6 +103,7 @@ export default function PhoneCameraScreen({ navigation }: Props) {
   const [cameraKey, setCameraKey] = useState(0);
 
   const pageBg = lightChrome ? BrandColors.white : colors.background;
+  const headerFill = isHighContrast ? colors.surfaceElevated : isDark ? colors.primaryLight : BrandColors.skyBlue;
   const ink = lightChrome ? BrandColors.navy : colors.textPrimary;
   const muted = lightChrome ? BrandColors.teal : colors.textSecondary;
 
@@ -414,36 +408,52 @@ export default function PhoneCameraScreen({ navigation }: Props) {
   if (phase === 'result' && result) {
     return (
       <View style={[styles.root, { backgroundColor: pageBg, paddingTop: resultTopInset }]}>
-        <IdentificationResultWave topOffset={0} height={resultHeaderHeight} coverTop />
         <Screen
           scroll
           transparent
           padded={false}
           contentStyle={{
-            paddingTop: scaleSpacing(Space[12]),
-            paddingHorizontal: horizontalPadding,
+            paddingTop: 0,
+            paddingHorizontal: 0,
             paddingBottom: insets.bottom + scaleSpacing(Space[32]),
-            zIndex: 1,
           }}
         >
-          <BackButton
-            label="Identificar"
-            color={ink}
-            minTouch={minTouch}
-            onPress={() => navigation.goBack()}
-          />
-          <EditorialText
-            variant="headline"
-            accessibilityRole="header"
+          <View style={{ backgroundColor: headerFill }}>
+            <View
+              style={{
+                paddingHorizontal: horizontalPadding,
+                paddingTop: scaleSpacing(Space[8]),
+                paddingBottom: scaleSpacing(Space[8]),
+              }}
+            >
+              <BackButton
+                label="Identificar"
+                color={ink}
+                minTouch={minTouch}
+                onPress={() => navigation.goBack()}
+              />
+              <EditorialText
+                variant="headline"
+                accessibilityRole="header"
+                style={{
+                  fontSize: scaleFont(32),
+                  lineHeight: scaleFont(38),
+                  marginTop: scaleSpacing(Space[8]),
+                }}
+              >
+                Medicamento reconocido
+              </EditorialText>
+            </View>
+          </View>
+          <View pointerEvents="none" style={styles.resultCurve}>
+            <View style={[styles.resultCurveFill, { backgroundColor: headerFill }]} />
+          </View>
+          <View
             style={{
-              fontSize: scaleFont(32),
-              lineHeight: scaleFont(38),
-              marginTop: scaleSpacing(Space[12]),
-              marginBottom: scaleSpacing(Space[24]),
+              paddingTop: scaleSpacing(Space[8]),
+              paddingHorizontal: horizontalPadding,
             }}
           >
-            Medicamento reconocido
-          </EditorialText>
           <IdentificationResultCard
             name={result.name}
             purpose={result.purpose}
@@ -491,6 +501,7 @@ export default function PhoneCameraScreen({ navigation }: Props) {
               {toastMessage}
             </AppText>
           ) : null}
+          </View>
         </Screen>
       </View>
     );
@@ -726,6 +737,17 @@ function BackButton({
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  resultCurve: {
+    height: 20,
+    marginTop: -1,
+    overflow: 'hidden',
+    backgroundColor: 'transparent',
+  },
+  resultCurveFill: {
+    height: 40,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 24,
+  },
   centered: { alignItems: 'center', justifyContent: 'center' },
   backBtn: {
     alignSelf: 'flex-start',

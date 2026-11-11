@@ -7,7 +7,7 @@ import { useAccessibility } from '../../context/AccessibilityContext';
 import { FontFamily, FontWeight, Layout, Space } from '../../theme/tokens';
 import { brandAccent, brandInk } from '../../theme/brand';
 import AppText from '../AppText';
-import { GRANDFATHER_ASPECT, LIA_THINKING_GRANDFATHER } from './chatAssets';
+import { LIA_THINKING_GRANDFATHER } from './chatAssets';
 
 type Props = {
   onBack: () => void;
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'stretch',
     minWidth: 0,
-    minHeight: 148,
+    minHeight: 176,
   },
   headerTextContent: {
     flex: 1,
@@ -163,18 +163,17 @@ const styles = StyleSheet.create({
     width: '42%',
     maxWidth: 176,
     minWidth: 132,
+    height: 168,
     flexShrink: 0,
     justifyContent: 'flex-end',
     alignItems: 'flex-end',
-    overflow: 'hidden',
+    overflow: 'visible',
     backgroundColor: 'transparent',
   },
   artImage: {
     width: '100%',
     maxWidth: 176,
-    height: undefined,
-    maxHeight: 188,
-    aspectRatio: GRANDFATHER_ASPECT,
+    height: 168,
     backgroundColor: 'transparent',
   },
 });
