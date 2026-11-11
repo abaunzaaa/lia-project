@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { View, Pressable, TextInput, StyleSheet, Image } from 'react-native';
+import { View, Pressable, StyleSheet, Image, type TextInputInstance } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../components/icons/Ionicons';
 import { RootStackParamList } from '../types';
 import {
   AppText,
@@ -39,10 +39,10 @@ export default function RegisterScreen({ navigation }: Props) {
   const { compact, horizontalPadding, width } = useResponsive();
   const lightChrome = !isDark && !isHighContrast;
 
-  const ageRef = useRef<TextInput>(null);
-  const emailRef = useRef<TextInput>(null);
-  const passwordRef = useRef<TextInput>(null);
-  const emergencyRef = useRef<TextInput>(null);
+  const ageRef = useRef<TextInputInstance>(null);
+  const emailRef = useRef<TextInputInstance>(null);
+  const passwordRef = useRef<TextInputInstance>(null);
+  const emergencyRef = useRef<TextInputInstance>(null);
 
   const [fullName, setFullName] = useState('');
   const [age, setAge] = useState('');

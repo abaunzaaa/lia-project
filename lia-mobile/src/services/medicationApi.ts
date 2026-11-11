@@ -117,6 +117,9 @@ function friendlyMessage(status: number | undefined, raw: string | undefined, ne
     if (raw && !looksTechnical(raw)) return raw;
     return 'Revisa los datos e inténtalo nuevamente.';
   }
+  if (status === 502 || status === 503 || status === 504) {
+    return 'LÍA no respondió. Revisa que el servidor esté encendido e inténtalo de nuevo.';
+  }
   if (status === 500 || status === undefined) {
     return 'No pudimos completar la acción. Inténtalo nuevamente.';
   }

@@ -8,9 +8,11 @@ import {
   StyleSheet,
   Switch,
   TextInput,
+  type ScrollViewInstance,
+  type TextInputInstance,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from './icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Medication, MedicationFormData, MedicationPresentation } from '../types';
 import AppText from './AppText';
@@ -37,7 +39,7 @@ import {
 } from '../services/notificationService';
 import { Radius, Space } from '../theme/tokens';
 import { normalizeMedicationName, normalizeScheduleTimes } from '../utils/helpers';
-import { resolveMediaUrl } from '../utils/mediaUrl';
+import { isCapturedMedicationPhoto } from '../utils/mediaUrl';
 import {
   scheduleBellAsset,
   scheduleClockAddAsset,
@@ -114,8 +116,8 @@ export default function MedicationForm({
   const { horizontalPadding, contentMaxWidth, isSmallPhone } = useResponsive();
   const palette = useMedicationFormColors();
   const insets = useSafeAreaInsets();
-  const scrollRef = useRef<ScrollView>(null);
-  const nameRef = useRef<TextInput>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
+  const nameRef = useRef<TextInputInstance>(null);
   const savingRef = useRef(false);
 
   const parsedDose = parseDoseString(initial?.dose || '');
@@ -448,7 +450,9 @@ export default function MedicationForm({
         startDate,
         endDate: hasEndDate ? endDate : undefined,
         description: instructions.trim() || undefined,
-        imageUrl: initial?.imageUrl,
+        ...(isCapturedMedicationPhoto(initial?.imageUrl)
+          ? {}
+          : { imageUrl: initial?.imageUrl }),
       });
     } catch {
       // El toast de error lo muestra la pantalla padre.
@@ -534,22 +538,6 @@ export default function MedicationForm({
                 ) : null
               }
             />
-
-            {initial?.imageUrl ? (
-              <Image
-                source={{ uri: resolveMediaUrl(initial.imageUrl) }}
-                style={{
-                  width: '100%',
-                  height: 140,
-                  borderRadius: Radius.lg,
-                  marginTop: scaleSpacing(Space[12]),
-                  backgroundColor: palette.ice,
-                }}
-                resizeMode="cover"
-                accessibilityLabel="Foto del medicamento"
-                accessibilityIgnoresInvertColors
-              />
-            ) : null}
 
             {sectionLabel('Presentación')}
             <ScrollView

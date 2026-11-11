@@ -103,7 +103,7 @@ export default function ReminderCard({
             />
           </View>
           <View style={styles.topCopy}>
-            <View style={styles.nameRow}>
+            <View style={styles.titleRow}>
               <AppText
                 variant="medicationName"
                 style={{
@@ -111,13 +111,14 @@ export default function ReminderCard({
                   fontFamily: FontFamily.semiBold,
                   fontWeight: FontWeight.semiBold,
                   flex: 1,
+                  flexShrink: 1,
                   minWidth: 0,
                 }}
                 numberOfLines={2}
               >
                 {reminder.medicationName}
               </AppText>
-              <View style={styles.badgeWrap}>
+              <View style={styles.badgeSlot}>
                 <StatusBadge status={reminder.status} />
               </View>
             </View>
@@ -205,13 +206,16 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  nameRow: {
+  titleRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    flexWrap: 'nowrap',
     gap: 8,
   },
-  badgeWrap: {
-    flexShrink: 0,
+  badgeSlot: {
+    flexShrink: 1,
+    alignSelf: 'flex-start',
     maxWidth: '48%',
+    minWidth: 0,
   },
 });

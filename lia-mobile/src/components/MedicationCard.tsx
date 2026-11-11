@@ -1,14 +1,14 @@
 import React from 'react';
 import { View, StyleSheet, Pressable, Image } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from './icons/Ionicons';
 import { FontFamily, FontWeight, Radius, Space } from '../theme/tokens';
 import { useTheme } from '../context/ThemeContext';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { BrandColors, liaCardBorder } from '../theme/brand';
 import { formatScheduleTimes, formatTime } from '../utils/helpers';
 import { parseDoseString, unitSingularLabel, isCountDoseUnit } from '../utils/medicationFormHelpers';
-import { getMedicationImageScale, getMedicationImageSource, MEDICATION_IMAGE_SLOT } from '../config/medicationImages';
-import { isCapturedMedicationPhoto } from '../utils/mediaUrl';
+import { MEDICATION_IMAGE_SLOT } from '../config/medicationImages';
+import { presentationVisualSource } from '../utils/presentationVisual';
 import { Medication } from '../types';
 import AppText from './AppText';
 
@@ -56,12 +56,7 @@ export default function MedicationCard({
   const { minTouch, scaleSpacing, scaleFont } = useAccessibility();
   const lightChrome = !isDark && !isHighContrast;
   const hasMissed = missed > 0;
-  const [imageFailed, setImageFailed] = React.useState(false);
-  const showImage = Boolean(medication.imageUrl) && !imageFailed;
-
-  React.useEffect(() => {
-    setImageFailed(false);
-  }, [medication.imageUrl]);
+  const artSource = presentationVisualSource(medication.presentation);
 
   const frequency = medication.frequency
     ? FREQUENCY_LABELS[medication.frequency] || medication.frequency
@@ -143,16 +138,19 @@ export default function MedicationCard({
             </AppText>
           ) : null}
 
-          <View style={[styles.status, { marginTop: 8 }]}>
+          <View style={[styles.status, { marginTop: 8, gap: scaleSpacing(6) }]}>
             <Ionicons
               name={hasMissed ? 'alert-circle-outline' : 'checkmark-circle-outline'}
-              size={16}
+              size={scaleFont(16)}
               color={ink}
+              allowFontScaling
+              maxFontSizeMultiplier={1.35}
+              style={styles.statusIcon}
             />
             <AppText
               variant="caption"
               numberOfLines={1}
-              style={{ flex: 1, color: ink, fontWeight: '600' }}
+              style={{ flexShrink: 1, color: ink, fontWeight: '600' }}
             >
               {hasMissed
                 ? missed === 1
@@ -163,35 +161,12 @@ export default function MedicationCard({
           </View>
         </View>
 
-        <View
-          style={[
-            styles.art,
-            isCapturedMedicationPhoto(medication.imageUrl) ? styles.artPhoto : null,
-          ]}
-          pointerEvents="none"
-        >
+        <View style={styles.art} pointerEvents="none">
           <Image
-            source={
-              showImage && medication.imageUrl
-                ? { uri: medication.imageUrl }
-                : getMedicationImageSource(medication.name)
-            }
-            style={[
-              styles.artImage,
-              {
-                transform: [
-                  {
-                    scale: isCapturedMedicationPhoto(medication.imageUrl)
-                      ? 1
-                      : getMedicationImageScale(medication.name),
-                  },
-                ],
-                backgroundColor: 'transparent',
-              },
-            ]}
-            resizeMode={isCapturedMedicationPhoto(medication.imageUrl) ? 'cover' : 'contain'}
+            source={artSource}
+            style={[styles.artImage, { backgroundColor: 'transparent' }]}
+            resizeMode="contain"
             accessibilityIgnoresInvertColors
-            onError={() => setImageFailed(true)}
           />
         </View>
       </View>
@@ -306,14 +281,15 @@ const styles = StyleSheet.create({
     width: MEDICATION_IMAGE_SLOT.width,
     height: MEDICATION_IMAGE_SLOT.height,
   },
-  artPhoto: {
-    borderRadius: Radius.md,
-    backgroundColor: '#EAF3F7',
-  },
   status: {
     flexDirection: 'row',
+    flexWrap: 'nowrap',
     alignItems: 'center',
-    gap: 6,
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+  },
+  statusIcon: {
+    flexShrink: 0,
   },
   actions: {
     flexDirection: 'row',

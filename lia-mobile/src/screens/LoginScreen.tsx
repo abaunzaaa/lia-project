@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
-import { View, Pressable, TextInput, StyleSheet, Image } from 'react-native';
+import { View, Pressable, StyleSheet, Image, type TextInputInstance } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../components/icons/Ionicons';
 import { RootStackParamList } from '../types';
 import {
   AppText,
@@ -45,7 +45,7 @@ export default function LoginScreen({ navigation }: Props) {
   const { scaleSpacing, minTouch } = useAccessibility();
   const { compact, horizontalPadding, width } = useResponsive();
   const lightChrome = !isDark && !isHighContrast;
-  const passwordRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInputInstance>(null);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

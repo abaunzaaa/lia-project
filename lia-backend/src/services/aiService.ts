@@ -1,12 +1,18 @@
 import { VisionRecognitionResult } from '../models/types';
 import { findMedication } from '../models/medicationDatabase';
 import { config } from '../config';
+import {
+  MOBILE_PACKAGE_VISION_INSTRUCTION,
+  MOBILE_PACKAGE_VISION_USER_TEXT,
+  parseObservedPackage,
+} from './packageObservation';
 
 export class AiProviderError extends Error {
   constructor(
     message: string,
     public kind: 'not_configured' | 'timeout' | 'http' | 'invalid_response' | 'network',
-    public httpStatus?: number
+    public httpStatus?: number,
+    public quota?: 'daily' | 'rate' | 'tokens'
   ) {
     super(message);
     this.name = 'AiProviderError';
@@ -37,6 +43,21 @@ function isDev(): boolean {
 
 function isTransientGeminiHttp(status?: number): boolean {
   return typeof status === 'number' && TRANSIENT_GEMINI_HTTP.has(status);
+}
+
+function quotaCategory(message: string): 'daily' | 'rate' | 'tokens' | undefined {
+  const text = message.toLowerCase();
+  if (/per day|daily|quota exceeded|exceeded your current quota|resource_exhausted/.test(text)) {
+    return 'daily';
+  }
+  if (/token/.test(text)) return 'tokens';
+  if (/per minute|rate limit|retry in/.test(text)) return 'rate';
+  return undefined;
+}
+
+/** Texto para la persona. El detalle del límite se queda en el registro del servidor. */
+export function assistantQuotaMessage(_quota?: 'daily' | 'rate' | 'tokens'): string {
+  return 'En este momento no puedo consultar más información. Puedes intentarlo más tarde.';
 }
 
 function geminiRetryDelayMs(retryNumber: number): number {
@@ -88,7 +109,8 @@ class AIService {
    */
   async recognizeFromImage(
     imageBuffer: Buffer,
-    deviceId?: string
+    deviceId?: string,
+    options?: { readPackage?: boolean }
   ): Promise<VisionRecognitionResult> {
     console.log(
       `🔍 Procesando imagen (${imageBuffer.length} bytes)${deviceId ? ` desde ${deviceId}` : ''}`
@@ -96,7 +118,7 @@ class AIService {
 
     if (!this.isConfigured()) {
       throw new AiProviderError(
-        'IA no configurada. Define AI_API_KEY (y opcionalmente AI_SERVICE_URL) para reconocimiento.',
+        'El asistente no está disponible en este momento.',
         'not_configured'
       );
     }
@@ -105,13 +127,16 @@ class AIService {
       throw new AiProviderError('Imagen vacía.', 'invalid_response');
     }
 
-    return this.callGeminiVisionRecognition(imageBuffer);
+    return this.callGeminiVisionRecognition(imageBuffer, options?.readPackage === true);
   }
 
-  private async callGeminiVisionRecognition(imageBuffer: Buffer): Promise<VisionRecognitionResult> {
+  private async callGeminiVisionRecognition(
+    imageBuffer: Buffer,
+    readPackage: boolean
+  ): Promise<VisionRecognitionResult> {
     const apiKey = config.ai.apiKey?.trim();
     if (!apiKey) {
-      throw new AiProviderError('IA no configurada (falta AI_API_KEY).', 'not_configured');
+      throw new AiProviderError('El asistente no está disponible en este momento.', 'not_configured');
     }
 
     if (!config.ai.serviceUrl || isGeminiApiBase(config.ai.serviceUrl)) {
@@ -121,14 +146,17 @@ class AIService {
         console.log(`[gemini] vision model=${model}`);
       }
 
-      const systemInstruction = `Eres un asistente de reconocimiento de medicamentos.
+      const systemInstruction = readPackage
+        ? MOBILE_PACKAGE_VISION_INSTRUCTION
+        : `Eres un asistente de reconocimiento de medicamentos.
 Identifica el nombre del medicamento a partir de una foto del empaque.
 Responde SIEMPRE en español y SOLO con JSON válido de la forma:
 {"name":"nombre del medicamento o cadena vacía","identified":true o false}
 No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=false y name="".`;
 
-      const userText =
-        'Identifica el medicamento en esta foto del empaque. Devuelve JSON {"name":"...","identified":true/false}.';
+      const userText = readPackage
+        ? MOBILE_PACKAGE_VISION_USER_TEXT
+        : 'Identifica el medicamento en esta foto del empaque. Devuelve JSON {"name":"...","identified":true/false}.';
 
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), config.ai.timeoutMs);
@@ -162,7 +190,7 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
             generationConfig: {
               temperature: 0.1,
               responseMimeType: 'application/json',
-              maxOutputTokens: 256,
+              maxOutputTokens: 1024,
             },
           }),
         });
@@ -191,17 +219,24 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
               ? String((parsedBody as GeminiGenerateResponse).error?.message)
               : `Error HTTP ${response.status} del proveedor de IA.`;
 
-          throw new AiProviderError(googleMessage, 'http', response.status);
+          throw new AiProviderError(
+            googleMessage,
+            'http',
+            response.status,
+            response.status === 429 ? quotaCategory(googleMessage) : undefined
+          );
         }
 
         const data = (parsedBody || {}) as GeminiGenerateResponse;
-        const text = data.candidates?.[0]?.content?.parts
-          ?.map((part) => part.text ?? '')
-          .join('')
-          .trim();
+        const text = extractGeminiVisibleText(data);
 
         if (!text) {
-          throw new AiProviderError('La IA no devolvió contenido.', 'invalid_response');
+          if (isDev()) {
+            console.warn(
+              `[gemini] vision visibleTextEmpty finish=${data.candidates?.[0]?.finishReason ?? 'none'}`
+            );
+          }
+          return { name: '', identified: false, confidence: 0 };
         }
 
         return this.parseVisionResult(this.parseJsonLoose(text));
@@ -218,8 +253,9 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
 
     // Endpoint custom: envía imagen en base64
     const data = await this.callCustomJsonEndpoint({
-      systemInstruction:
-        'Identifica el medicamento en la foto. Responde JSON {"name":"...","identified":true/false}.',
+      systemInstruction: readPackage
+        ? MOBILE_PACKAGE_VISION_INSTRUCTION
+        : 'Identifica el medicamento en la foto. Responde JSON {"name":"...","identified":true/false}.',
       userContent: JSON.stringify({
         imageBase64: imageBuffer.toString('base64'),
         mimeType: 'image/jpeg',
@@ -235,7 +271,12 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
       throw new AiProviderError('Respuesta de visión inválida.', 'invalid_response');
     }
 
-    const obj = data as { name?: unknown; identified?: unknown; confidence?: unknown };
+    const obj = data as {
+      name?: unknown;
+      identified?: unknown;
+      confidence?: unknown;
+      observedPackage?: unknown;
+    };
     const name = typeof obj.name === 'string' ? obj.name.trim() : '';
     const identified =
       typeof obj.identified === 'boolean' ? obj.identified : Boolean(name);
@@ -246,10 +287,12 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
           ? 90
           : 0;
 
+    const observedPackage = parseObservedPackage(obj.observedPackage);
     return {
       name: identified ? name : name || '',
       identified: identified && Boolean(name),
       confidence,
+      ...(observedPackage ? { observedPackage } : {}),
     };
   }
 
@@ -315,6 +358,9 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
     temperature?: number;
     /** Modelo Gemini específico; por defecto AI_CHAT_MODEL / AI_MODEL. */
     model?: string;
+    /** Busca en fuentes públicas. No se usa en el reconocimiento por imagen. */
+    grounding?: boolean;
+    requestId?: string;
   }): Promise<string> {
     if (!this.isConfigured()) {
       throw new AiProviderError('IA no configurada.', 'not_configured');
@@ -353,6 +399,8 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
     history?: Array<{ role: 'user' | 'assistant'; content: string }>;
     temperature?: number;
     model?: string;
+    grounding?: boolean;
+    requestId?: string;
   }): Promise<string> {
     const primaryModel = this.resolveGeminiModel(params.model, config.ai.chatModel);
     const fallbackModel = this.resolveGeminiModel(undefined, config.ai.chatFallbackModel);
@@ -363,6 +411,7 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
       const canFallback =
         error instanceof AiProviderError &&
         isTransientGeminiHttp(error.httpStatus) &&
+        error.quota !== 'daily' &&
         fallbackModel !== primaryModel;
 
       if (!canFallback) {
@@ -380,20 +429,42 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
       userContent: string;
       history?: Array<{ role: 'user' | 'assistant'; content: string }>;
       temperature?: number;
+      grounding?: boolean;
+      requestId?: string;
     },
     model: string
   ): Promise<string> {
-    const maxAttempts = 1 + MAX_GEMINI_RETRIES;
+    const maxAttempts = params.grounding ? 1 : 1 + MAX_GEMINI_RETRIES;
     let lastError: unknown;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const started = Date.now();
       try {
-        console.log(`[gemini] model=${model} attempt=${attempt}`);
-        return await this.callGeminiChatTextOnce(params, model);
+        if (isDev()) {
+          console.log(
+            `[gemini] id=${params.requestId ?? 'none'} stage=${params.grounding ? 'public-search' : 'answer'} model=${model} attempt=${attempt}`
+          );
+        }
+        const text = await this.callGeminiChatTextOnce(params, model);
+        if (isDev()) {
+          console.log(
+            `[gemini] id=${params.requestId ?? 'none'} stage=${params.grounding ? 'public-search' : 'answer'} model=${model} ms=${Date.now() - started} http=200`
+          );
+        }
+        return text;
       } catch (error) {
+        if (isDev()) {
+          const httpStatus = error instanceof AiProviderError ? error.httpStatus : undefined;
+          const category = error instanceof AiProviderError ? error.quota ?? error.kind : 'error';
+          console.warn(
+            `[gemini] id=${params.requestId ?? 'none'} stage=${params.grounding ? 'public-search' : 'answer'} model=${model} ms=${Date.now() - started} http=${httpStatus ?? 'none'} category=${category}`
+          );
+        }
         lastError = error;
         const httpStatus = error instanceof AiProviderError ? error.httpStatus : undefined;
+        const dailyQuota = error instanceof AiProviderError && error.quota === 'daily';
         const retryable =
+          !dailyQuota &&
           error instanceof AiProviderError &&
           isTransientGeminiHttp(httpStatus) &&
           attempt < maxAttempts;
@@ -421,12 +492,13 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
       userContent: string;
       history?: Array<{ role: 'user' | 'assistant'; content: string }>;
       temperature?: number;
+      grounding?: boolean;
     },
     model: string
   ): Promise<string> {
     const apiKey = config.ai.apiKey?.trim();
     if (!apiKey) {
-      throw new AiProviderError('IA no configurada (falta AI_API_KEY).', 'not_configured');
+      throw new AiProviderError('El asistente no está disponible en este momento.', 'not_configured');
     }
 
     const { url, baseUrl } = this.buildGeminiGenerateUrl(model);
@@ -463,8 +535,9 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
           contents,
           generationConfig: {
             temperature: params.temperature ?? 0.3,
-            maxOutputTokens: 700,
+            maxOutputTokens: 2048,
           },
+          ...(params.grounding ? { tools: [{ google_search: {} }] } : {}),
         }),
       });
 
@@ -492,13 +565,23 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
             ? String((parsedBody as GeminiGenerateResponse).error?.message)
             : `Error HTTP ${response.status} del proveedor de IA.`;
 
-        throw new AiProviderError(googleMessage, 'http', response.status);
+        throw new AiProviderError(
+            googleMessage,
+            'http',
+            response.status,
+            response.status === 429 ? quotaCategory(googleMessage) : undefined
+          );
       }
 
       const data = (parsedBody || {}) as GeminiGenerateResponse;
       const text = extractGeminiVisibleText(data);
 
       if (!text) {
+        if (isDev()) {
+          console.warn(
+            `[gemini] chat visibleTextEmpty finish=${data.candidates?.[0]?.finishReason ?? 'none'}`
+          );
+        }
         throw new AiProviderError('La IA no devolvió contenido.', 'invalid_response');
       }
 
@@ -552,7 +635,8 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
     } else if (params.status === 404) {
       console.error('[gemini] hint=modelo/endpoint incorrecto');
     } else if (params.status === 429) {
-      console.error('[gemini] hint=cuota/rate limit');
+      const category = quotaCategory(String(err?.message ?? ''));
+      console.error(`[gemini] hint=cuota category=${category ?? 'unknown'}`);
     } else if (params.status >= 500) {
       console.error('[gemini] hint=error externo de Google');
     }
@@ -566,7 +650,7 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
   }): Promise<unknown> {
     const apiKey = config.ai.apiKey?.trim();
     if (!apiKey) {
-      throw new AiProviderError('IA no configurada (falta AI_API_KEY).', 'not_configured');
+      throw new AiProviderError('El asistente no está disponible en este momento.', 'not_configured');
     }
 
     const model = this.resolveGeminiModel(params.model, config.ai.simplificationModel);
@@ -627,7 +711,12 @@ No inventes medicamentos. Si no puedes leer el empaque con claridad, identified=
             ? String((parsedBody as GeminiGenerateResponse).error?.message)
             : `Error HTTP ${response.status} del proveedor de IA.`;
 
-        throw new AiProviderError(googleMessage, 'http', response.status);
+        throw new AiProviderError(
+            googleMessage,
+            'http',
+            response.status,
+            response.status === 429 ? quotaCategory(googleMessage) : undefined
+          );
       }
 
       const data = (parsedBody || {}) as GeminiGenerateResponse;

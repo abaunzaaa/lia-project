@@ -1,10 +1,10 @@
 import React from 'react';
 import { Image, StyleSheet, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../icons/Ionicons';
 import AppText from '../AppText';
 import { useAccessibility } from '../../context/AccessibilityContext';
 import { Radius, Space } from '../../theme/tokens';
-import { presentationAssets } from '../../utils/medicationFormAssets';
+import { presentationVisualSource } from '../../utils/presentationVisual';
 import {
   MealRelation,
   MedicationPresentation,
@@ -48,7 +48,7 @@ export default function MedicationSummaryCard({
 }: Props) {
   const { scaleSpacing, scaleFont } = useAccessibility();
   const palette = useMedicationFormColors();
-  const image = presentation ? presentationAssets[presentation] : null;
+  const image = presentationVisualSource(presentation);
   const presentationText = [presentationLabel(presentation), dosePreview].filter(Boolean).join(' · ');
   const daysText = weekdays?.length ? formatWeekdaysPhrase(weekdays) : '';
   const timesText = times?.length ? formatTimesPhrase(times) : '';

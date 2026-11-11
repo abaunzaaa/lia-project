@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../components/icons/Ionicons';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../utils/theme';
 import { RootStackParamList } from '../types';
 import { Header, Button, SpeakButton } from '../components';

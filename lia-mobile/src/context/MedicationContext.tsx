@@ -18,6 +18,7 @@ import {
 } from '../services/medicationApi';
 import { useAuth } from './AuthContext';
 import { Medication, MedicationFormData } from '../types';
+import { isCapturedMedicationPhoto } from '../utils/mediaUrl';
 import { generateId, normalizeScheduleTimes } from '../utils/helpers';
 import { getLocalDateString } from '../utils/dateTime';
 import { getMedicationImage } from '../config/medicationImages';
@@ -88,7 +89,7 @@ function formToApiPayload(data: MedicationFormData | Partial<MedicationFormData>
     weekdays: data.weekdays !== undefined ? data.weekdays : undefined,
     mealRelation: data.mealRelation !== undefined ? data.mealRelation : undefined,
     reminderEnabled: data.reminderEnabled,
-    imageUrl: data.imageUrl,
+    imageUrl: isCapturedMedicationPhoto(data.imageUrl) ? undefined : data.imageUrl,
     schedules,
   };
 }
@@ -126,7 +127,9 @@ function localMedicationFromForm(
     weekdays: data.weekdays ?? null,
     mealRelation: data.mealRelation ?? null,
     reminderEnabled: data.reminderEnabled !== false,
-    imageUrl: data.imageUrl || getMedicationImage(data.name),
+    imageUrl: isCapturedMedicationPhoto(data.imageUrl)
+      ? undefined
+      : data.imageUrl || getMedicationImage(data.name),
     createdAt: new Date().toISOString(),
   };
 }

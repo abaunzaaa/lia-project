@@ -23,7 +23,6 @@ import {
   LIA_QUESTION_BUBBLE_SOURCE,
   MEDICATION_CLOCK_SOURCE,
   MEDICATION_STOCK_IMAGE_SOURCE,
-  MEDICATION_TABLET_BASE_SOURCE,
 } from '../components/medication-detail/medicationDetailAssets';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useTheme } from '../context/ThemeContext';
@@ -34,7 +33,7 @@ import { FontFamily, FontWeight, Space } from '../theme/tokens';
 import { formatScheduleTimes, formatTime } from '../utils/helpers';
 import { buildMedicationDetailsSpeech } from '../utils/speechPhrases';
 import { parseDoseString, unitSingularLabel, isCountDoseUnit, presentationLabel, formatWeekdaysPhrase, mealLabel, formatShortDate } from '../utils/medicationFormHelpers';
-import { isCapturedMedicationPhoto, resolveMediaUrl } from '../utils/mediaUrl';
+import { presentationVisualSource } from '../utils/presentationVisual';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'MedicationDetail'>;
@@ -66,6 +65,9 @@ export default function MedicationDetailScreen({ navigation, route }: Props) {
     navigation.navigate('DrugChat', {
       name: medication.name,
       registeredDose: medication.dose || undefined,
+      registeredPurpose: medication.purpose || undefined,
+      registeredPresentation: medication.presentation || undefined,
+      registeredNotes: medication.description || undefined,
     });
   };
 
@@ -79,10 +81,6 @@ export default function MedicationDetailScreen({ navigation, route }: Props) {
   const frequency = medication.frequency
     ? FREQUENCY_LABELS[medication.frequency] || medication.frequency
     : '';
-  const capturedPhotoUri = isCapturedMedicationPhoto(medication.imageUrl)
-    ? resolveMediaUrl(medication.imageUrl)
-    : undefined;
-
   const parsed = parseDoseString(medication.dose || '');
   const stockLabel =
     medication.quantity > 0
@@ -188,9 +186,7 @@ export default function MedicationDetailScreen({ navigation, route }: Props) {
             name={medication.name}
             dosage={medication.dose}
             minHeight={heroMinHeight}
-            artSource={
-              capturedPhotoUri ? { uri: capturedPhotoUri } : MEDICATION_TABLET_BASE_SOURCE
-            }
+            artSource={presentationVisualSource(medication.presentation)}
             overlapFooter={Boolean(scheduleLabel)}
           />
           {scheduleLabel ? (

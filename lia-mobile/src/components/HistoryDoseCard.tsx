@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Pressable, StyleSheet, Image, ActivityIndicator } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from './icons/Ionicons';
 import { HistoryEntry, Medication } from '../types';
 import { useTheme } from '../context/ThemeContext';
 import { useAccessibility } from '../context/AccessibilityContext';

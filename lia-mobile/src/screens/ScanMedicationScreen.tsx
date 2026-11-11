@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../components/icons/Ionicons';
 import { RootStackParamList } from '../types';
 import {
   AppText,
@@ -72,7 +72,7 @@ export default function ScanMedicationScreen({ navigation }: Props) {
             flexShrink: 1,
           }}
         >
-          Elige cómo quieres identificarlo: con la cámara LIA o buscando el nombre.
+          Elige cómo quieres identificarlo: con una cámara o buscando el nombre.
         </AppText>
 
         <SurfaceCard
@@ -119,23 +119,23 @@ export default function ScanMedicationScreen({ navigation }: Props) {
             </View>
             <View style={styles.pathText}>
               <AppText variant="medicationName" style={{ flexShrink: 1 }}>
-                Cámara LIA
+                Con cámara
               </AppText>
               <AppText
                 variant="body"
                 tone="secondary"
                 style={{ marginTop: 4, flexShrink: 1 }}
               >
-                Te guiamos para usar la cámara física.
+                Usa la cámara de LÍA o la de tu celular.
               </AppText>
             </View>
           </View>
 
           <Pressable
-            onPress={() => navigation.navigate('CameraGuide')}
+            onPress={() => navigation.navigate('CameraSource')}
             accessibilityRole="button"
-            accessibilityLabel="Ver instrucciones de la cámara LIA"
-            accessibilityHint="Abre la guía paso a paso para usar el dispositivo físico"
+            accessibilityLabel="Elegir cámara"
+            accessibilityHint="Abre las opciones de cámara de LÍA o cámara del celular"
             style={({ pressed }) => [
               styles.pathCta,
               {
@@ -154,7 +154,7 @@ export default function ScanMedicationScreen({ navigation }: Props) {
                 color: isHighContrast ? colors.textPrimary : BrandColors.white,
               }}
             >
-              Ver instrucciones
+              Elegir cámara
             </AppText>
             <Ionicons
               name="arrow-forward"

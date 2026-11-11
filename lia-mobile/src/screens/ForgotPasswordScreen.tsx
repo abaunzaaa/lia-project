@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../components/icons/Ionicons';
 import { Colors, Typography, Spacing } from '../utils/theme';
 import { RootStackParamList } from '../types';
 import { Button, Input, Toast } from '../components';

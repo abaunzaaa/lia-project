@@ -5,10 +5,14 @@ import { BrandColors } from '../../theme/brand';
 
 type Props = {
   topOffset: number;
+  /** Alto del azul. La cámara física conserva el alto de siempre. */
+  height?: number;
+  /** El azul empieza en el borde superior del encabezado, debajo del área segura. */
+  coverTop?: boolean;
 };
 
 /** Curva decorativa de fondo. No intercepta toques. */
-export default function IdentificationResultWave({ topOffset }: Props) {
+export default function IdentificationResultWave({ topOffset, height = 168, coverTop = false }: Props) {
   const { colors, isDark, isHighContrast } = useTheme();
   const fill = isHighContrast
     ? colors.surfaceElevated
@@ -17,8 +21,17 @@ export default function IdentificationResultWave({ topOffset }: Props) {
       : BrandColors.skyBlue;
 
   return (
-    <View pointerEvents="none" style={[styles.wrap, { top: topOffset }]}>
-      <View style={[styles.wave, { backgroundColor: fill }]} />
+    <View pointerEvents="none" style={[styles.wrap, { top: topOffset, height }]}>
+      <View
+        style={[
+          styles.wave,
+          {
+            backgroundColor: fill,
+            top: coverTop ? 0 : 28,
+            height: coverTop ? height : 200,
+          },
+        ]}
+      />
     </View>
   );
 }

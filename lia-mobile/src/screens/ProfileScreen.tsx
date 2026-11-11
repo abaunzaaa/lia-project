@@ -10,6 +10,7 @@ import {
   Pressable,
   StyleSheet,
   ScrollView,
+  type ScrollViewInstance,
   Switch,
   Alert,
   Image,
@@ -30,7 +31,7 @@ import {
   BottomTabNavigationProp,
 } from '@react-navigation/bottom-tabs';
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../components/icons/Ionicons';
 
 import {
   RootStackParamList,
@@ -133,7 +134,7 @@ export default function ProfileScreen({
 
 
   const scrollRef =
-    useRef<ScrollView>(null);
+    useRef<ScrollViewInstance>(null);
 
 
 

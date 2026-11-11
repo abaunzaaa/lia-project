@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from './icons/Ionicons';
 import { Radius, Space } from '../theme/tokens';
 import { useTheme } from '../context/ThemeContext';
 import { useAccessibility } from '../context/AccessibilityContext';
@@ -58,8 +58,19 @@ export default function StatusBadge({ status }: StatusBadgeProps) {
       accessibilityRole="text"
       accessibilityLabel={config.label}
     >
-      <Ionicons name={config.icon} size={scaleFont(14)} color={color} />
-      <AppText variant="caption" style={{ color, fontWeight: '600', flexShrink: 1 }}>
+      <Ionicons
+        name={config.icon}
+        size={scaleFont(16)}
+        color={color}
+        allowFontScaling
+        maxFontSizeMultiplier={1.35}
+        style={styles.icon}
+      />
+      <AppText
+        variant="caption"
+        numberOfLines={1}
+        style={{ color, fontWeight: '600', flexShrink: 1 }}
+      >
         {isHighContrast ? `${config.prefix} ${config.label}` : config.label}
       </AppText>
     </View>
@@ -69,10 +80,15 @@ export default function StatusBadge({ status }: StatusBadgeProps) {
 const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
     alignItems: 'center',
+        alignSelf: 'flex-start',
+        flexShrink: 1,
+        maxWidth: '100%',
+        minWidth: 0,
     borderRadius: Radius.full,
-    alignSelf: 'flex-start',
-    maxWidth: '100%',
+  },
+  icon: {
+    flexShrink: 0,
   },
 });

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../icons/Ionicons';
 import AppText from '../AppText';
 import OptionPickerModal from '../OptionPickerModal';
 import { useAccessibility } from '../../context/AccessibilityContext';

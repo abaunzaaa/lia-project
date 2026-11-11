@@ -1,0 +1,504 @@
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  View,
+  StyleSheet,
+  FlatList,
+  Pressable,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  Image,
+  Keyboard,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../types';
+import { AppText } from '../components';
+import AskLiaHeader from '../components/chat/AskLiaHeader';
+import SuggestedQuestionChip from '../components/chat/SuggestedQuestionChip';
+import ChatComposer from '../components/chat/ChatComposer';
+import SpeakButton from '../components/SpeakButton';
+import {
+  CHAT_BEIGE,
+  CHAT_BUBBLE_SIZE,
+  CHAT_MESSAGE_FILL,
+  LIA_CHAT_BUBBLE,
+} from '../components/chat/chatAssets';
+import { useAccessibility } from '../context/AccessibilityContext';
+import { useTheme } from '../context/ThemeContext';
+import { useResponsive } from '../hooks/useResponsive';
+import { BrandColors, brandInk } from '../theme/brand';
+import { FontFamily, FontWeight, Radius, Space } from '../theme/tokens';
+import { generateId } from '../utils/helpers';
+import { DrugChatApiError, DrugChatHistoryItem } from '../services/drugChatApi';
+import {
+  DRUG_CHAT_MAX_HISTORY,
+  DRUG_CHAT_MAX_MESSAGE,
+  sendAccountChatMessage,
+} from '../services/accountChatApi';
+
+type Props = {
+  navigation: NativeStackNavigationProp<RootStackParamList, 'AccountMedicationsChat'>;
+};
+
+type UiRole = 'user' | 'assistant' | 'local' | 'error';
+
+type UiMessage = {
+  id: string;
+  role: UiRole;
+  content: string;
+  sourceName?: string;
+  createdAt: number;
+  retryContent?: string;
+};
+
+const QUICK_QUESTIONS = [
+  '¿Qué medicamentos tengo registrados?',
+  '¿A qué horas están programados?',
+  '¿Cuál es la presentación de cada uno?',
+  '¿Para qué sirve el ibuprofeno?',
+];
+
+function toHistory(messages: UiMessage[]): DrugChatHistoryItem[] {
+  return messages
+    .filter((item) => item.role === 'user' || item.role === 'assistant')
+    .map((item) => ({
+      role: item.role as 'user' | 'assistant',
+      content: item.content.trim(),
+    }))
+    .filter((item) => item.content.length > 0)
+    .slice(-DRUG_CHAT_MAX_HISTORY);
+}
+
+export default function AccountMedicationsChatScreen({ navigation }: Props) {
+  const insets = useSafeAreaInsets();
+  const { scaleFont, scaleSpacing, minTouch } = useAccessibility();
+  const { colors, isHighContrast, isDark } = useTheme();
+  const lightChrome = !isDark && !isHighContrast;
+  const { horizontalPadding, contentMaxWidth } = useResponsive();
+  const ink = brandInk(isDark, isHighContrast, colors.textPrimary);
+  const messageFill = lightChrome ? CHAT_MESSAGE_FILL : colors.surfaceElevated;
+  const bubbleSize = Math.min(58, Math.max(48, scaleSpacing(CHAT_BUBBLE_SIZE)));
+
+  const listRef = useRef<FlatList<UiMessage>>(null);
+  const sendingRef = useRef(false);
+  const messagesRef = useRef<UiMessage[]>([]);
+
+  const [messages, setMessages] = useState<UiMessage[]>(() => [
+    {
+      id: generateId(),
+      role: 'local',
+      content: 'Escribe tu pregunta cuando quieras. Si prefieres, también puedes tocar una de las ideas.',
+      createdAt: Date.now(),
+    },
+  ]);
+  const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  const scrollToEnd = useCallback(() => {
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToEnd({ animated: true });
+    });
+  }, []);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, () => setKeyboardOpen(true));
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardOpen(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    scrollToEnd();
+  }, [messages, sending, scrollToEnd]);
+
+  const ask = useCallback(async (rawQuestion: string, options?: { isRetry?: boolean }) => {
+    const question = rawQuestion.trim();
+    if (!question || sendingRef.current) return;
+    if (question.length > DRUG_CHAT_MAX_MESSAGE) return;
+
+    sendingRef.current = true;
+    setSending(true);
+    setHasInteracted(true);
+    setInput('');
+
+    const current = messagesRef.current.filter((item) => item.role !== 'error');
+    let history: DrugChatHistoryItem[];
+    let nextMessages: UiMessage[];
+
+    if (options?.isRetry) {
+      let lastUserIdx = -1;
+      for (let i = current.length - 1; i >= 0; i -= 1) {
+        if (current[i].role === 'user' && current[i].content === question) {
+          lastUserIdx = i;
+          break;
+        }
+      }
+      history = toHistory(lastUserIdx >= 0 ? current.slice(0, lastUserIdx) : current);
+      nextMessages = current;
+    } else {
+      history = toHistory(current);
+      nextMessages = [
+        ...current,
+        {
+          id: generateId(),
+          role: 'user',
+          content: question,
+          createdAt: Date.now(),
+        },
+      ];
+    }
+
+    setMessages(nextMessages);
+    messagesRef.current = nextMessages;
+
+    try {
+      const response = await sendAccountChatMessage({ message: question, history });
+      const assistantMsg: UiMessage = {
+        id: generateId(),
+        role: 'assistant',
+        content: response.message,
+        sourceName: response.source?.name,
+        createdAt: Date.now(),
+      };
+      setMessages((prev) => {
+        const updated = [...prev.filter((item) => item.role !== 'error'), assistantMsg];
+        messagesRef.current = updated;
+        return updated;
+      });
+    } catch (error) {
+      if (__DEV__) {
+        const status = error instanceof DrugChatApiError ? error.status ?? 'network' : 'unknown';
+        console.warn(`[account-chat] status=${status}`);
+      }
+      const message =
+        error instanceof DrugChatApiError
+          ? error.message
+          : 'No pude consultar tus medicamentos en este momento. Inténtalo nuevamente.';
+      const errorMsg: UiMessage = {
+        id: generateId(),
+        role: 'error',
+        content: message,
+        createdAt: Date.now(),
+        retryContent: question,
+      };
+      setMessages((prev) => {
+        const updated = [...prev.filter((item) => item.role !== 'error'), errorMsg];
+        messagesRef.current = updated;
+        return updated;
+      });
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
+    }
+  }, []);
+
+  const canSend = input.trim().length > 0 && !sending;
+  const nearLimit = input.length > DRUG_CHAT_MAX_MESSAGE - 80;
+  const chatMaxWidth = Math.min(contentMaxWidth, 560);
+
+  const renderMessage = ({ item }: { item: UiMessage }) => {
+    if (item.role === 'local') {
+      return (
+        <View style={styles.localBlock}>
+          <AppText
+            variant="caption"
+            style={{
+              color: lightChrome ? BrandColors.teal : colors.textSecondary,
+              fontFamily: FontFamily.semiBold,
+              fontWeight: FontWeight.semiBold,
+              marginBottom: scaleSpacing(Space[8]),
+            }}
+          >
+            LIA
+          </AppText>
+          <View style={[styles.localRow, { gap: scaleSpacing(14) }]}>
+            <View style={[styles.liaBubbleSlot, { width: bubbleSize, height: bubbleSize }]} pointerEvents="none">
+              <Image
+                source={LIA_CHAT_BUBBLE}
+                style={{ width: bubbleSize, height: bubbleSize, backgroundColor: 'transparent' }}
+                resizeMode="contain"
+                accessibilityIgnoresInvertColors
+              />
+            </View>
+            <View
+              style={[
+                styles.localCard,
+                {
+                  backgroundColor: isHighContrast ? colors.surface : messageFill,
+                  borderColor: isHighContrast ? colors.border : messageFill,
+                  borderWidth: isHighContrast ? 2 : 0,
+                },
+              ]}
+            >
+              <AppText
+                variant="body"
+                style={{
+                  flexShrink: 1,
+                  color: ink,
+                  fontFamily: FontFamily.regular,
+                  lineHeight: scaleFont(24),
+                }}
+              >
+                {item.content}
+              </AppText>
+            </View>
+          </View>
+        </View>
+      );
+    }
+
+    if (item.role === 'error') {
+      return (
+        <View
+          style={[
+            styles.errorCard,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              borderWidth: isHighContrast ? 2 : 1,
+            },
+          ]}
+        >
+          <AppText variant="body" style={{ flexShrink: 1 }}>
+            {item.content}
+          </AppText>
+          {item.retryContent && !sending ? (
+            <Pressable
+              onPress={() => void ask(item.retryContent!, { isRetry: true })}
+              accessibilityRole="button"
+              accessibilityLabel="Intentar de nuevo"
+              style={({ pressed }) => [
+                styles.retryBtn,
+                {
+                  minHeight: minTouch,
+                  opacity: pressed ? 0.85 : 1,
+                  borderColor: isHighContrast ? colors.border : isDark ? colors.border : BrandColors.teal,
+                },
+              ]}
+            >
+              <AppText
+                variant="label"
+                style={{ color: isHighContrast ? colors.textPrimary : isDark ? colors.primary : BrandColors.teal }}
+              >
+                Intentar de nuevo
+              </AppText>
+            </Pressable>
+          ) : null}
+        </View>
+      );
+    }
+
+    const isUser = item.role === 'user';
+    return (
+      <View style={[styles.bubbleWrap, isUser ? styles.bubbleWrapUser : styles.bubbleWrapAssistant]}>
+        {!isUser ? (
+          <AppText variant="caption" tone="secondary" style={{ marginBottom: 4, marginLeft: 4 }}>
+            LIA
+          </AppText>
+        ) : null}
+        <View
+          style={[
+            styles.bubble,
+            isUser
+              ? {
+                  backgroundColor: isHighContrast ? colors.textPrimary : BrandColors.navy,
+                  borderBottomRightRadius: 8,
+                }
+              : {
+                  backgroundColor: isHighContrast ? colors.surface : messageFill,
+                  borderWidth: isHighContrast ? 2 : 0,
+                  borderColor: isHighContrast ? colors.border : messageFill,
+                  borderBottomLeftRadius: 8,
+                },
+          ]}
+        >
+          <AppText
+            variant="body"
+            selectable
+            style={{
+              flexShrink: 1,
+              fontFamily: FontFamily.regular,
+              color: isUser ? (isHighContrast ? colors.background : BrandColors.white) : ink,
+              lineHeight: scaleFont(24),
+            }}
+          >
+            {item.content}
+          </AppText>
+        </View>
+        {!isUser && item.sourceName ? (
+          <AppText variant="caption" tone="muted" style={{ marginTop: 6, marginLeft: 4, flexShrink: 1 }}>
+            {`Fuente: ${item.sourceName}`}
+          </AppText>
+        ) : null}
+        {!isUser ? (
+          <SpeakButton
+            id={`account-chat-${item.id}`}
+            label="Escuchar"
+            stopLabel="Detener"
+            text={item.content}
+            style={{ marginTop: 8, alignSelf: 'flex-start' }}
+          />
+        ) : null}
+      </View>
+    );
+  };
+
+  return (
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <AskLiaHeader onBack={() => navigation.goBack()} medicationName="tus medicamentos" />
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View
+          style={[
+            styles.flex,
+            {
+              maxWidth: chatMaxWidth,
+              width: '100%',
+              alignSelf: 'center',
+              paddingHorizontal: horizontalPadding,
+            },
+          ]}
+        >
+          <FlatList
+            ref={listRef}
+            data={messages}
+            keyExtractor={(item) => item.id}
+            renderItem={renderMessage}
+            style={[styles.flex, styles.thread]}
+            contentContainerStyle={{
+              paddingTop: scaleSpacing(Space[8]),
+              paddingBottom: scaleSpacing(Space[24]),
+              gap: scaleSpacing(Space[12]),
+            }}
+            onContentSizeChange={scrollToEnd}
+            keyboardShouldPersistTaps="handled"
+            ListHeaderComponent={
+              <View
+                style={[
+                  styles.notice,
+                  {
+                    backgroundColor: lightChrome
+                      ? '#E8ECEF'
+                      : isHighContrast && !isDark
+                        ? colors.surfaceElevated
+                        : colors.surface,
+                    borderColor: lightChrome ? CHAT_BEIGE : colors.border,
+                    borderWidth: isHighContrast ? 2 : 0,
+                    paddingVertical: scaleSpacing(8),
+                    paddingHorizontal: scaleSpacing(16),
+                    marginBottom: scaleSpacing(Space[8]),
+                  },
+                ]}
+              >
+                <AppText
+                  variant="caption"
+                  style={{
+                    color: colors.textSecondary,
+                    fontFamily: FontFamily.regular,
+                    fontSize: scaleFont(14),
+                    lineHeight: scaleFont(20),
+                    flexShrink: 1,
+                  }}
+                >
+                  LIA recuerda lo que guardaste en tu cuenta y puede explicar un medicamento que no esté en tu
+                  lista. No lo agrega a tu cuenta ni reemplaza las indicaciones de tu profesional de salud.
+                </AppText>
+              </View>
+            }
+            ListFooterComponent={
+              <View>
+                {sending ? (
+                  <View style={styles.typingRow} accessibilityLabel="LIA está escribiendo">
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <AppText variant="caption" tone="secondary">
+                      LIA está escribiendo…
+                    </AppText>
+                  </View>
+                ) : null}
+                {!hasInteracted ? (
+                  <View style={[styles.quickWrap, { gap: scaleSpacing(Space[8]) }]}>
+                    {QUICK_QUESTIONS.map((question) => (
+                      <SuggestedQuestionChip
+                        key={question}
+                        question={question}
+                        onPress={() => void ask(question)}
+                        disabled={sending}
+                      />
+                    ))}
+                  </View>
+                ) : null}
+              </View>
+            }
+          />
+
+          <View style={styles.composerSlot}>
+          <ChatComposer
+            value={input}
+            onChangeText={(text) => setInput(text.slice(0, DRUG_CHAT_MAX_MESSAGE))}
+            onSend={() => void ask(input)}
+            canSend={canSend}
+            sending={sending}
+            maxLength={DRUG_CHAT_MAX_MESSAGE}
+            nearLimit={nearLimit}
+            placeholder="Escribe tu pregunta…"
+            accessibilityLabel="Escribe tu pregunta"
+            bottomInset={keyboardOpen ? scaleSpacing(8) : Math.max(insets.bottom, scaleSpacing(Space[8]))}
+          />
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  flex: { flex: 1 },
+  notice: { borderRadius: 14, alignSelf: 'stretch' },
+  thread: { overflow: 'hidden' },
+  localBlock: { alignSelf: 'stretch' },
+  localRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  liaBubbleSlot: {
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  localCard: {
+    flex: 1,
+    minWidth: 0,
+    borderRadius: 28,
+    paddingHorizontal: Space[16],
+    paddingVertical: Space[16],
+  },
+  errorCard: { borderRadius: Radius.lg, padding: Space[16], alignSelf: 'stretch', gap: 12 },
+  retryBtn: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    justifyContent: 'center',
+  },
+  bubbleWrap: { maxWidth: '92%' },
+  bubbleWrapUser: { alignSelf: 'flex-end' },
+  bubbleWrapAssistant: { alignSelf: 'flex-start' },
+  bubble: {
+    paddingHorizontal: Space[16],
+    paddingVertical: Space[12],
+    borderRadius: 26,
+    maxWidth: '100%',
+  },
+  typingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
+  quickWrap: { flexDirection: 'column', alignItems: 'flex-start', paddingBottom: Space[12] },
+  composerSlot: { flexShrink: 0 },
+});

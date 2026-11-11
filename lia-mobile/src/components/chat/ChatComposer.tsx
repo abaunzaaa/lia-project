@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, TextInput, Pressable, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../icons/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
 import { useAccessibility } from '../../context/AccessibilityContext';
 import { BrandColors, brandInk } from '../../theme/brand';

@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../components/icons/Ionicons';
 import { DoseStatus, HistoryEntry } from '../types';
 import { addLocalDays, getLocalDateString } from './dateTime';
 

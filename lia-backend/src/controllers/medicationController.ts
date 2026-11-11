@@ -1,23 +1,10 @@
 import { Request, Response } from 'express';
 import { aiService, AiProviderError } from '../services/aiService';
 import { findMedication } from '../models/medicationDatabase';
-import { getDrugInfo, DrugReferenceError } from '../services/drugReferenceService';
 import { PatientDrugInfo } from '../models/drugReferenceTypes';
 import { markLatestWaitingSessionRecognized, attachImageToLatestWaitingSession } from '../services/cameraSessionService';
 import { CameraImageError, saveCameraJpeg } from '../services/cameraImageService';
-import { RecognitionResult } from '../models/types';
-
-function buildVoiceText(name: string, patient: PatientDrugInfo | null): string {
-  const purpose =
-    patient?.purpose?.trim() ||
-    'Es un medicamento. Sigue siempre las indicaciones de tu médico o farmacéutico.';
-
-  const extra =
-    patient?.importantInformation?.[0]?.trim() ||
-    'Si tienes dudas, consulta a un profesional de la salud.';
-
-  return `${name}. ${purpose} ${extra}`.replace(/\s+/g, ' ').trim().slice(0, 500);
-}
+import { recognizeAndEnrichMedicationImage } from '../services/medicationRecognitionService';
 
 function extractDeviceId(req: Request): string | undefined {
   const raw = req.headers['x-device-id'];
@@ -71,57 +58,11 @@ export async function recognizeMedication(req: Request, res: Response) {
       );
     }
 
-    const vision = await aiService.recognizeFromImage(req.file.buffer, deviceId);
-
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(
-        `[camera-recognition] recognizedName=${vision.name || '(empty)'} identified=${vision.identified}`
-      );
-    }
-
-    let patientInfo: PatientDrugInfo | null = null;
-    let rxcui: string | null = null;
-    let description = 'No se pudo obtener información adicional del medicamento.';
-    let dose = '';
-
-    // Enriquecer ficha si hay nombre; el fallo de Drug Reference NO bloquea la sesión.
-    if (vision.name) {
-      try {
-        patientInfo = await getDrugInfo({ name: vision.name });
-        rxcui = patientInfo.id;
-        description =
-          patientInfo.purpose ||
-          patientInfo.importantInformation[0] ||
-          description;
-        dose = patientInfo.dosageForms[0] || '';
-      } catch (error) {
-        if (!(error instanceof DrugReferenceError)) {
-          console.error(
-            '[recognize:drug-reference]',
-            error instanceof Error ? error.message : 'error'
-          );
-        }
-        const catalog = findMedication(vision.name);
-        if (catalog) {
-          description = catalog.description;
-          dose = catalog.dose;
-        }
-      }
-    }
-
-    const identified = Boolean(vision.identified && vision.name);
-    const voiceText = identified ? buildVoiceText(vision.name, patientInfo) : null;
-
-    const payload: RecognitionResult = {
-      name: vision.name || '',
-      description,
-      dose,
-      confidence: vision.confidence,
-      rxcui,
-      patientInfo,
-      voiceText,
-      identified,
-    };
+    const payload = await recognizeAndEnrichMedicationImage(req.file.buffer, deviceId);
+    const patientInfo =
+      payload.patientInfo && typeof payload.patientInfo === 'object'
+        ? (payload.patientInfo as PatientDrugInfo)
+        : null;
 
     // Completar sesión waiting con EL MISMO resultado (una foto → un reconocimiento).
     // No exigir patientInfo/rxcui: basta con el nombre.
@@ -131,14 +72,14 @@ export async function recognizeMedication(req: Request, res: Response) {
           '[camera-session:match] deviceId=(missing) found=false — ESP32 debe enviar X-Device-Id'
         );
       }
-    } else if (identified && vision.name) {
+    } else if (payload.identified && payload.name) {
       try {
         const sessionId = await markLatestWaitingSessionRecognized({
           deviceId,
-          medicationName: vision.name,
-          rxcui,
+          medicationName: payload.name,
+          rxcui: payload.rxcui ?? null,
           patientInfo,
-          voiceText,
+          voiceText: payload.voiceText ?? null,
         });
         if (process.env.NODE_ENV !== 'production') {
           if (sessionId) {

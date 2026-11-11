@@ -7,18 +7,16 @@
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
     "backgroundColor": "#6FA8DC",
-    "splash": {
-      "image": "./assets/icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#173B59"
-    },
     "assetBundlePatterns": [
       "assets/**/*",
       "src/assets/**/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.lia.medications"
+      "bundleIdentifier": "com.lia.medications",
+      "infoPlist": {
+        "NSCameraUsageDescription": "LÍA usa la cámara de tu celular para reconocer medicamentos."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -30,15 +28,35 @@
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
-        "SCHEDULE_EXACT_ALARM"
+        "SCHEDULE_EXACT_ALARM",
+        "CAMERA"
       ]
     },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#173B59",
+          "image": "./assets/icon.png",
+          "resizeMode": "contain",
+          "enableFullScreenImage_legacy": true
+        }
+      ],
       "expo-font",
       [
         "expo-image-picker",
         {
-          "photosPermission": "LÍA usa tu galería para cambiar tu foto de perfil."
+          "photosPermission": "LÍA usa tu galería para cambiar tu foto de perfil.",
+          "cameraPermission": "LÍA usa la cámara de tu celular para reconocer medicamentos."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "LÍA usa la cámara de tu celular para reconocer medicamentos.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": false
         }
       ],
       [

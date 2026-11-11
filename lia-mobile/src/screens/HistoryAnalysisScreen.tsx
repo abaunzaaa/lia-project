@@ -12,7 +12,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../components/icons/Ionicons';
 import { AppText } from '../components';
 import { useAuth } from '../context/AuthContext';
 import { useReminders } from '../context/ReminderContext';
@@ -20,10 +20,11 @@ import { useMedications } from '../context/MedicationContext';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useTheme } from '../context/ThemeContext';
 import { useResponsive } from '../hooks/useResponsive';
+import { MedicationPresentation } from '../types';
 import { Space } from '../theme/tokens';
 import { getDeviceTimeZone, getLocalDateString } from '../utils/dateTime';
 import { HistoryImages } from '../utils/historyAssets';
-import { getMedicationImageSource } from '../config/medicationImages';
+import { presentationVisualSource } from '../utils/presentationVisual';
 import {
   clampPercent,
   currentWeekRange,
@@ -143,12 +144,9 @@ function insightsFromEntries(
 }
 
 function medicationArt(
-  name: string,
-  imageUrl?: string | null
+  presentation?: MedicationPresentation | null
 ): ImageSourcePropType {
-  const catalog = getMedicationImageSource(name);
-  if (imageUrl && imageUrl.trim().length > 0) return { uri: imageUrl };
-  return catalog;
+  return presentationVisualSource(presentation);
 }
 
 export default function HistoryAnalysisScreen({ navigation }: Props) {
@@ -478,7 +476,7 @@ export default function HistoryAnalysisScreen({ navigation }: Props) {
                 const pct = dayAdherencePercent(med.taken, med.totalDue) ?? 0;
                 const saved = medications.find((item) => item.id === med.medicationId);
                 const name = (saved?.name || med.name || 'Medicamento').trim() || 'Medicamento';
-                const art = medicationArt(name, saved?.imageUrl);
+                const art = medicationArt(saved?.presentation);
                 const barColor =
                   index % 2 === 0
                     ? lightChrome

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Pressable, StyleSheet, Image } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from './icons/Ionicons';
 import { DrugSearchResult } from '../types';
 import { BrandColors, liaCardBorder } from '../theme/brand';
 import { Radius, Space } from '../theme/tokens';

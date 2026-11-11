@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../components/icons/Ionicons';
 import { RootStackParamList, MainTabParamList, Medication } from '../types';
 import {
   AppText,
@@ -353,10 +353,10 @@ export default function MedicationsScreen({ navigation }: Props) {
 
       {!loading && medications.length > 0 ? (
         <Pressable
-          onPress={goToAdd}
+          onPress={() => navigation.navigate('AccountMedicationsChat')}
           accessibilityRole="button"
-          accessibilityLabel="Agregar medicamento"
-          accessibilityHint="Abre el formulario para registrar un medicamento"
+          accessibilityLabel="Pregúntale a LÍA"
+          accessibilityHint="Abre el chat sobre tus medicamentos registrados"
           style={({ pressed }) => [
             styles.fab,
             {
@@ -372,7 +372,7 @@ export default function MedicationsScreen({ navigation }: Props) {
             },
           ]}
         >
-          <Ionicons name="add" size={scaleFont(26)} color={BrandColors.white} />
+          <Ionicons name="chatbubble-ellipses" size={scaleFont(26)} color={BrandColors.white} />
         </Pressable>
       ) : null}
 

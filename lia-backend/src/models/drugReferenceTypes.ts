@@ -13,7 +13,7 @@ export interface DrugSearchResult {
 }
 
 export interface DrugInfoSource {
-  name: 'openFDA' | 'DailyMed' | 'RxNorm';
+  name: 'openFDA' | 'DailyMed' | 'RxNorm' | 'Public';
   reference: string | null;
 }
 

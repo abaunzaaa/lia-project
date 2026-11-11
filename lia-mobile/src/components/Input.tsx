@@ -5,6 +5,7 @@ import {
   Pressable,
   StyleSheet,
   TextInputProps,
+  type TextInputInstance,
 } from 'react-native';
 import { FontFamily, Layout, Radius, Space } from '../theme/tokens';
 import { useTheme } from '../context/ThemeContext';
@@ -23,7 +24,7 @@ interface InputProps extends TextInputProps {
   chrome?: 'default' | 'white';
 }
 
-const Input = React.forwardRef<TextInput, InputProps>(function Input(
+const Input = React.forwardRef<TextInputInstance, InputProps>(function Input(
   { label, error, icon, right, style, secureToggle, secureTextEntry, accessibilityHint, chrome = 'default', ...props },
   ref
 ) {

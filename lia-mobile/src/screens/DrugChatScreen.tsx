@@ -8,6 +8,7 @@ import {
   Platform,
   ActivityIndicator,
   Image,
+  Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -18,7 +19,6 @@ import AskLiaHeader from '../components/chat/AskLiaHeader';
 import SuggestedQuestionChip from '../components/chat/SuggestedQuestionChip';
 import ChatComposer from '../components/chat/ChatComposer';
 import {
-  CHAT_BEIGE,
   CHAT_BUBBLE_SIZE,
   CHAT_MESSAGE_FILL,
   LIA_CHAT_BUBBLE,
@@ -72,7 +72,8 @@ function toHistory(messages: UiMessage[]): DrugChatHistoryItem[] {
 }
 
 export default function DrugChatScreen({ navigation, route }: Props) {
-  const { name, rxcui, registeredDose } = route.params;
+  const { name, rxcui, registeredDose, registeredPurpose, registeredPresentation, registeredNotes } =
+    route.params;
   const insets = useSafeAreaInsets();
   const { scaleFont, scaleSpacing, minTouch } = useAccessibility();
   const { colors, isHighContrast, isDark } = useTheme();
@@ -85,22 +86,27 @@ export default function DrugChatScreen({ navigation, route }: Props) {
   const listRef = useRef<FlatList<UiMessage>>(null);
   const sendingRef = useRef(false);
   const messagesRef = useRef<UiMessage[]>([]);
+  const conversationRef = useRef(0);
 
-  const [messages, setMessages] = useState<UiMessage[]>(() => [
-    {
-      id: generateId(),
-      role: 'local',
-      content: `Puedes preguntarme sobre la información disponible de ${name}.`,
-      createdAt: Date.now(),
-    },
-  ]);
+  const [messages, setMessages] = useState<UiMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
 
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+
+  useEffect(() => {
+    conversationRef.current += 1;
+    sendingRef.current = false;
+    messagesRef.current = [];
+    setMessages([]);
+    setInput('');
+    setSending(false);
+    setHasInteracted(false);
+  }, [name, rxcui]);
 
   const scrollToEnd = useCallback(() => {
     requestAnimationFrame(() => {
@@ -112,12 +118,24 @@ export default function DrugChatScreen({ navigation, route }: Props) {
     scrollToEnd();
   }, [messages, sending, scrollToEnd]);
 
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, () => setKeyboardOpen(true));
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardOpen(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
   const ask = useCallback(
     async (rawQuestion: string, options?: { isRetry?: boolean }) => {
       const question = rawQuestion.trim();
       if (!question || sendingRef.current) return;
       if (question.length > DRUG_CHAT_MAX_MESSAGE) return;
 
+      const generation = conversationRef.current;
       sendingRef.current = true;
       setSending(true);
       setHasInteracted(true);
@@ -165,7 +183,11 @@ export default function DrugChatScreen({ navigation, route }: Props) {
           message: question,
           history,
           registeredDose: registeredDose?.trim() || undefined,
+          registeredPurpose: registeredPurpose?.trim() || undefined,
+          registeredPresentation: registeredPresentation?.trim() || undefined,
+          registeredNotes: registeredNotes?.trim() || undefined,
         });
+        if (generation !== conversationRef.current) return;
 
         const assistantMsg: UiMessage = {
           id: generateId(),
@@ -180,6 +202,11 @@ export default function DrugChatScreen({ navigation, route }: Props) {
           return updated;
         });
       } catch (e) {
+        if (generation !== conversationRef.current) return;
+        if (__DEV__) {
+          const status = e instanceof DrugChatApiError ? e.status ?? 'network' : 'unknown';
+          console.warn(`[drug-chat] status=${status}`);
+        }
         const message =
           e instanceof DrugChatApiError
             ? e.message
@@ -197,11 +224,13 @@ export default function DrugChatScreen({ navigation, route }: Props) {
           return updated;
         });
       } finally {
-        sendingRef.current = false;
-        setSending(false);
+        if (generation === conversationRef.current) {
+          sendingRef.current = false;
+          setSending(false);
+        }
       }
     },
-    [name, rxcui, registeredDose]
+    [name, rxcui, registeredDose, registeredPurpose, registeredPresentation, registeredNotes]
   );
 
   const canSend = input.trim().length > 0 && !sending;
@@ -398,77 +427,57 @@ export default function DrugChatScreen({ navigation, route }: Props) {
             },
           ]}
         >
-          <View
-            style={[
-              styles.notice,
-              {
-                backgroundColor: lightChrome
-                  ? '#E8ECEF'
-                  : isHighContrast && !isDark
-                    ? colors.surfaceElevated
-                    : colors.surface,
-                borderColor: lightChrome ? CHAT_BEIGE : colors.border,
-                borderWidth: isHighContrast ? 2 : 0,
-                paddingVertical: scaleSpacing(12),
-                paddingHorizontal: scaleSpacing(16),
-                marginTop: scaleSpacing(Space[8]),
-                marginBottom: scaleSpacing(Space[8]),
-              },
-            ]}
-          >
-            <AppText
-              variant="caption"
-              style={{
-                color: colors.textSecondary,
-                fontFamily: FontFamily.regular,
-                fontSize: scaleFont(14),
-                lineHeight: scaleFont(20),
-                flexShrink: 1,
-              }}
-            >
-              LIA ofrece información orientativa y no reemplaza las indicaciones de tu profesional de
-              salud.
-            </AppText>
-          </View>
-
           <FlatList
             ref={listRef}
             data={messages}
             keyExtractor={(item) => item.id}
             renderItem={renderMessage}
-            style={styles.flex}
+            style={[styles.flex, styles.thread]}
             contentContainerStyle={{
-              paddingVertical: scaleSpacing(Space[8]),
-              paddingBottom: scaleSpacing(Space[16]),
+              paddingTop: scaleSpacing(Space[8]),
+              paddingBottom: scaleSpacing(Space[24]),
               gap: scaleSpacing(Space[12]),
-              flexGrow: 1,
             }}
             onContentSizeChange={scrollToEnd}
             keyboardShouldPersistTaps="handled"
             ListFooterComponent={
-              sending ? (
-                <View style={styles.typingRow} accessibilityLabel="LIA está escribiendo">
-                  <ActivityIndicator size="small" color={colors.primary} />
-                  <AppText variant="caption" tone="secondary">
-                    LIA está escribiendo…
+              <View>
+                {sending ? (
+                  <View style={styles.typingRow} accessibilityLabel="LIA está escribiendo">
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <AppText variant="caption" tone="secondary">
+                      LIA está escribiendo…
+                    </AppText>
+                  </View>
+                ) : null}
+                {!hasInteracted ? (
+                  <AppText
+                    variant="caption"
+                    tone="muted"
+                    style={{
+                      marginBottom: scaleSpacing(8),
+                      fontSize: scaleFont(14),
+                      lineHeight: scaleFont(20),
+                    }}
+                  >
+                    Información orientativa. No reemplaza a tu médico.
                   </AppText>
-                </View>
-              ) : null
+                ) : null}
+                {!hasInteracted ? (
+                  <View style={[styles.quickWrap, { gap: scaleSpacing(Space[8]) }]}>
+                    {QUICK_QUESTIONS.map((q) => (
+                      <SuggestedQuestionChip
+                        key={q}
+                        question={q}
+                        onPress={() => void ask(q)}
+                        disabled={sending}
+                      />
+                    ))}
+                  </View>
+                ) : null}
+              </View>
             }
           />
-
-          {!hasInteracted ? (
-            <View style={[styles.quickWrap, { gap: scaleSpacing(Space[8]) }]}>
-              {QUICK_QUESTIONS.map((q) => (
-                <SuggestedQuestionChip
-                  key={q}
-                  question={q}
-                  onPress={() => void ask(q)}
-                  disabled={sending}
-                />
-              ))}
-            </View>
-          ) : null}
 
           <ChatComposer
             value={input}
@@ -480,7 +489,7 @@ export default function DrugChatScreen({ navigation, route }: Props) {
             nearLimit={nearLimit}
             placeholder="Escribe tu pregunta…"
             accessibilityLabel="Escribe tu pregunta"
-            bottomInset={Math.max(insets.bottom, scaleSpacing(Space[8]))}
+            bottomInset={keyboardOpen ? scaleSpacing(8) : Math.max(insets.bottom, scaleSpacing(Space[8]))}
           />
         </View>
       </KeyboardAvoidingView>
@@ -491,10 +500,7 @@ export default function DrugChatScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   flex: { flex: 1 },
-  notice: {
-    borderRadius: 14,
-    alignSelf: 'stretch',
-  },
+  thread: { overflow: 'hidden' },
   localBlock: {
     alignSelf: 'stretch',
   },

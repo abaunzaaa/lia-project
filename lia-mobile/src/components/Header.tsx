@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from './icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Layout, Space } from '../theme/tokens';
 import { useTheme } from '../context/ThemeContext';

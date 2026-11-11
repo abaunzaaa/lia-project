@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Image, Pressable, StyleSheet, View, ViewStyle, StyleProp } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from './icons/Ionicons';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useTheme } from '../context/ThemeContext';
 import { BrandColors, brandInk } from '../theme/brand';
