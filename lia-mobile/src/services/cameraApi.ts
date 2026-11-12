@@ -175,6 +175,7 @@ export function normalizeCameraResult(
   importantPoints: string[];
   source: string | null;
   imageUrl: string | null;
+  presentation: string | null;
 } | null {
   const info = poll.result?.patientInfo;
   const voiceFallback =
@@ -187,6 +188,10 @@ export function normalizeCameraResult(
   const rawSource =
     agrees && typeof info?.source === 'object' && info?.source?.name ? info.source.name : null;
   const source = rawSource && rawSource !== 'Public' ? rawSource : null;
+  const presentation =
+    info?.dosageForms?.[0]?.trim() ||
+    presentationHint(voiceFallback) ||
+    null;
   return {
     name,
     activeIngredient: agrees ? info?.genericName?.trim() || null : null,
@@ -199,7 +204,15 @@ export function normalizeCameraResult(
         : [],
     source,
     imageUrl: poll.result?.imageUrl?.trim() || null,
+    presentation,
   };
+}
+
+function presentationHint(text: string): string | null {
+  const match = text.match(
+    /c[aá]psulas?|tabletas?|comprimidos?|grageas?|gotas?|jarabe|suspensi[oó]n|soluci[oó]n|sobres?/i
+  );
+  return match?.[0] || null;
 }
 
 export type ObservedPackagePayload = {

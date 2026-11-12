@@ -7,10 +7,11 @@ import {
   ActivityIndicator,
   AccessibilityInfo,
   Pressable,
+  useWindowDimensions,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '../components/icons/Ionicons';
 import { RootStackParamList } from '../types';
 import { AppText, Button, EditorialText, Screen, SpeakButton, SurfaceCard, Toast } from '../components';
@@ -23,7 +24,6 @@ import { useResponsive } from '../hooks/useResponsive';
 import { BrandColors, liaCardBorder } from '../theme/brand';
 import { Radius, Space } from '../theme/tokens';
 import IdentificationResultCard from '../components/identification-result/IdentificationResultCard';
-import IdentificationResultWave from '../components/identification-result/IdentificationResultWave';
 import { SPEECH_CAMERA_GUIDE } from '../utils/speechPhrases';
 import { normalizeMedicationName } from '../utils/helpers';
 import { noteFromRecognition, readingForExistingMedication } from '../utils/recognizedMedication';
@@ -48,6 +48,7 @@ type RecognizedView = {
   purpose: string | null;
   observedReading: string | null;
   importantPoints: string[];
+  presentation: string | null;
   source: string | null;
   imageUrl: string | null;
 };
@@ -74,6 +75,10 @@ export default function CameraGuideScreen({ navigation }: Props) {
   const { medications, updateMedication } = useMedications();
   const { setPendingResult, clearPendingResult } = useCameraRecognition();
   const insets = useSafeAreaInsets();
+  const windowSize = useWindowDimensions();
+  const portrait = windowSize.height >= windowSize.width;
+  const resultTopInset =
+    insets.top > 0 ? insets.top : portrait ? (initialWindowMetrics?.insets.top ?? 0) : 0;
 
   const [phase, setPhase] = useState<GuidePhase>('step1');
   const [result, setResult] = useState<RecognizedView | null>(null);
@@ -96,6 +101,7 @@ export default function CameraGuideScreen({ navigation }: Props) {
   const attemptGenerationRef = useRef(0);
 
   const pageBg = lightChrome ? BrandColors.white : colors.background;
+  const headerFill = isHighContrast ? colors.surfaceElevated : isDark ? colors.primaryLight : BrandColors.skyBlue;
   const ink = lightChrome ? BrandColors.navy : colors.textPrimary;
   const muted = lightChrome ? BrandColors.teal : colors.textSecondary;
   const teal = lightChrome ? BrandColors.teal : colors.primary;
@@ -242,6 +248,7 @@ export default function CameraGuideScreen({ navigation }: Props) {
               purpose: normalized.purpose,
               observedReading: normalized.observedReading,
               importantPoints: normalized.importantPoints,
+              presentation: normalized.presentation,
               source: normalized.source,
               imageUrl: normalized.imageUrl,
             });
@@ -370,6 +377,7 @@ export default function CameraGuideScreen({ navigation }: Props) {
     ? [
         result.name,
         result.activeIngredient ? `Principio activo: ${result.activeIngredient}` : '',
+        result.presentation ? `Presentación: ${result.presentation}` : '',
         result.purpose || '',
         result.observedReading ? `Lectura de la foto: ${result.observedReading}` : '',
         ...(result.importantPoints || []).slice(0, 3),
@@ -413,6 +421,116 @@ export default function CameraGuideScreen({ navigation }: Props) {
     },
   ];
 
+  if (phase === 'result' && result) {
+    return (
+      <View style={[styles.root, { backgroundColor: pageBg, paddingTop: resultTopInset }]}>
+        <Screen
+          scroll
+          transparent
+          padded={false}
+          contentStyle={{
+            paddingTop: 0,
+            paddingHorizontal: 0,
+            paddingBottom: insets.bottom + scaleSpacing(Space[32]),
+          }}
+        >
+          <View style={{ backgroundColor: headerFill }}>
+            <View
+              style={{
+                paddingHorizontal: horizontalPadding,
+                paddingTop: scaleSpacing(Space[8]),
+                paddingBottom: scaleSpacing(Space[8]),
+              }}
+            >
+              <Pressable
+                onPress={() => navigation.goBack()}
+                accessibilityRole="button"
+                accessibilityLabel="Identificar"
+                style={({ pressed }) => [
+                  styles.backBtn,
+                  {
+                    minWidth: minTouch,
+                    minHeight: minTouch,
+                    opacity: pressed ? 0.75 : 1,
+                  },
+                ]}
+              >
+                <Ionicons name="chevron-back" size={26} color={ink} />
+                <AppText variant="body" style={{ color: ink, fontWeight: '600' }}>
+                  Identificar
+                </AppText>
+              </Pressable>
+              <EditorialText
+                variant="headline"
+                accessibilityRole="header"
+                style={{
+                  fontSize: scaleFont(32),
+                  lineHeight: scaleFont(38),
+                  marginTop: scaleSpacing(Space[8]),
+                }}
+              >
+                Usa la cámara LÍA
+              </EditorialText>
+            </View>
+          </View>
+          <View pointerEvents="none" style={styles.resultCurve}>
+            <View style={[styles.resultCurveFill, { backgroundColor: headerFill }]} />
+          </View>
+          <View
+            style={{
+              paddingTop: scaleSpacing(Space[8]),
+              paddingHorizontal: horizontalPadding,
+            }}
+          >
+            <AppText
+              variant="body"
+              style={{
+                color: muted,
+                flexShrink: 1,
+                marginBottom: scaleSpacing(Space[24]),
+              }}
+            >
+              Te guiamos paso a paso. No hay botón de foto en la app: usa el botón rojo de la cámara.
+            </AppText>
+            <IdentificationResultCard
+              name={result.name}
+              purpose={result.purpose}
+              observedReading={result.observedReading}
+              activeIngredient={result.activeIngredient}
+              importantPoints={result.importantPoints}
+              presentation={result.presentation}
+              source={result.source}
+              imageUrl={result.imageUrl || photoUrl}
+              speakId={`camera-result-${result.name}`}
+              speakText={speakText}
+            />
+            <View style={{ gap: scaleSpacing(Space[8]), marginTop: scaleSpacing(Space[20]) }}>
+              <Button
+                title="Agregar medicamento"
+                onPress={handleAdd}
+                accessibilityLabel="Agregar medicamento identificado"
+                style={{ minHeight: Math.max(56, minTouch), borderRadius: Radius.lg }}
+              />
+              <Button
+                title="Ahora no"
+                variant="outline"
+                onPress={handleDismiss}
+                accessibilityLabel="Ahora no agregar el medicamento"
+                style={{ minHeight: Math.max(54, minTouch), borderRadius: Radius.lg }}
+              />
+            </View>
+          </View>
+        </Screen>
+        <Toast
+          visible={toast.visible}
+          message={toast.message}
+          type={toast.type}
+          onHide={() => setToast((t) => ({ ...t, visible: false }))}
+        />
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.root, { backgroundColor: pageBg }]}>
       {flashOn ? (
@@ -420,10 +538,6 @@ export default function CameraGuideScreen({ navigation }: Props) {
           pointerEvents="none"
           style={[StyleSheet.absoluteFill, { backgroundColor: BrandColors.white, zIndex: 50 }]}
         />
-      ) : null}
-
-      {phase === 'result' ? (
-        <IdentificationResultWave topOffset={insets.top + scaleSpacing(Space[8])} />
       ) : null}
 
       <Screen
@@ -451,11 +565,6 @@ export default function CameraGuideScreen({ navigation }: Props) {
           ]}
         >
           <Ionicons name="chevron-back" size={26} color={ink} />
-          {phase === 'result' ? (
-            <AppText variant="body" style={{ color: ink, fontWeight: '600' }}>
-              Identificar
-            </AppText>
-          ) : null}
         </Pressable>
 
         {phase !== 'result' ? (
@@ -768,60 +877,6 @@ export default function CameraGuideScreen({ navigation }: Props) {
           </View>
         ) : null}
 
-        {phase === 'result' && result ? (
-          <View style={{ marginTop: scaleSpacing(Space[8]) }}>
-            <EditorialText
-              variant="headline"
-              accessibilityRole="header"
-              style={{
-                fontSize: scaleFont(32),
-                lineHeight: scaleFont(38),
-                marginBottom: scaleSpacing(Space[8]),
-                flexShrink: 1,
-              }}
-            >
-              Usa la cámara LÍA
-            </EditorialText>
-            <AppText
-              variant="body"
-              style={{
-                color: muted,
-                flexShrink: 1,
-                marginBottom: scaleSpacing(Space[24]),
-              }}
-            >
-              Te guiamos paso a paso. No hay botón de foto en la app: usa el botón rojo de la cámara.
-            </AppText>
-
-            <IdentificationResultCard
-              name={result.name}
-              purpose={result.purpose}
-              observedReading={result.observedReading}
-              activeIngredient={result.activeIngredient}
-              importantPoints={result.importantPoints}
-              source={result.source}
-              imageUrl={result.imageUrl || photoUrl}
-              speakId={`camera-result-${result.name}`}
-              speakText={speakText}
-            />
-
-            <View style={{ gap: scaleSpacing(Space[8]), marginTop: scaleSpacing(Space[20]) }}>
-              <Button
-                title="Agregar medicamento"
-                onPress={handleAdd}
-                accessibilityLabel="Agregar medicamento identificado"
-                style={{ minHeight: Math.max(56, minTouch), borderRadius: Radius.lg }}
-              />
-              <Button
-                title="Ahora no"
-                variant="outline"
-                onPress={handleDismiss}
-                accessibilityLabel="Ahora no agregar el medicamento"
-                style={{ minHeight: Math.max(54, minTouch), borderRadius: Radius.lg }}
-              />
-            </View>
-          </View>
-        ) : null}
       </Screen>
 
       <Toast
@@ -856,6 +911,17 @@ function EmptyLike({ message }: { message: string }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  resultCurve: {
+    height: 20,
+    marginTop: -1,
+    overflow: 'hidden',
+    backgroundColor: 'transparent',
+  },
+  resultCurveFill: {
+    height: 40,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 24,
+  },
   backBtn: {
     alignSelf: 'flex-start',
     flexDirection: 'row',

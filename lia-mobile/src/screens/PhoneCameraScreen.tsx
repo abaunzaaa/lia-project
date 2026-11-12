@@ -324,7 +324,6 @@ export default function PhoneCameraScreen({ navigation }: Props) {
         result.presentation ? `Presentación: ${result.presentation}` : '',
         result.purpose || '',
         result.observedReading ? `Lectura de la foto: ${result.observedReading}` : '',
-        result.observedReading ? 'Sale de la foto y todavía no está confirmada.' : '',
         ...(result.importantPoints || []).slice(0, 2),
       ]
         .filter(Boolean)

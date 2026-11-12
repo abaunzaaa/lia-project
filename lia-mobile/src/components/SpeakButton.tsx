@@ -74,11 +74,7 @@ export default function SpeakButton({
     }
   };
 
-  const a11yLabel = identification
-    ? isThis
-      ? stopLabel
-      : 'Escuchar explicación del medicamento'
-    : title;
+  const a11yLabel = title;
 
   return (
     <>
@@ -156,16 +152,6 @@ export default function SpeakButton({
                 }}
               >
                 {title}
-              </AppText>
-              <AppText
-                variant="caption"
-                style={{
-                  color: isHighContrast ? colors.textSecondary : isDark ? colors.textSecondary : BrandColors.teal,
-                  marginTop: 2,
-                  flexShrink: 1,
-                }}
-              >
-                Oír la explicación
               </AppText>
             </View>
             <View

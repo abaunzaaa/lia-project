@@ -7,10 +7,8 @@ import { FontFamily, FontWeight, Radius, Space } from '../../theme/tokens';
 import AppText from '../AppText';
 import SpeakButton from '../SpeakButton';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
-import {
-  identifiedCheckAsset,
-  identifiedMedicineAsset,
-} from './identificationResultAssets';
+import { recognitionArtSource } from '../../utils/presentationVisual';
+import { identifiedCheckAsset } from './identificationResultAssets';
 
 type Props = {
   name: string;
@@ -178,7 +176,7 @@ export default function IdentificationResultCard({
 
         {imageUrl || fallbackImageUrl ? null : (
           <Image
-            source={identifiedMedicineAsset}
+            source={recognitionArtSource(presentation)}
             style={styles.art}
             resizeMode="contain"
             accessibilityIgnoresInvertColors
@@ -221,9 +219,6 @@ export default function IdentificationResultCard({
             }}
           >
             {observedReading}
-          </AppText>
-          <AppText variant="caption" style={{ color: muted, marginTop: scaleSpacing(Space[8]), flexShrink: 1 }}>
-            Sale de la foto y todavía no está confirmada.
           </AppText>
         </View>
       ) : null}
